@@ -80,7 +80,11 @@ const Academy = (() => {
 
   /* ---------- Data ---------- */
   async function ensure(force = false) {
-    if (!D) D = await (await fetch('assets/academy.json?v=' + (window.CS_VERSION || ''), { cache: 'no-cache' })).json();
+    if (!D) {
+      const r = await fetch('assets/academy.json?v=' + (window.CS_VERSION || ''), { cache: 'no-cache' });
+      if (!r.ok) throw new Error(`Could not load the lessons (server said ${r.status}). Please update the app files on the server.`);
+      D = await r.json();
+    }
     if (!P || force) P = await api('academy_progress');
   }
   const lessons = () => D.modules.flatMap(m => m.lessons.map(l => ({ ...l, module: m })));
