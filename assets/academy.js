@@ -8,15 +8,15 @@ const Academy = (() => {
   /* ---------- Field diagram (right-handed batter, batter's end at the top, off side on the left) ---------- */
   // [x, y, name, label dx, label dy, anchor]  — hand-placed on a 400×400 field, batter's stumps at y=140
   const POS = {
-    keeper: [200, 100, 'Wicket-keeper', 0, -15], bowler: [200, 284, 'Bowler', 0, 27],
-    'first-slip': [174, 104, '1st slip', 0, 27], 'second-slip': [150, 112, '2nd slip', 0, -15], 'third-slip': [128, 124, '3rd slip', -2, 27],
-    gully: [104, 142, 'Gully', -14, 5, 'end'], 'fly-slip': [118, 56, 'Fly slip', 0, -15],
+    keeper: [200, 96, 'Wicket-keeper', 0, -15], bowler: [200, 284, 'Bowler', 0, 27],
+    'first-slip': [176, 100, '1st slip', 0, 27], 'second-slip': [154, 106, '2nd slip', 0, -15], 'third-slip': [134, 115, '3rd slip', -2, 27],
+    gully: [116, 126, 'Gully', -14, 5, 'end'], 'fly-slip': [118, 56, 'Fly slip', 0, -15],
     'leg-slip': [226, 104, 'Leg slip', 12, -10, 'start'], 'leg-gully': [252, 124, 'Leg gully', 14, 5, 'start'],
     'short-leg': [230, 156, 'Short leg', 14, 5, 'start'], 'silly-point': [170, 158, 'Silly point', -4, 28],
     'silly-mid-off': [172, 194, 'Silly mid-off', -14, 5, 'end'], 'silly-mid-on': [228, 194, 'Silly mid-on', 14, 5, 'start'],
-    point: [64, 150, 'Point', 0, 27], 'backward-point': [84, 108, 'Backward point', 0, -15], cover: [88, 212, 'Cover', 0, 27],
+    point: [88, 160, 'Point', 0, 27], 'backward-point': [98, 134, 'Backward point', -14, 5, 'end'], cover: [88, 212, 'Cover', 0, 27],
     'extra-cover': [120, 264, 'Extra cover', 0, 27], 'mid-off': [164, 304, 'Mid-off', -6, 27], 'mid-on': [236, 304, 'Mid-on', 6, 27],
-    'mid-wicket': [306, 234, 'Mid-wicket', 0, 27], 'square-leg': [318, 146, 'Square leg', 0, 27], 'short-fine-leg': [270, 86, 'Short fine leg', 0, -15],
+    'mid-wicket': [306, 234, 'Mid-wicket', 0, 27], 'square-leg': [308, 150, 'Square leg', 0, 27], 'short-fine-leg': [270, 86, 'Short fine leg', 0, -15],
     'fine-leg': [290, 32, 'Fine leg', 0, 28], 'third-man': [112, 32, 'Third man', 0, 28],
     'deep-point': [12, 154, 'Deep point', 14, -14, 'start'], 'deep-cover': [28, 264, 'Deep cover', 14, -14, 'start'],
     'long-off': [160, 388, 'Long-off', -2, -15], 'long-on': [240, 388, 'Long-on', 2, -15], 'cow-corner': [320, 352, 'Cow corner', -12, -15, 'end'],
@@ -49,10 +49,29 @@ const Academy = (() => {
             <circle cx="${ex}" cy="${ey}" r="7" fill="#d62839" stroke="#fff" stroke-width="2"/>`;
     }
     marks.forEach(k => { const [x, y] = POS[k]; s += `<circle cx="${x}" cy="${y}" r="10" fill="#ffd23f" stroke="#13241b" stroke-width="2.5" class="ac-dot"/>`; });
-    marks.forEach(k => {
-      const [x, y, name, lx = 0, ly = -15, anchor = 'middle'] = POS[k];
-      s += show ? `<text x="${x + lx}" y="${y + ly}" text-anchor="${anchor}" class="ac-lbl">${esc(name)}</text>` : `<text x="${x}" y="${y + 5}" text-anchor="middle" class="ac-q">?</text>`;
-    });
+    if (show) {
+      // Place each label where it overlaps no other label or fielder dot
+      const boxes = marks.map(k => ({ x1: POS[k][0] - 11, y1: POS[k][1] - 11, x2: POS[k][0] + 11, y2: POS[k][1] + 11 }));
+      const hit = (b, list) => list.some(o => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
+      marks.forEach((k, idx) => {
+        const [x, y, name, lx = 0, ly = -15, anchor = 'middle'] = POS[k];
+        const w = name.length * 6.9 + 4, h = 14;
+        const cands = [[lx, ly, anchor], [0, -15, 'middle'], [0, 27, 'middle'], [-14, 5, 'end'], [14, 5, 'start'], [-10, -14, 'end'], [10, -14, 'start'], [-10, 25, 'end'], [10, 25, 'start'], [0, -30, 'middle'], [0, 42, 'middle']];
+        const others = boxes.filter((_, j) => j !== idx);
+        let pick = cands[0], box = null;
+        for (const c of cands) {
+          const tx = x + c[0], ty = y + c[1];
+          const x1 = c[2] === 'middle' ? tx - w / 2 : c[2] === 'end' ? tx - w : tx;
+          const b2 = { x1, y1: ty - h + 2, x2: x1 + w, y2: ty + 3 };
+          if (b2.x1 < -12 || b2.x2 > 412 || b2.y1 < -12) continue;
+          if (!hit(b2, others)) { pick = c; box = b2; break; }
+          if (!box) box = b2;
+        }
+        if (!hit(box, others) || pick === cands[0]) { /* keep */ }
+        boxes.push(box);
+        s += `<text x="${x + pick[0]}" y="${y + pick[1]}" text-anchor="${pick[2]}" class="ac-lbl">${esc(name)}</text>`;
+      });
+    } else marks.forEach(k => { const [x, y] = POS[k]; s += `<text x="${x}" y="${y + 5}" text-anchor="middle" class="ac-q">?</text>`; });
     return `<div class="ac-fig">${s}</svg></div>`;
   }
   A.fieldSVG = fieldSVG;
