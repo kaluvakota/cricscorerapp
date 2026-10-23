@@ -9,6 +9,7 @@ $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'CricScorer') fail('Bad request', 400);
     $public = ['login', 'register', 'me', 'match_get'];
+    ensure_schema();
     $u = current_user();
     if (!in_array($action, $public, true) && !$u) fail('Please log in', 401);
     out(handle($action, $in, $u));
@@ -258,6 +259,11 @@ function handle(string $action, array $in, ?array $u) {
     case 'match_get':
         return match_state(int_in($in, 'id'), $u);
 
+    case 'match_dls_preview': {
+        $m = load_match(int_in($in, 'id'));
+        return dls_preview($m, max(1, int_in($in, 'overs', 1)));
+    }
+
     case 'match_delete': {
         $m = load_match(int_in($in, 'id'));
         if (!can_edit_owned($m, $u)) fail('Not allowed', 403);
@@ -266,11 +272,12 @@ function handle(string $action, array $in, ?array $u) {
     }
 
     case 'match_xi': case 'match_toss': case 'match_start_innings': case 'match_ball': case 'match_batter':
-    case 'match_bowler': case 'match_swap': case 'match_undo': case 'match_end_innings': case 'match_abandon': {
+    case 'match_bowler': case 'match_swap': case 'match_undo': case 'match_end_innings': case 'match_abandon':
+    case 'match_rain': case 'match_rain_end': case 'match_rain_undo': case 'match_dls_level': {
         db()->beginTransaction();
         $m = load_match(int_in($in, 'id'), true);
         if (!can_edit_owned($m, $u)) fail('Only the scorer of this match can do that', 403);
-        if ($action !== 'match_undo' && in_array($m['status'], ['completed', 'abandoned'], true)) fail('This match is finished');
+        if (!in_array($action, ['match_undo', 'match_rain_undo'], true) && in_array($m['status'], ['completed', 'abandoned'], true)) fail('This match is finished');
         switch ($action) {
             case 'match_xi': set_playing_xi($m, $in); break;
             case 'match_toss': set_toss($m, $in); break;
@@ -281,6 +288,13 @@ function handle(string $action, array $in, ?array $u) {
             case 'match_swap': swap_strike($m); break;
             case 'match_undo': undo_ball($m); break;
             case 'match_end_innings': end_innings_manual($m); break;
+            case 'match_rain': rain_reduce($m, $in); break;
+            case 'match_rain_end': rain_end_match($m); break;
+            case 'match_rain_undo': rain_undo($m); break;
+            case 'match_dls_level':
+                q('UPDATE matches SET dls_g50=? WHERE id=?', [in_array((int)($in['g50'] ?? 200), [200, 245], true) ? (int)$in['g50'] : 200, $m['id']]);
+                dls_update_target($m);
+                break;
             case 'match_abandon': q("UPDATE matches SET status='abandoned', result_text='No result (match abandoned)', winner_team_id=NULL WHERE id=?", [$m['id']]); break;
         }
         db()->commit();

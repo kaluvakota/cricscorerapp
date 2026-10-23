@@ -45,6 +45,23 @@ function int_in(array $in, string $k, int $def = 0): int { return isset($in[$k])
 function nint($v): ?int { return ($v === null || $v === '' || (int)$v === 0) ? null : (int)$v; }
 function valid_color(string $c, string $def = '#0d4a36'): string { return preg_match('/^#[0-9a-fA-F]{6}$/', $c) ? $c : $def; }
 
+/* ---------- Automatic database upgrades (safe to run on every request) ---------- */
+function ensure_schema(): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
+    db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
+    db()->exec("UPDATE innings i JOIN matches m ON m.id=i.match_id SET i.max_overs=m.overs, i.start_overs=m.overs");
+    if (!val("SHOW COLUMNS FROM matches LIKE 'dls_g50'"))
+        db()->exec("ALTER TABLE matches ADD COLUMN dls_g50 INT NOT NULL DEFAULT 200 AFTER last_man_stands, ADD COLUMN inn2_overs INT NULL AFTER dls_g50, ADD COLUMN result_method VARCHAR(10) NULL AFTER inn2_overs");
+    db()->exec("CREATE TABLE IF NOT EXISTS interruptions (
+        id INT AUTO_INCREMENT PRIMARY KEY, match_id INT NOT NULL, innings_no TINYINT NOT NULL, legal_balls INT NOT NULL,
+        wickets INT NOT NULL, overs_before INT NOT NULL, overs_after INT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (match_id),
+        FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
 /* ---------- Sessions & auth ---------- */
 function start_session(): void {
     if (session_status() === PHP_SESSION_NONE) {

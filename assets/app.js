@@ -394,8 +394,9 @@ function scoreBoard(st, inn) {
   const m = st.match, bt = teamById(inn.batting_team_id);
   const first = st.innings.length === 2 ? st.innings[0] : null;
   let meta = `<span><i>CRR</i> ${Number(inn.crr).toFixed(2)}</span>`;
-  if (inn.target) meta += `<span><i>Target</i> ${inn.target}</span>` + (inn.status === 'live' ? `<span><i>RRR</i> ${Number(inn.rrr).toFixed(2)}</span>` : '');
+  if (inn.target) meta += `<span><i>Target</i> ${inn.target}${inn.dls ? ' <b class="dls-tag">DLS</b>' : ''}</span>` + (inn.status === 'live' ? `<span><i>RRR</i> ${Number(inn.rrr).toFixed(2)}</span>` : '');
   else if (inn.status === 'live') meta += `<span><i>Projected</i> ${inn.projected}</span>`;
+  if (inn.no === 2 && inn.status === 'live' && st.dls && st.dls.par !== undefined && st.dls.active) meta += `<span><i>DLS par</i> ${st.dls.par}</span>`;
   if (inn.extras) meta += `<span><i>Extras</i> ${inn.extras}</span>`;
   let need = '';
   if (m.result_text) need = `<div class="need">🏆 ${esc(m.result_text)}</div>`;
@@ -403,7 +404,7 @@ function scoreBoard(st, inn) {
   else if (inn.no === 1 && inn.status === 'completed') need = `<div class="need">Innings break · ${esc(teamById(inn.bowling_team_id).name)} need ${inn.runs + 1} to win</div>`;
   const toss = m.toss_winner_id ? `${teamById(m.toss_winner_id).name} won the toss & chose to ${m.toss_decision}` : '';
   return `<div class="board"><div class="bt">${badge(bt, 'sm')}<span class="grow ellipsis">${esc(bt.name)}</span><span class="pill">${inn.no === 1 ? '1st' : '2nd'} innings</span></div>
-    <div class="score"><b>${inn.runs}/${inn.wickets}</b><span>(${inn.overs}/${m.overs} ov)</span></div>
+    <div class="score"><b>${inn.runs}/${inn.wickets}</b><span>(${inn.overs}/${inn.max_overs} ov)</span></div>
     <div class="meta">${meta}</div>${need}
     ${first ? `<div class="other">${esc(teamById(first.batting_team_id).name)}: ${first.runs}/${first.wickets} (${first.overs} ov)</div>` : `<div class="other">${esc(toss)}</div>`}</div>`;
 }
@@ -431,11 +432,11 @@ function creasePanel(st, inn) {
       ${inn.bowler_id ? `<tr class="bowl"><td>${esc(bw ? bw.name : pname(inn.bowler_id))}</td><td>${bw ? bw.o : '0.0'}</td><td>${bw ? bw.m : 0}</td><td>${bw ? bw.r : 0}</td><td><b>${bw ? bw.w : 0}</b></td><td>${bw ? bw.econ : '0.00'}</td></tr>` : '<tr class="bowl"><td colspan="6" class="muted">New over — choose the bowler</td></tr>'}
     </table>
     <div class="over-strip"><span class="lbl">Over ${cur + 1}</span>${lastBallBadge(st, inn)}${balls.length ? balls.map(b => ballChip(b.label)).join('') : '<span class="muted small">No balls yet</span>'}</div>
-    <div class="partner"><span>Partnership: <b>${p.runs}</b> (${p.balls})</span><span>${inn.status === 'live' ? `${st.match.overs * st.match.balls_per_over - inn.legal_balls} balls left` : 'Innings over'}</span></div></div>`;
+    <div class="partner"><span>Partnership: <b>${p.runs}</b> (${p.balls})</span><span>${inn.status === 'live' ? `${inn.max_overs * st.match.balls_per_over - inn.legal_balls} balls left` : 'Innings over'}</span></div></div>`;
 }
 
 function lastBallBadge(st, inn) {
-  const bpo = st.match.balls_per_over, total = st.match.overs * bpo;
+  const bpo = st.match.balls_per_over, total = inn.max_overs * bpo;
   if (inn.status !== 'live' || !inn.bowler_id || inn.legal_balls % bpo !== bpo - 1) return '';
   return `<span class="pill live" style="flex:none;margin-right:4px">${inn.legal_balls === total - 1 ? 'Last ball of innings' : 'Last ball'}</span>`;
 }
@@ -462,7 +463,8 @@ async function scoreAction(action, data = {}) {
     celebrate(before, S.m, action);
     drawMatch(false);
     if (navigator.vibrate) navigator.vibrate(12);
-  } catch (e) { toast(e.message, true); }
+    return true;
+  } catch (e) { toast(e.message, true); return false; }
   finally { S.busy = false; }
 }
 App.ball = (runs, extra = null, wicket = null) => scoreAction('match_ball', { runs, extra, wicket });
@@ -529,7 +531,7 @@ function announce(before, after) {
     // Close finish tension
     if (inn.target && inn.status === 'live' && inn.need > 0 && inn.need <= 12 && inn.balls_left > 1) say.push(`${inn.need} needed from ${inn.balls_left} ${inn.balls_left === 1 ? 'ball' : 'balls'}!`);
     // Last ball of the over / innings coming up
-    const bpo = after.match.balls_per_over, total = after.match.overs * bpo;
+    const bpo = after.match.balls_per_over, total = inn.max_overs * bpo;
     if (inn.status === 'live' && after.needs === 'ball' && inn.legal_balls % bpo === bpo - 1) {
       const lastOfInnings = inn.legal_balls === total - 1;
       if (inn.target && lastOfInnings) say.push(inn.need === 1 ? 'One run needed off the last ball!' : `${inn.need} needed off the very last ball!`);
@@ -696,10 +698,93 @@ App.matchMenu = () => {
   sheet(`<h3>Match options</h3><div class="sub">${esc(st.team1.name)} vs ${esc(st.team2.name)}</div><div class="plist">
     ${st.needs === 'completed' && m.status !== 'abandoned' ? '<button class="pbtn" onclick="App.undo()">↶ Undo last ball (re-open match)</button>' : ''}
     ${live ? '<button class="pbtn" onclick="App.endInnings()">⏹️ End this innings now</button>' : ''}
-    ${['live', 'scheduled'].includes(m.status) ? '<button class="pbtn" onclick="App.abandon()">🌧️ Abandon match (no result)</button>' : ''}
+    ${['live', 'scheduled'].includes(m.status) || m.result_method === 'rain' ? '<button class="pbtn" onclick="App.rainSheet()">🌧️ Rain / DLS — reduce overs, revised target</button>' : ''}
+    ${['live', 'scheduled'].includes(m.status) ? '<button class="pbtn" onclick="App.abandon()">⛔ Abandon match (no result)</button>' : ''}
     <button class="pbtn" onclick="App.shareMatch()">🔗 Share live score link</button>
     <button class="pbtn" style="color:var(--red)" onclick="App.deleteMatch()">🗑️ Delete match</button></div>`);
 };
+/* ----- Rain / DLS (Duckworth-Lewis-Stern, ICC Standard Edition) ----- */
+App.rainSheet = () => {
+  const st = S.m, m = st.match, d = st.dls || {};
+  const inn = st.innings.length ? curInn() : null;
+  const bpo = m.balls_per_over;
+  let stage, cur, minO;
+  if (!inn) { stage = 'pre'; cur = m.overs; minO = 1; }
+  else if (inn.status === 'completed' && inn.no === 1) { stage = 'break'; cur = d.inn2_overs ?? inn.max_overs; minO = 1; }
+  else if (inn.status === 'live') { stage = inn.no === 1 ? 'inn1' : 'inn2'; cur = inn.max_overs; minO = Math.max(1, Math.ceil(inn.legal_balls / bpo)); }
+  else stage = 'done';
+  const intr = (d.interruptions || []).map(x => `<div class="kv"><span>Inns ${x.innings_no} · at ${x.at} ov, ${x.wickets} wkt</span><span>${x.overs_before} → ${x.overs_after} overs</span></div>`).join('');
+  const level = `<div class="field" style="margin-top:12px"><label>Level (G50 — average 50-over score)</label><div class="chips wrap">
+      <button class="chip ${d.g50 !== 245 ? 'on' : ''}" onclick="App.dlsLevel(200)">Junior / club — 200</button>
+      <button class="chip ${d.g50 === 245 ? 'on' : ''}" onclick="App.dlsLevel(245)">International — 245</button></div></div>`;
+  let body = '';
+  if (stage === 'done') {
+    body = m.result_method === 'rain'
+      ? `<div class="notice">Result decided by rain. Play resumed? Undo it to continue the chase.</div><button class="btn block" onclick="App.undo()">↶ Undo rain result — resume play</button>`
+      : `<div class="notice">The match is finished.</div>`;
+  } else {
+    const batName = stage === 'break' ? teamById(st.next.batting_team_id).name : stage === 'pre' ? '' : teamById(inn.batting_team_id).name;
+    const what = { pre: 'Overs per side for this match', break: `Overs for ${esc(batName)}'s chase`, inn1: `Overs for ${esc(batName)} now`, inn2: `Overs for ${esc(batName)} now` }[stage];
+    const sub = { pre: 'Rain before the start: both teams simply get fewer overs.', break: 'Rain at the innings break: the chasing team gets fewer overs and DLS sets the target.',
+      inn1: `Rain in the 1st innings at ${inn ? inn.overs : ''} overs, ${inn ? inn.wickets : ''} down. The team batting second will get the same overs, and DLS sets the target at the break.`,
+      inn2: `Rain in the chase at ${inn ? inn.overs : ''} overs, ${inn ? inn.wickets : ''} down. DLS revises the target.` }[stage];
+    body = `<div class="small muted" style="margin-bottom:10px">${sub}</div>
+      <div class="field"><label>${what}</label>
+        <div class="row"><button class="btn sm light" onclick="App.rainStep(-1)">−</button><input class="input" id="rainOv" type="number" inputmode="numeric" min="${minO}" max="${cur}" value="${Math.max(minO, cur - 1)}" style="text-align:center;font-size:22px;font-weight:900" oninput="App.rainPreview()"><button class="btn sm light" onclick="App.rainStep(1)">+</button></div></div>
+      <div id="rainPrev" class="notice" style="display:none"></div>
+      <button class="btn block" onclick="App.rainApply(this)">🌧️ Apply reduced overs</button>`;
+    if (stage === 'inn2') {
+      body += `<div class="divider"></div>
+        <div class="kv" style="border:0;padding:4px 0"><span>DLS par score now</span><span class="big-num">${d.par}</span></div>
+        <div class="small muted">If no more play is possible now, ${esc(teamById(inn.batting_team_id).name)} ${inn.runs > d.par ? 'would WIN' : inn.runs === d.par ? 'would TIE' : 'would LOSE'} (score ${inn.runs}${d.can_result ? '' : `; but at least ${d.min_overs} overs are needed for a result`}).</div>
+        <button class="btn red block" style="margin-top:10px" onclick="App.rainEnd()">⛈️ Rain stopped play — decide by DLS</button>
+        ${d.par_table && d.par_table.length ? `<details style="margin-top:12px"><summary class="link">Par score at the end of each over (${inn.wickets} down)</summary>
+          <div class="card flush" style="margin-top:8px;box-shadow:none;border:1px solid var(--line)">${d.par_table.map(r => `<div class="kv"><span>After ${r.over} overs</span><span>${r.par}</span></div>`).join('')}</div></details>` : ''}`;
+    }
+  }
+  sheet(`<h3>Rain & DLS 🌧️</h3><div class="sub">Duckworth-Lewis-Stern method (ICC Standard Edition)</div>${body}
+    ${d.R1 !== undefined ? `<div class="divider"></div><div class="kv" style="border:0;padding:3px 0"><span>Resources — team 1</span><span>${d.R1}%</span></div>${d.R2 !== undefined ? `<div class="kv" style="border:0;padding:3px 0"><span>Resources — team 2</span><span>${d.R2}%</span></div>` : ''}` : ''}
+    ${intr ? `<div class="section" style="margin-top:12px"><h2 style="font-size:15px">Interruptions</h2><button class="link" onclick="App.rainUndo()">Undo last</button></div><div class="card flush" style="box-shadow:none;border:1px solid var(--line)">${intr}</div>` : (d.inn2_overs ? `<button class="link" onclick="App.rainUndo()">Undo chase overs change</button>` : '')}
+    ${stage !== 'done' ? level : ''}
+    <button class="link" style="margin-top:10px" onclick="App.dlsHelp()">How does DLS work?</button>`);
+  if (stage !== 'done') App.rainPreview();
+};
+App.rainStep = dlt => { const i = $('#rainOv'); i.value = Math.min(+i.max, Math.max(+i.min, (+i.value || 0) + dlt)); App.rainPreview(); };
+let rainT;
+App.rainPreview = () => {
+  clearTimeout(rainT);
+  rainT = setTimeout(async () => {
+    const el = $('#rainPrev'), ov = +($('#rainOv') || {}).value;
+    if (!el || !ov) return;
+    try {
+      const r = await api('match_dls_preview', { id: S.m.match.id, overs: ov });
+      el.style.display = 'block';
+      el.innerHTML = r.target ? `Revised DLS target: <b>${r.target}</b> from ${r.overs} overs` : esc(r.note || '');
+    } catch (e) { el.style.display = 'none'; }
+  }, 200);
+};
+App.rainApply = btn => {
+  const ov = +$('#rainOv').value;
+  const before = S.m.innings.length ? curInn().target : null;
+  run(async () => {
+    if (!(await scoreAction('match_rain', { overs: ov }))) return;
+    const st = S.m, inn = st.innings.length ? curInn() : null;
+    let msg = `Rain! The match is reduced to ${ov} overs.`;
+    if (inn && inn.no === 2 && inn.target !== before) msg = `Rain has reduced the chase to ${ov} overs. The revised DLS target is ${inn.target}.`;
+    else if (st.needs === 'openers' && st.next && st.next.no === 2) msg = `Rain! ${teamById(st.next.batting_team_id).name} will chase ${st.next.target} in ${st.next.overs} overs, by the DLS method.`;
+    toast(msg); Sound.say(msg, { delay: 50 });
+  }, btn);
+};
+App.rainEnd = () => confirmSheet('Rain stopped play?', 'The match will be decided on the DLS par score right now. You can undo this if play resumes.', 'Decide by DLS', () => scoreAction('match_rain_end'), false);
+App.rainUndo = () => scoreAction('match_rain_undo').then(() => toast('Rain change undone'));
+App.dlsLevel = g => scoreAction('match_dls_level', { g50: g }).then(() => App.rainSheet());
+App.dlsHelp = () => sheet(`<h3>How DLS works ☔</h3><div class="small" style="line-height:1.6">
+  A team has two <b>resources</b> to score runs: <b>overs left</b> and <b>wickets in hand</b>. The ICC table gives the % of resources left for every combination (50 overs & 0 wickets down = 100%).<br><br>
+  When rain takes overs away, each team's resources (R1, R2) are worked out. Then:<br>
+  • If team 2 has <b>fewer</b> resources: target = team 1 score × R2 ÷ R1, plus 1.<br>
+  • If team 2 has <b>more</b>: target = team 1 score + G50 × (R2 − R1) ÷ 100, plus 1 (G50 = 245 internationals, 200 junior/club).<br><br>
+  If rain ends the match during the chase, the batting side wins if it is <b>ahead of the par score</b>, ties if level, and loses if behind — provided enough overs were bowled (20 in a 50-over game, 5 in a T20).</div>
+  <button class="btn light block" style="margin-top:12px" onclick="App.rainSheet()">← Back</button>`);
 App.endInnings = () => confirmSheet('End innings?', 'Use this for rain, bad light or a declaration. The innings will close at the current score.', 'End innings', () => scoreAction('match_end_innings'));
 App.abandon = () => confirmSheet('Abandon match?', 'The match will be recorded as "No result".', 'Abandon', () => scoreAction('match_abandon'));
 App.deleteMatch = () => confirmSheet('Delete this match?', 'All scores for this match will be removed. This cannot be undone.', 'Delete', () => run(async () => { await api('match_delete', { id: S.m.match.id }); closeSheet(); S.m = null; toast('Match deleted'); go('#/matches'); }));
@@ -811,7 +896,8 @@ function openersSetup() {
     const i1 = st.innings[0];
     brk = `<div class="card" style="text-align:center"><div style="font-size:34px">☕</div><b class="big-num">Innings break</b>
       <div class="muted">${esc(teamById(i1.batting_team_id).name)} scored ${i1.runs}/${i1.wickets} in ${i1.overs} overs</div>
-      <div style="margin-top:6px;font-weight:800;color:var(--green)">${esc(bt.name)} need ${nx.target} runs from ${st.match.overs * st.match.balls_per_over} balls</div></div>`;
+      <div style="margin-top:6px;font-weight:800;color:var(--green)">${esc(bt.name)} need ${nx.target} runs from ${nx.overs * st.match.balls_per_over} balls${nx.dls ? ` <span class="dls-tag">DLS</span>` : ''}</div>
+      ${nx.dls ? `<div class="small muted" style="margin-top:4px">Target revised by the DLS method (${nx.overs} overs)</div>` : ''}</div>`;
   }
   return `<div class="content">${brk}<div class="card">
     <div class="row" style="margin-bottom:10px">${badge(bt, 'sm')}<b class="grow">${esc(bt.name)} — opening batters</b></div>

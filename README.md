@@ -15,6 +15,9 @@ Made for Aarush & Aayush.
   automatic result and Player of the Match.
 - **Tournaments** — league, knockout, league + final; auto fixtures, points table with NRR, top scorers.
 - **Leaderboards & player stats** — runs, average, strike rate, wickets, economy, best figures.
+- **Rain rules (DLS)** — Duckworth-Lewis-Stern, ICC Standard Edition: reduce overs before or during either innings,
+  revised targets, live par score and par-by-over table, "rain stopped play" results, G50 = 200 (junior/club) or 245
+  (international). Scorer menu → *Rain / DLS*. The resource table is in `inc/dls.php`.
 - **Live sharing** — share a match link; anyone can watch the score update live (no login needed).
 
 ## Requirements

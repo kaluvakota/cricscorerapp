@@ -3,6 +3,7 @@
 
 const BOWLER_WICKETS = ['bowled', 'caught', 'lbw', 'stumped', 'hit wicket'];
 const WICKET_TYPES   = ['bowled', 'caught', 'lbw', 'run out', 'stumped', 'hit wicket', 'retired hurt'];
+require_once __DIR__ . '/dls.php';
 
 function overs_str(int $balls, int $bpo): string { return intdiv($balls, $bpo) . '.' . ($balls % $bpo); }
 
@@ -42,7 +43,7 @@ function add_innings_batter(int $innId, int $pid): void {
 function innings_end_reason(array $m, array $inn): ?string {
     $bpo = (int)$m['balls_per_over'];
     if ((int)$inn['innings_no'] === 2 && $inn['target'] !== null && (int)$inn['runs'] >= (int)$inn['target']) return 'target';
-    if ((int)$inn['legal_balls'] >= (int)$m['overs'] * $bpo) return 'overs';
+    if ((int)$inn['legal_balls'] >= (int)$inn['max_overs'] * $bpo) return 'overs';
     $atCrease = count(array_filter([(int)$inn['striker_id'], (int)$inn['non_striker_id']]));
     $canBat = $atCrease + count(available_batters($inn));
     $need = $m['last_man_stands'] ? 1 : 2;
@@ -86,10 +87,12 @@ function start_innings(array $m, array $in): void {
     if (!$last) {
         $bat = $m['toss_decision'] === 'bat' ? (int)$m['toss_winner_id'] : ((int)$m['toss_winner_id'] === (int)$m['team1_id'] ? (int)$m['team2_id'] : (int)$m['team1_id']);
         $bowl = $bat === (int)$m['team1_id'] ? (int)$m['team2_id'] : (int)$m['team1_id'];
-        $no = 1; $target = null;
+        $no = 1; $target = null; $alloc = (int)$m['overs'];
     } else {
         $bat = (int)$last['bowling_team_id']; $bowl = (int)$last['batting_team_id'];
         $no = 2; $target = (int)$last['runs'] + 1;
+        $alloc = (int)$last['max_overs'];
+        if ($m['inn2_overs'] !== null) $alloc = min($alloc, (int)$m['inn2_overs']);
     }
     $s = (int)($in['striker_id'] ?? 0);
     $ns = nint($in['non_striker_id'] ?? null);
@@ -100,9 +103,10 @@ function start_innings(array $m, array $in): void {
     if ($ns === null && !($m['last_man_stands'] && count($batXi) === 1)) fail('Choose the non-striker');
     if ($ns !== null && (!in_array($ns, $batXi, true) || $ns === $s)) fail('Choose a different non-striker');
     if (!in_array($b, $bowlXi, true)) fail('Choose the opening bowler');
-    q('INSERT INTO innings (match_id, innings_no, batting_team_id, bowling_team_id, target, striker_id, non_striker_id, bowler_id) VALUES (?,?,?,?,?,?,?,?)',
-        [$m['id'], $no, $bat, $bowl, $target, $s, $ns, $b]);
+    q('INSERT INTO innings (match_id, innings_no, batting_team_id, bowling_team_id, target, max_overs, start_overs, striker_id, non_striker_id, bowler_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
+        [$m['id'], $no, $bat, $bowl, $target, $alloc, $alloc, $s, $ns, $b]);
     $innId = lastId();
+    if ($no === 2) dls_update_target($m);
     add_innings_batter($innId, $s);
     if ($ns) add_innings_batter($innId, $ns);
     q("UPDATE matches SET status='live' WHERE id=?", [$m['id']]);
@@ -236,22 +240,26 @@ function finish_match(int $matchId): void {
     $names = [];
     foreach (rows('SELECT id, name FROM teams WHERE id IN (?,?)', [$m['team1_id'], $m['team2_id']]) as $t) $names[(int)$t['id']] = $t['name'];
     $bpo = (int)$m['balls_per_over'];
-    if ((int)$i2['runs'] > (int)$i1['runs']) {
+    $dls = (int)$i2['dls'] === 1;
+    $tieScore = (int)$i2['target'] - 1;            // equals team 1's score unless DLS revised it
+    $tag = $dls ? ' (DLS method)' : '';
+    if ((int)$i2['runs'] > $tieScore) {
         $winner = (int)$i2['batting_team_id'];
         $n = count(xi_ids($matchId, $winner));
         $left = ($m['last_man_stands'] ? $n : $n - 1) - (int)$i2['wickets'];
-        $ballsLeft = (int)$m['overs'] * $bpo - (int)$i2['legal_balls'];
+        $ballsLeft = (int)$i2['max_overs'] * $bpo - (int)$i2['legal_balls'];
         $text = $names[$winner] . ' won by ' . max(1, $left) . ' wicket' . (max(1, $left) === 1 ? '' : 's');
         if ($ballsLeft > 0) $text .= " ($ballsLeft ball" . ($ballsLeft === 1 ? '' : 's') . ' left)';
-    } elseif ((int)$i2['runs'] < (int)$i1['runs']) {
+        $text .= $tag;
+    } elseif ((int)$i2['runs'] < $tieScore) {
         $winner = (int)$i1['batting_team_id'];
-        $d = (int)$i1['runs'] - (int)$i2['runs'];
-        $text = $names[$winner] . " won by $d run" . ($d === 1 ? '' : 's');
+        $d = $tieScore - (int)$i2['runs'];
+        $text = $names[$winner] . " won by $d run" . ($d === 1 ? '' : 's') . $tag;
     } else {
-        $winner = null; $text = 'Match tied';
+        $winner = null; $text = 'Match tied' . $tag;
     }
     $pom = player_of_match($matchId, $winner);
-    q("UPDATE matches SET status='completed', winner_team_id=?, result_text=?, player_of_match_id=? WHERE id=?", [$winner, $text, $pom, $matchId]);
+    q("UPDATE matches SET status='completed', winner_team_id=?, result_text=?, result_method=?, player_of_match_id=? WHERE id=?", [$winner, $text, $dls ? 'dls' : null, $pom, $matchId]);
 }
 
 /** Simple impact score: runs + 25 per wicket + 10 per catch/stumping/run-out, +bonus for winning side */
@@ -270,6 +278,11 @@ function player_of_match(int $matchId, ?int $winner): ?int {
 }
 
 function undo_ball(array $m): void {
+    if ($m['result_method'] === 'rain') {          // undo "rain stopped play" — resume the chase
+        q("UPDATE innings SET status='live' WHERE match_id=? AND innings_no=2", [$m['id']]);
+        q("UPDATE matches SET status='live', winner_team_id=NULL, result_text=NULL, result_method=NULL, player_of_match_id=NULL WHERE id=?", [$m['id']]);
+        return;
+    }
     if ($m['status'] === 'abandoned') fail('Match was abandoned');
     $inn = latest_innings((int)$m['id']);
     if (!$inn) fail('Nothing to undo');
@@ -297,7 +310,7 @@ function undo_specific_ball(array $m, array $inn, array $ball): void {
         $used = val('SELECT 1 FROM balls WHERE innings_id=? AND (batsman_id=? OR non_striker_id=? OR dismissed_id=?) LIMIT 1', [$inn['id'], $p, $p, $p]);
         if (!$used) q('DELETE FROM innings_batters WHERE innings_id=? AND player_id=?', [$inn['id'], $p]);
     }
-    q("UPDATE matches SET status='live', winner_team_id=NULL, result_text=NULL, player_of_match_id=NULL WHERE id=?", [$m['id']]);
+    q("UPDATE matches SET status='live', winner_team_id=NULL, result_text=NULL, result_method=NULL, player_of_match_id=NULL WHERE id=?", [$m['id']]);
 }
 
 /* ---------- Scorecard & state ---------- */
@@ -430,6 +443,7 @@ function innings_card(array $m, array $inn, array $names): array {
         'batting_team_id' => (int)$inn['batting_team_id'], 'bowling_team_id' => (int)$inn['bowling_team_id'],
         'runs' => $runs, 'wickets' => (int)$inn['wickets'], 'legal_balls' => $lb, 'overs' => overs_str($lb, $bpo),
         'extras' => (int)$inn['extras'], 'extras_detail' => $extras, 'target' => $inn['target'] === null ? null : (int)$inn['target'],
+        'max_overs' => (int)$inn['max_overs'], 'dls' => (bool)$inn['dls'],
         'crr' => $lb ? round($runs * $bpo / $lb, 2) : 0,
         'batting' => array_values($bat), 'bowling' => array_values($bowl), 'dnb' => $dnb,
         'fow' => $fow, 'overs_list' => array_values($overs), 'timeline' => $timeline,
@@ -438,7 +452,7 @@ function innings_card(array $m, array $inn, array $names): array {
         'bowler_id' => $inn['bowler_id'] ? (int)$inn['bowler_id'] : null,
         'partnership' => ['runs' => $partRuns, 'balls' => $partBalls],
     ];
-    $totalBalls = (int)$m['overs'] * $bpo;
+    $totalBalls = (int)$inn['max_overs'] * $bpo;
     if ($res['target'] !== null) {
         $need = $res['target'] - $runs;
         $left = $totalBalls - $lb;
@@ -488,9 +502,16 @@ function match_state(int $matchId, ?array $u): array {
     if ($needs === 'openers') {
         if (!$last) {
             $bat = $m['toss_decision'] === 'bat' ? (int)$m['toss_winner_id'] : ((int)$m['toss_winner_id'] === (int)$m['team1_id'] ? (int)$m['team2_id'] : (int)$m['team1_id']);
-            $next = ['batting_team_id' => $bat, 'bowling_team_id' => $bat === (int)$m['team1_id'] ? (int)$m['team2_id'] : (int)$m['team1_id'], 'target' => null, 'no' => 1];
+            $next = ['batting_team_id' => $bat, 'bowling_team_id' => $bat === (int)$m['team1_id'] ? (int)$m['team2_id'] : (int)$m['team1_id'], 'target' => null, 'no' => 1, 'overs' => (int)$m['overs'], 'dls' => false];
         } else {
-            $next = ['batting_team_id' => $last['bowling_team_id'], 'bowling_team_id' => $last['batting_team_id'], 'target' => $last['runs'] + 1, 'no' => 2];
+            $i1row = row('SELECT * FROM innings WHERE id=?', [$last['id']]);
+            $alloc = (int)$i1row['max_overs'];
+            if ($m['inn2_overs'] !== null) $alloc = min($alloc, (int)$m['inn2_overs']);
+            $target = $last['runs'] + 1; $isDls = false;
+            if ($alloc !== (int)$i1row['start_overs'] || dls_needed($m, $i1row)) {
+                $target = dls_target((int)$i1row['runs'], dls_innings_resources($m, $i1row), dls_R($alloc, 0), dls_g50($m)); $isDls = true;
+            }
+            $next = ['batting_team_id' => $last['bowling_team_id'], 'bowling_team_id' => $last['batting_team_id'], 'target' => $target, 'no' => 2, 'overs' => $alloc, 'dls' => $isDls];
         }
     }
     $tour = $m['tournament_id'] ? row('SELECT id, name FROM tournaments WHERE id=?', [$m['tournament_id']]) : null;
@@ -500,6 +521,7 @@ function match_state(int $matchId, ?array $u): array {
             'id' => (int)$m['id'], 'title' => $m['title'], 'status' => $m['status'], 'overs' => (int)$m['overs'],
             'balls_per_over' => (int)$m['balls_per_over'], 'players_per_side' => (int)$m['players_per_side'],
             'max_overs_bowler' => (int)$m['max_overs_bowler'], 'last_man_stands' => (bool)$m['last_man_stands'],
+            'dls_g50' => (int)$m['dls_g50'], 'result_method' => $m['result_method'],
             'venue' => $m['venue'], 'match_date' => $m['match_date'],
             'toss_winner_id' => $m['toss_winner_id'] ? (int)$m['toss_winner_id'] : null, 'toss_decision' => $m['toss_decision'],
             'winner_team_id' => $m['winner_team_id'] ? (int)$m['winner_team_id'] : null, 'result_text' => $m['result_text'],
@@ -509,6 +531,7 @@ function match_state(int $matchId, ?array $u): array {
         'team1' => $t1, 'team2' => $t2, 'xi' => $xi, 'innings' => $inns,
         'needs' => $needs, 'available_batters' => $avail, 'prev_over_bowler' => $prevBowler, 'bowler_balls' => $bowlerBalls,
         'next' => $next,
+        'dls' => $inns ? dls_info($m) : null,
         'can_edit' => can_edit_owned($m, $u),
     ];
 }
@@ -556,13 +579,12 @@ function points_table(int $tid): array {
         if ($m['status'] === 'abandoned') { foreach ([$a, $b] as $x) { $tbl[$x]['nr']++; $tbl[$x]['pts'] += 1; } continue; }
         if (!$m['winner_team_id']) { foreach ([$a, $b] as $x) { $tbl[$x]['t']++; $tbl[$x]['pts'] += 1; } }
         else { $w = (int)$m['winner_team_id']; $l = $w === $a ? $b : $a; $tbl[$w]['w']++; $tbl[$w]['pts'] += 2; $tbl[$l]['l']++; }
-        $full = (int)$m['overs'] * (int)$m['balls_per_over'];
         $n = [];
         foreach ([$a, $b] as $x) $n[$x] = count(xi_ids((int)$m['id'], $x));
         foreach (rows('SELECT * FROM innings WHERE match_id=?', [$m['id']]) as $i) {
             $bt = (int)$i['batting_team_id']; $bw = (int)$i['bowling_team_id'];
             $allOut = (int)$i['wickets'] >= ($m['last_man_stands'] ? $n[$bt] : $n[$bt] - 1);
-            $balls = $allOut ? $full : (int)$i['legal_balls'];
+            $balls = $allOut ? (int)$i['max_overs'] * (int)$m['balls_per_over'] : (int)$i['legal_balls'];
             $bpo = (int)$m['balls_per_over'];
             $tbl[$bt]['rf'] += (int)$i['runs']; $tbl[$bt]['bf'] += $balls / $bpo;
             $tbl[$bw]['ra'] += (int)$i['runs']; $tbl[$bw]['ba'] += $balls / $bpo;
