@@ -92,9 +92,9 @@ async function run(fn, btn) {
 }
 
 /* ---------- Shell ---------- */
-function topbar(title, { back = false, actions = '', sub = '' } = {}) {
+function topbar(title, { back = false, actions = '', sub = '', refresh = true } = {}) {
   return `<header class="topbar">${back ? `<button class="icon-btn" aria-label="Back" onclick="App.back()">${I.back}</button>` : ''}
-    <h1>${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</h1>${actions}</header>`;
+    <h1>${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</h1>${refresh ? `<button class="icon-btn refresh-btn" aria-label="Refresh" onclick="App.refresh()">${I.refresh}</button>` : ''}${actions}</header>`;
 }
 let navDepth = -1;
 App.back = () => { if (navDepth > 0) history.back(); else go('#/'); };
@@ -209,7 +209,7 @@ async function viewHome() {
   const name = S.user.display_name.split(' ')[0];
   const hour = new Date().getHours();
   const hi = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const hero = `<div class="hero"><div class="brand">${LOGO}<div><b>Cric-Scorer</b><span>by Aaryush</span></div></div>
+  const hero = `<div class="hero"><div class="brand">${LOGO}<div class="grow"><b>Cric-Scorer</b><span>by Aaryush</span></div><button class="icon-btn refresh-btn" aria-label="Refresh" onclick="App.refresh()">${I.refresh}</button></div>
     <h2>${hi}, ${esc(name)}! 👋</h2><p>Ready to score today's big match?</p>
     <div class="cta"><button class="btn lime" onclick="go('#/match/new')">${I.plus} New Match</button><button class="btn ghost" onclick="go('#/tournaments')">${I.trophy} Tournaments</button></div></div>`;
   mount(hero + `<div class="content">${sk(3)}</div>`, 'home');
@@ -354,7 +354,7 @@ function drawMatch(first) {
   const editing = st.can_edit && st.needs !== 'completed';
   const actions = `<button class="icon-btn" id="spk" aria-label="Sound and commentary" onclick="App.soundSheet()">${spkIcon()}</button><button class="icon-btn" aria-label="Share" onclick="App.shareMatch()">${I.share}</button>` +
     (st.can_edit ? `<button class="icon-btn" aria-label="Match options" onclick="App.matchMenu()">${I.dots}</button>` :
-      m.status === 'live' ? `<button class="icon-btn" aria-label="Refresh" onclick="render()">${I.refresh}</button>` : '');
+      '');
   const sub = [m.title, m.tournament?.name].filter(Boolean).join(' · ');
   let html = topbar(`${t1.short_name} vs ${t2.short_name}`, { back: true, actions, sub });
   const inn = st.innings.length ? curInn() : null;
@@ -430,10 +430,15 @@ function creasePanel(st, inn) {
       <tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr>
       ${inn.bowler_id ? `<tr class="bowl"><td>${esc(bw ? bw.name : pname(inn.bowler_id))}</td><td>${bw ? bw.o : '0.0'}</td><td>${bw ? bw.m : 0}</td><td>${bw ? bw.r : 0}</td><td><b>${bw ? bw.w : 0}</b></td><td>${bw ? bw.econ : '0.00'}</td></tr>` : '<tr class="bowl"><td colspan="6" class="muted">New over — choose the bowler</td></tr>'}
     </table>
-    <div class="over-strip"><span class="lbl">Over ${cur + 1}</span>${balls.length ? balls.map(b => ballChip(b.label)).join('') : '<span class="muted small">No balls yet</span>'}</div>
+    <div class="over-strip"><span class="lbl">Over ${cur + 1}</span>${lastBallBadge(st, inn)}${balls.length ? balls.map(b => ballChip(b.label)).join('') : '<span class="muted small">No balls yet</span>'}</div>
     <div class="partner"><span>Partnership: <b>${p.runs}</b> (${p.balls})</span><span>${inn.status === 'live' ? `${st.match.overs * st.match.balls_per_over - inn.legal_balls} balls left` : 'Innings over'}</span></div></div>`;
 }
 
+function lastBallBadge(st, inn) {
+  const bpo = st.match.balls_per_over, total = st.match.overs * bpo;
+  if (inn.status !== 'live' || !inn.bowler_id || inn.legal_balls % bpo !== bpo - 1) return '';
+  return `<span class="pill live" style="flex:none;margin-right:4px">${inn.legal_balls === total - 1 ? 'Last ball of innings' : 'Last ball'}</span>`;
+}
 function scorePad() {
   return `<div class="pad">
     ${[0, 1, 2, 3].map(r => `<button onclick="App.ball(${r})">${r}</button>`).join('')}
@@ -522,7 +527,15 @@ function announce(before, after) {
       }
     }
     // Close finish tension
-    if (inn.target && inn.status === 'live' && inn.need > 0 && inn.need <= 12) say.push(`${inn.need} needed from ${inn.balls_left} ${inn.balls_left === 1 ? 'ball' : 'balls'}!`);
+    if (inn.target && inn.status === 'live' && inn.need > 0 && inn.need <= 12 && inn.balls_left > 1) say.push(`${inn.need} needed from ${inn.balls_left} ${inn.balls_left === 1 ? 'ball' : 'balls'}!`);
+    // Last ball of the over / innings coming up
+    const bpo = after.match.balls_per_over, total = after.match.overs * bpo;
+    if (inn.status === 'live' && after.needs === 'ball' && inn.legal_balls % bpo === bpo - 1) {
+      const lastOfInnings = inn.legal_balls === total - 1;
+      if (inn.target && lastOfInnings) say.push(inn.need === 1 ? 'One run needed off the last ball!' : `${inn.need} needed off the very last ball!`);
+      else if (lastOfInnings) say.push('Here comes the last ball of the innings!');
+      else say.push(b.ex === 'wd' || b.ex === 'nb' ? 'Still the last ball of the over to come.' : 'Last ball of the over.');
+    }
     // End of over summary
     if (after.needs === 'new_bowler' && before && before.needs === 'ball' && inn.status === 'live') {
       const o = inn.overs_list[inn.overs_list.length - 1];
@@ -534,7 +547,7 @@ function announce(before, after) {
     toast('Innings over! ' + inn.runs + '/' + inn.wickets);
     fx = fx === 'six' || fx === 'four' || fx === 'bowled' || fx === 'out' ? fx : 'cheer';
     setTimeout(() => Sound.fx('cheer'), 1200);
-    say.push(`That's the end of the innings. ${team.name} finish on ${inn.runs} for ${inn.wickets} in ${inn.overs} overs. The target is ${inn.runs + 1}.`);
+    say.push(`That's the end of the innings. ${team.name} finish on ${inn.runs} for ${inn.wickets} in ${String(inn.overs).replace(/\.0$/, '')} ${String(inn.overs).replace(/\.0$/, '') === '1' ? 'over' : 'overs'}. The target is ${inn.runs + 1}.`);
   }
   if (finished) {
     confetti();
@@ -1132,6 +1145,7 @@ function viewMore() {
       ${item('🧢', 'Our teams', 'Teams you and your friends made', "go('#/teams?c=custom')")}
       ${item('🔊', 'Sound & commentary', (Sound.sfx ? 'Sounds on' : 'Sounds off') + ' · ' + (Sound.voice ? 'voice on' : 'voice muted'), 'App.soundSheet()')}
       ${item('📲', 'Install app', 'Add Cric-Scorer to your home screen', 'App.installHelp()')}
+      ${item('🔄', 'Update app', 'Version ' + esc(window.CS_VERSION || '') + (S.newVersion ? ' · new version ' + esc(S.newVersion) + ' available!' : ' · reload the latest code'), 'App.updateApp()')}
       ${item('ℹ️', 'About Cric-Scorer', 'How scoring works', 'App.about()')}
     </div>
     <button class="btn light block" style="color:var(--red)" onclick="App.logout()">Log out</button>
@@ -1173,10 +1187,67 @@ function viewProfile() {
 }
 App.saveProfile = e => { e.preventDefault(); run(async () => { const r = await api('profile_save', formData(e.target)); S.user = r.user; toast('Profile saved'); go('#/more'); }, e.submitter); };
 
+/* ---------- Refresh, pull-to-refresh & app updates ---------- */
+App.refresh = async () => {
+  if (S.refreshing) return;
+  S.refreshing = true;
+  document.querySelectorAll('.refresh-btn').forEach(b => b.classList.add('spin'));
+  try {
+    const me = await api('me');
+    checkVersion(me.version);
+    await render();
+    if (!S.newVersion) toast('Updated ✓');
+  } catch (e) { toast(e.message, true); }
+  finally { S.refreshing = false; document.querySelectorAll('.refresh-btn').forEach(b => b.classList.remove('spin')); }
+};
+function checkVersion(v) {
+  if (!v || !window.CS_VERSION || v === window.CS_VERSION || S.newVersion === v) return;
+  S.newVersion = v;
+  const bar = document.createElement('div');
+  bar.className = 'update-bar';
+  bar.innerHTML = `<span>🎉 New version ${esc(v)} is ready</span><button onclick="App.updateApp()">Update now</button>`;
+  document.body.appendChild(bar);
+}
+App.updateApp = async () => {
+  toast('Updating app…');
+  try {
+    if ('serviceWorker' in navigator) for (const r of await navigator.serviceWorker.getRegistrations()) await r.unregister();
+    if (window.caches) for (const k of await caches.keys()) await caches.delete(k);
+  } catch (e) { /* continue to reload */ }
+  location.replace(location.pathname + '?r=' + Date.now() + location.hash);
+};
+function initPullToRefresh() {
+  const ptr = $('#ptr');
+  let startY = null, pull = 0;
+  const reset = () => { ptr.style.transform = ''; ptr.classList.remove('ready', 'show'); startY = null; pull = 0; };
+  window.addEventListener('touchstart', e => {
+    if (window.scrollY > 0 || $('#sheet-root').children.length || e.touches.length !== 1) { startY = null; return; }
+    startY = e.touches[0].clientY; pull = 0;
+  }, { passive: true });
+  window.addEventListener('touchmove', e => {
+    if (startY === null) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0 || window.scrollY > 0) { reset(); return; }
+    pull = Math.min(dy * 0.5, 110);
+    ptr.classList.add('show'); ptr.classList.toggle('ready', pull > 70);
+    ptr.style.transform = `translate(-50%, ${pull}px) rotate(${pull * 4}deg)`;
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    if (startY === null) return;
+    const go = pull > 70;
+    if (go) {
+      ptr.classList.add('loading'); ptr.style.transform = 'translate(-50%, 60px)';
+      App.refresh().finally(() => { ptr.classList.remove('loading'); reset(); });
+    } else reset();
+  }, { passive: true });
+}
+
 /* ---------- Boot ---------- */
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.deferredInstall = e; });
 (async function boot() {
-  try { S.user = (await api('me')).user; } catch (e) { /* offline */ }
+  try { const me = await api('me'); S.user = me.user; checkVersion(me.version); } catch (e) { /* offline */ }
+  initPullToRefresh();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) api('me').then(r => checkVersion(r.version)).catch(() => {}); });
   window.addEventListener('hashchange', () => { navDepth++; render(); });
   await render();
   const sp = $('#splash');

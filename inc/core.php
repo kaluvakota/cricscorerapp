@@ -1,6 +1,7 @@
 <?php
 /* Cric-Scorer — core helpers: database, JSON output, authentication */
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/version.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 

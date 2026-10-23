@@ -27,7 +27,7 @@ function handle(string $action, array $in, ?array $u) {
 
     /* ===== Auth ===== */
     case 'me':
-        return ['user' => $u ? public_user($u) : null];
+        return ['user' => $u ? public_user($u) : null, 'version' => APP_VERSION];
 
     case 'register': {
         $un = strtolower(str_in($in, 'username', 50));

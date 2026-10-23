@@ -1,7 +1,8 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/inc/version.php';
 if (!file_exists(__DIR__ . '/install.lock') && file_exists(__DIR__ . '/install.php')) { header('Location: install.php'); exit; }
-$v = '1.1.0';
+$v = APP_VERSION;
 ?><!doctype html>
 <html lang="en">
 <head>
@@ -32,6 +33,8 @@ $v = '1.1.0';
 <nav id="tabbar" class="hidden" aria-label="Main"></nav>
 <div id="sheet-root"></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<div id="ptr" aria-hidden="true"><span></span></div>
+<script>window.CS_VERSION = <?= json_encode(APP_VERSION) ?>;</script>
 <script src="assets/sound.js?v=<?= $v ?>"></script>
 <script src="assets/app.js?v=<?= $v ?>"></script>
 </body>
