@@ -1,0 +1,17 @@
+{
+  "name": "Cric-Scorer by Aaryush",
+  "short_name": "Cric-Scorer",
+  "description": "Live ball-by-ball cricket scoring — teams, tournaments, scorecards and stats.",
+  "start_url": "./index.php#/",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d4a36",
+  "theme_color": "#0d4a36",
+  "categories": ["sports", "games"],
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

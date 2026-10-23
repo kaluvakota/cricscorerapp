@@ -1,0 +1,201 @@
+-- Cric-Scorer by Aaryush — database schema (MySQL 5.7+ / MariaDB 10.3+)
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+DROP TABLE IF EXISTS balls;
+DROP TABLE IF EXISTS innings_batters;
+DROP TABLE IF EXISTS innings;
+DROP TABLE IF EXISTS match_players;
+DROP TABLE IF EXISTS matches;
+DROP TABLE IF EXISTS tournament_teams;
+DROP TABLE IF EXISTS tournaments;
+DROP TABLE IF EXISTS match_types;
+DROP TABLE IF EXISTS players;
+DROP TABLE IF EXISTS teams;
+DROP TABLE IF EXISTS user_tokens;
+DROP TABLE IF EXISTS users;
+
+SET FOREIGN_KEY_CHECKS = 1;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  display_name VARCHAR(100) NOT NULL,
+  is_admin TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE user_tokens (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  INDEX (user_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE teams (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  short_name VARCHAR(10) NOT NULL,
+  color VARCHAR(10) NOT NULL DEFAULT '#0d4a36',
+  category ENUM('ipl','international','custom') NOT NULL DEFAULT 'custom',
+  owner_id INT NULL,
+  captain VARCHAR(100) NULL,
+  home_ground VARCHAR(150) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (category),
+  INDEX (owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE players (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  team_id INT NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  role ENUM('Batter','Bowler','All-rounder','Wicket-keeper') NOT NULL DEFAULT 'Batter',
+  batting_style VARCHAR(30) NULL,
+  bowling_style VARCHAR(40) NULL,
+  country VARCHAR(50) NULL,
+  jersey_no VARCHAR(5) NULL,
+  is_overseas TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (team_id),
+  INDEX (name),
+  FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE match_types (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(60) NOT NULL,
+  overs INT NOT NULL DEFAULT 20,
+  balls_per_over INT NOT NULL DEFAULT 6,
+  players_per_side INT NOT NULL DEFAULT 11,
+  max_overs_bowler INT NOT NULL DEFAULT 0,
+  last_man_stands TINYINT(1) NOT NULL DEFAULT 0,
+  description VARCHAR(255) NULL,
+  owner_id INT NULL,
+  is_system TINYINT(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE tournaments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  format ENUM('league','knockout','league_final') NOT NULL DEFAULT 'league',
+  match_type_id INT NULL,
+  owner_id INT NOT NULL,
+  start_date DATE NULL,
+  end_date DATE NULL,
+  venue VARCHAR(150) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (owner_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE tournament_teams (
+  tournament_id INT NOT NULL,
+  team_id INT NOT NULL,
+  PRIMARY KEY (tournament_id, team_id),
+  FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE CASCADE,
+  FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE matches (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  owner_id INT NOT NULL,
+  tournament_id INT NULL,
+  match_type_id INT NULL,
+  title VARCHAR(100) NULL,
+  team1_id INT NOT NULL,
+  team2_id INT NOT NULL,
+  overs INT NOT NULL DEFAULT 20,
+  balls_per_over INT NOT NULL DEFAULT 6,
+  players_per_side INT NOT NULL DEFAULT 11,
+  max_overs_bowler INT NOT NULL DEFAULT 0,
+  last_man_stands TINYINT(1) NOT NULL DEFAULT 0,
+  venue VARCHAR(150) NULL,
+  match_date DATETIME NULL,
+  toss_winner_id INT NULL,
+  toss_decision ENUM('bat','bowl') NULL,
+  status ENUM('scheduled','live','completed','abandoned') NOT NULL DEFAULT 'scheduled',
+  winner_team_id INT NULL,
+  result_text VARCHAR(200) NULL,
+  player_of_match_id INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX (status),
+  INDEX (owner_id),
+  INDEX (tournament_id),
+  FOREIGN KEY (tournament_id) REFERENCES tournaments(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE match_players (
+  match_id INT NOT NULL,
+  team_id INT NOT NULL,
+  player_id INT NOT NULL,
+  bat_order INT NOT NULL DEFAULT 0,
+  PRIMARY KEY (match_id, player_id),
+  INDEX (player_id),
+  FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE innings (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  match_id INT NOT NULL,
+  innings_no TINYINT NOT NULL,
+  batting_team_id INT NOT NULL,
+  bowling_team_id INT NOT NULL,
+  runs INT NOT NULL DEFAULT 0,
+  wickets INT NOT NULL DEFAULT 0,
+  legal_balls INT NOT NULL DEFAULT 0,
+  extras INT NOT NULL DEFAULT 0,
+  target INT NULL,
+  status ENUM('live','completed') NOT NULL DEFAULT 'live',
+  striker_id INT NULL,
+  non_striker_id INT NULL,
+  bowler_id INT NULL,
+  UNIQUE KEY (match_id, innings_no),
+  FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE innings_batters (
+  innings_id INT NOT NULL,
+  player_id INT NOT NULL,
+  position INT NOT NULL,
+  PRIMARY KEY (innings_id, player_id),
+  FOREIGN KEY (innings_id) REFERENCES innings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE balls (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  innings_id INT NOT NULL,
+  seq INT NOT NULL,
+  over_no INT NOT NULL,
+  ball_no INT NOT NULL,
+  batsman_id INT NOT NULL,
+  non_striker_id INT NULL,
+  bowler_id INT NOT NULL,
+  runs_bat INT NOT NULL DEFAULT 0,
+  extra_type ENUM('wd','nb','b','lb') NULL,
+  extra_runs INT NOT NULL DEFAULT 0,
+  total_runs INT NOT NULL DEFAULT 0,
+  is_legal TINYINT(1) NOT NULL DEFAULT 1,
+  is_wicket TINYINT(1) NOT NULL DEFAULT 0,
+  wicket_type VARCHAR(20) NULL,
+  dismissed_id INT NULL,
+  fielder_id INT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (innings_id, seq),
+  INDEX (batsman_id),
+  INDEX (bowler_id),
+  FOREIGN KEY (innings_id) REFERENCES innings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Match formats (system defaults; users can add their own)
+INSERT INTO match_types (name, overs, balls_per_over, players_per_side, max_overs_bowler, last_man_stands, description, is_system) VALUES
+('T20', 20, 6, 11, 4, 0, '20 overs a side, max 4 overs per bowler', 1),
+('ODI', 50, 6, 11, 10, 0, '50 overs a side, max 10 overs per bowler', 1),
+('T10', 10, 6, 11, 2, 0, '10 overs a side, max 2 overs per bowler', 1),
+('Box Cricket', 6, 6, 8, 2, 0, '6 overs, 8 a side, max 2 overs per bowler', 1),
+('Gully Cricket', 5, 6, 6, 0, 1, '5 overs, 6 a side, last man stands, no bowling limit', 1),
+('Backyard (Kids)', 3, 6, 3, 0, 1, '3 overs, up to 3 a side, last man stands', 1),
+('Custom', 8, 6, 11, 0, 0, 'Set your own overs and players', 1);

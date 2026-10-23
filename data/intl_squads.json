@@ -1,0 +1,1511 @@
+{
+ "source_note": "Men's white-ball pools merged from the most recent announced ODI and T20I squads as of 23 Oct 2026 (ESPNcricinfo/ICC/board sites/reputable news). Batting/bowling styles from Wikipedia/ESPNcricinfo profiles or well-known knowledge; a few newer players' batting hand (e.g. Razaullah) is assumed.",
+ "teams": [
+  {
+   "name": "India",
+   "short_name": "IND",
+   "color": "#1C4FA1",
+   "captain": "Shreyas Iyer",
+   "note": "T20I captain Shreyas Iyer (VC Tilak Varma); ODI captain Shubman Gill. Based on India squads for the New Zealand tour (T20Is from 22 Oct 2026, ODIs 1-3) and the West Indies home series (Sep-Oct 2026).",
+   "players": [
+    {
+     "name": "Shubman Gill",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Rohit Sharma",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Virat Kohli",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Shreyas Iyer",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ruturaj Gaikwad",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Abhishek Sharma",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Vaibhav Sooryavanshi",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tilak Varma",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "KL Rahul",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ishan Kishan",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Sanju Samson",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Axar Patel",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Shivam Dube",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Nitish Kumar Reddy",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Kuldeep Yadav",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm wrist-spin"
+    },
+    {
+     "name": "Varun Chakaravarthy",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Arshdeep Singh",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Mohammed Siraj",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Prasidh Krishna",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Mayank Yadav",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    }
+   ]
+  },
+  {
+   "name": "Australia",
+   "short_name": "AUS",
+   "color": "#FFCD00",
+   "captain": "Mitchell Marsh",
+   "note": "Mitchell Marsh is white-ball captain (T20I; also led ODIs). Josh Inglis captained the June 2026 ODIs in Bangladesh in Marsh's absence. Based on the ODI squad for Zimbabwe & South Africa (announced 1 Sep 2026) plus the T20I squad for the Bangladesh tour (June 2026). Squad for the Nov 2026 England series not yet found.",
+   "players": [
+    {
+     "name": "Mitchell Marsh",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Travis Head",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Matthew Renshaw",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Oliver Peake",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Josh Inglis",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Alex Carey",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tim David",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Cameron Green",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Cooper Connolly",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Aaron Hardie",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Joel Davies",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Pat Cummins",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Mitchell Starc",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast"
+    },
+    {
+     "name": "Josh Hazlewood",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Xavier Bartlett",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Nathan Ellis",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Spencer Johnson",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast"
+    },
+    {
+     "name": "Billy Stanlake",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Adam Zampa",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Matthew Kuhnemann",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    }
+   ]
+  },
+  {
+   "name": "England",
+   "short_name": "ENG",
+   "color": "#1B365D",
+   "captain": "Harry Brook",
+   "note": "Harry Brook captains both ODI and T20I sides. Based on the ODI squad for the Pakistan tri-series (Oct 2026) and the ODI/T20I squads for the tour of Australia (Nov-Dec 2026).",
+   "players": [
+    {
+     "name": "Harry Brook",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Joe Root",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Ben Duckett",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Phil Salt",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Jordan Cox",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tom Banton",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Thomas Rew",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Jacob Bethell",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Will Jacks",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Sam Curran",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Jamie Overton",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Liam Dawson",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "James Coles",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Adil Rashid",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Jofra Archer",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Gus Atkinson",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Josh Tongue",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Sonny Baker",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Henry Crocombe",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Luke Wood",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast"
+    }
+   ]
+  },
+  {
+   "name": "Pakistan",
+   "short_name": "PAK",
+   "color": "#01411C",
+   "captain": "Sahibzada Farhan",
+   "note": "T20I captain Sahibzada Farhan (replaced Salman Ali Agha, Oct 2026); ODI captain Shaheen Shah Afridi. Based on the T20I squad v Sri Lanka (9-13 Oct 2026) and ODI tri-series squad (v England & Sri Lanka, Oct 2026).",
+   "players": [
+    {
+     "name": "Sahibzada Farhan",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Saim Ayub",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Babar Azam",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Fakhar Zaman",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Hasan Nawaz",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Abdul Samad",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Salman Ali Agha",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Khawaja Nafay",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Saad Baig",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Shadab Khan",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Faheem Ashraf",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Arafat Minhas",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Maaz Sadaqat",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Shaheen Shah Afridi",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast"
+    },
+    {
+     "name": "Naseem Shah",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Haris Rauf",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Salman Mirza",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Left-arm fast"
+    },
+    {
+     "name": "Razaullah",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Abrar Ahmed",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Sufiyan Moqim",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm wrist-spin"
+    }
+   ]
+  },
+  {
+   "name": "South Africa",
+   "short_name": "SA",
+   "color": "#007749",
+   "captain": "Aiden Markram",
+   "note": "T20I captain Aiden Markram; ODI captain Temba Bavuma. Based on the ODI squad v Australia (announced 7 Sep 2026) plus the T20 World Cup 2026 squad (latest full-strength T20I squad found; the Mar 2026 NZ T20I squad was second-string).",
+   "players": [
+    {
+     "name": "Aiden Markram",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Temba Bavuma",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Quinton de Kock",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ryan Rickelton",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tony de Zorzi",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Matthew Breetzke",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tristan Stubbs",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "David Miller",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Dewald Brevis",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Donovan Ferreira",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Marco Jansen",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Left-arm fast"
+    },
+    {
+     "name": "Corbin Bosch",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "George Linde",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Kagiso Rabada",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Lungi Ngidi",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Anrich Nortje",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Gerald Coetzee",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Kwena Maphaka",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast"
+    },
+    {
+     "name": "Ottneil Baartman",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Keshav Maharaj",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    }
+   ]
+  },
+  {
+   "name": "New Zealand",
+   "short_name": "NZ",
+   "color": "#000000",
+   "captain": "Mitchell Santner",
+   "note": "Mitchell Santner captains both formats. Based on NZ T20I and ODI (matches 1-3) squads for the home series v India (Oct-Nov 2026).",
+   "players": [
+    {
+     "name": "Finn Allen",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Devon Conway",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Will Young",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Rachin Ravindra",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Mark Chapman",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Bevon Jacobs",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tom Latham",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tim Seifert",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Daryl Mitchell",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Glenn Phillips",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Michael Bracewell",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Josh Clarkson",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Mitchell Santner",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Nathan Smith",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Matt Henry",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Lockie Ferguson",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Jacob Duffy",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Kyle Jamieson",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Adam Milne",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Blair Tickner",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    }
+   ]
+  },
+  {
+   "name": "Sri Lanka",
+   "short_name": "SL",
+   "color": "#0A2A6B",
+   "captain": "Kusal Mendis",
+   "note": "Kusal Mendis captains both formats. Based on the T20I squad for Pakistan (Oct 2026) and the ODI tri-series squad in Pakistan (from 18 Oct 2026).",
+   "players": [
+    {
+     "name": "Kusal Mendis",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Pathum Nissanka",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Kamil Mishara",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Avishka Fernando",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Pavan Rathnayake",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Lahiru Udara",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Sahan Arachchige",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Kamindu Mendis",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Dasun Shanaka",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Janith Liyanage",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Chamindu Wickramasinghe",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Dunith Wellalage",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Maheesh Theekshana",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Vijayakanth Viyaskanth",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Dushmantha Chameera",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Asitha Fernando",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Dilshan Madushanka",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Binura Fernando",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Nuwan Thushara",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Eshan Malinga",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    }
+   ]
+  },
+  {
+   "name": "Bangladesh",
+   "short_name": "BAN",
+   "color": "#006A4E",
+   "captain": "Litton Das",
+   "note": "Litton Das captains the ODI side (VC Towhid Hridoy). Based on the UAE ODI tri-series squad (17-23 Oct 2026); no newer T20I squad found. Nahid Rana missed out injured.",
+   "players": [
+    {
+     "name": "Litton Das",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Towhid Hridoy",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tanzid Hasan",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Saif Hassan",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Soumya Sarkar",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Najmul Hossain Shanto",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Mosaddek Hossain",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Mehidy Hasan Miraz",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Nurul Hasan",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Rishad Hossain",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Tanvir Islam",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Taskin Ahmed",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Mustafizur Rahman",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Hasan Mahmud",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Shoriful Islam",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Aliss Al Islam",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    }
+   ]
+  },
+  {
+   "name": "Afghanistan",
+   "short_name": "AFG",
+   "color": "#0066B3",
+   "captain": "Ibrahim Zadran",
+   "note": "T20I captain Ibrahim Zadran; ODI captain Rahmat Shah. Based on the UAE ODI tri-series squad (Oct 2026) and T20I squad v Zimbabwe (27 Oct-1 Nov 2026).",
+   "players": [
+    {
+     "name": "Ibrahim Zadran",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Rahmanullah Gurbaz",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ikram Alikhil",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Sediqullah Atal",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Rahmat Shah",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Hashmatullah Shahidi",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ijaz Ahmadzai",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Azmatullah Omarzai",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Mohammad Nabi",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Nangyal Kharoti",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Shahidullah Kamal",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Rashid Khan",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Noor Ahmad",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Left-arm wrist-spin"
+    },
+    {
+     "name": "Mujeeb Ur Rahman",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "AM Ghazanfar",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Fazalhaq Farooqi",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Fareed Ahmad Malik",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Bilal Sami",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Yamin Ahmadzai",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Abdullah Ahmadzai",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    }
+   ]
+  },
+  {
+   "name": "West Indies",
+   "short_name": "WI",
+   "color": "#7B0041",
+   "captain": "Shai Hope",
+   "note": "Shai Hope captains both formats. Based on ODI and T20I squads for the India tour (Sep-Oct 2026).",
+   "players": [
+    {
+     "name": "Shai Hope",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Jewel Andrew",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Keacy Carty",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Shimron Hetmyer",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Kamil Pooran",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Quentin Sampson",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Rovman Powell",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Sherfane Rutherford",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Amir Jangoo",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Roston Chase",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Justin Greaves",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Romario Shepherd",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Shamar Springer",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Keemo Paul",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Matthew Forde",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Alzarri Joseph",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Shamar Joseph",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Jayden Seales",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Akeal Hosein",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Gudakesh Motie",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    }
+   ]
+  },
+  {
+   "name": "Ireland",
+   "short_name": "IRE",
+   "color": "#169B62",
+   "captain": "Lorcan Tucker",
+   "note": "T20I captain Lorcan Tucker (appointed Jun 2026); ODI captain Paul Stirling. Based on the T20I squad v India (Jun 2026) and ODI squad v Afghanistan (Aug 2026).",
+   "players": [
+    {
+     "name": "Paul Stirling",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Andrew Balbirnie",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Harry Tector",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Tim Tector",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ross Adair",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Lorcan Tucker",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Stephen Doheny",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ben Calitz",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Curtis Campher",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Gareth Delany",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "George Dockrell",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Andy McBrine",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Mark Adair",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Gavin Hoey",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Matthew Humphreys",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Matthew Hollard",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Liam McCarthy",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Jai Moondra",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Byron McDonough",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Reuben Wilson",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    }
+   ]
+  },
+  {
+   "name": "Zimbabwe",
+   "short_name": "ZIM",
+   "color": "#D40000",
+   "captain": "Sikandar Raza",
+   "note": "Sikandar Raza captains both formats. Based on ODI tri-series and T20I squads for the UAE tour (Oct-Nov 2026).",
+   "players": [
+    {
+     "name": "Sikandar Raza",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Brian Bennett",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Ben Curran",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Craig Ervine",
+     "role": "Batter",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Innocent Kaia",
+     "role": "Batter",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Brendan Taylor",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tadiwanashe Marumani",
+     "role": "Wicket-keeper",
+     "batting_style": "Left-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Tafadzwa Tsiga",
+     "role": "Wicket-keeper",
+     "batting_style": "Right-hand bat",
+     "bowling_style": ""
+    },
+    {
+     "name": "Ryan Burl",
+     "role": "All-rounder",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    },
+    {
+     "name": "Wessly Madhevere",
+     "role": "All-rounder",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm offbreak"
+    },
+    {
+     "name": "Blessing Muzarabani",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast-medium"
+    },
+    {
+     "name": "Brad Evans",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Newman Nyamhuri",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Left-arm fast-medium"
+    },
+    {
+     "name": "Ernest Masuku",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm medium"
+    },
+    {
+     "name": "Kundai Matigimu",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm fast"
+    },
+    {
+     "name": "Wellington Masakadza",
+     "role": "Bowler",
+     "batting_style": "Left-hand bat",
+     "bowling_style": "Slow left-arm orthodox"
+    },
+    {
+     "name": "Vincent Masekesa",
+     "role": "Bowler",
+     "batting_style": "Right-hand bat",
+     "bowling_style": "Right-arm legbreak"
+    }
+   ]
+  }
+ ]
+}
