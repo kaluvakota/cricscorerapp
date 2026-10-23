@@ -2,6 +2,7 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS academy_progress;
 DROP TABLE IF EXISTS interruptions;
 DROP TABLE IF EXISTS balls;
 DROP TABLE IF EXISTS innings_batters;
@@ -208,6 +209,19 @@ CREATE TABLE interruptions (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX (match_id),
   FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE academy_progress (
+  user_id INT NOT NULL,
+  lesson_id VARCHAR(20) NOT NULL,
+  best_correct INT NOT NULL DEFAULT 0,
+  total INT NOT NULL DEFAULT 0,
+  stars TINYINT NOT NULL DEFAULT 0,
+  attempts INT NOT NULL DEFAULT 0,
+  xp INT NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, lesson_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Match formats (system defaults; users can add their own)

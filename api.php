@@ -2,6 +2,7 @@
 /* Cric-Scorer by Aaryush — JSON API */
 require_once __DIR__ . '/inc/core.php';
 require_once __DIR__ . '/inc/engine.php';
+require_once __DIR__ . '/inc/academy.php';
 
 $action = preg_replace('/[^a-z_]/', '', $_GET['action'] ?? '');
 $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
@@ -387,6 +388,12 @@ function handle(string $action, array $in, ?array $u) {
         }
         return ['created' => count($pairs)];
     }
+
+    /* ===== Academy (lessons & quizzes) ===== */
+    case 'academy_progress':
+        return academy_progress($u);
+    case 'academy_submit':
+        return academy_submit($u, $in);
 
     /* ===== Stats ===== */
     case 'leaderboards':

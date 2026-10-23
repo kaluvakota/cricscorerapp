@@ -50,6 +50,13 @@ function ensure_schema(): void {
     static $done = false;
     if ($done) return;
     $done = true;
+    if (!val("SHOW TABLES LIKE 'academy_progress'")) {
+        db()->exec("CREATE TABLE IF NOT EXISTS academy_progress (
+            user_id INT NOT NULL, lesson_id VARCHAR(20) NOT NULL, best_correct INT NOT NULL DEFAULT 0, total INT NOT NULL DEFAULT 0,
+            stars TINYINT NOT NULL DEFAULT 0, attempts INT NOT NULL DEFAULT 0, xp INT NOT NULL DEFAULT 0,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (user_id, lesson_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
     db()->exec("UPDATE innings i JOIN matches m ON m.id=i.match_id SET i.max_overs=m.overs, i.start_overs=m.overs");

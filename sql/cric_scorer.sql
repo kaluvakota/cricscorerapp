@@ -2,6 +2,8 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS academy_progress;
+DROP TABLE IF EXISTS interruptions;
 DROP TABLE IF EXISTS balls;
 DROP TABLE IF EXISTS innings_batters;
 DROP TABLE IF EXISTS innings;
@@ -112,6 +114,9 @@ CREATE TABLE matches (
   players_per_side INT NOT NULL DEFAULT 11,
   max_overs_bowler INT NOT NULL DEFAULT 0,
   last_man_stands TINYINT(1) NOT NULL DEFAULT 0,
+  dls_g50 INT NOT NULL DEFAULT 200,
+  inn2_overs INT NULL,
+  result_method VARCHAR(10) NULL,
   venue VARCHAR(150) NULL,
   match_date DATETIME NULL,
   toss_winner_id INT NULL,
@@ -149,6 +154,9 @@ CREATE TABLE innings (
   legal_balls INT NOT NULL DEFAULT 0,
   extras INT NOT NULL DEFAULT 0,
   target INT NULL,
+  max_overs INT NOT NULL DEFAULT 20,
+  start_overs INT NOT NULL DEFAULT 20,
+  dls TINYINT(1) NOT NULL DEFAULT 0,
   status ENUM('live','completed') NOT NULL DEFAULT 'live',
   striker_id INT NULL,
   non_striker_id INT NULL,
@@ -188,6 +196,32 @@ CREATE TABLE balls (
   INDEX (batsman_id),
   INDEX (bowler_id),
   FOREIGN KEY (innings_id) REFERENCES innings(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE interruptions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  match_id INT NOT NULL,
+  innings_no TINYINT NOT NULL,
+  legal_balls INT NOT NULL,
+  wickets INT NOT NULL,
+  overs_before INT NOT NULL,
+  overs_after INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX (match_id),
+  FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE academy_progress (
+  user_id INT NOT NULL,
+  lesson_id VARCHAR(20) NOT NULL,
+  best_correct INT NOT NULL DEFAULT 0,
+  total INT NOT NULL DEFAULT 0,
+  stars TINYINT NOT NULL DEFAULT 0,
+  attempts INT NOT NULL DEFAULT 0,
+  xp INT NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, lesson_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Match formats (system defaults; users can add their own)

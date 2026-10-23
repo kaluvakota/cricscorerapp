@@ -18,6 +18,10 @@ Made for Aarush & Aayush.
 - **Rain rules (DLS)** — Duckworth-Lewis-Stern, ICC Standard Edition: reduce overs before or during either innings,
   revised targets, live par score and par-by-over table, "rain stopped play" results, G50 = 200 (junior/club) or 245
   (international). Scorer menu → *Rain / DLS*. The resource table is in `inc/dls.php`.
+- **Cricket Academy** (Learn tab) — a full syllabus for kids: 6 modules, 29 lessons, 179 teaching cards with field
+  diagrams, 232 quiz questions and a 25-question Final Exam. Lessons first, then a quiz (marked on the server);
+  60% unlocks the next lesson, 3 ★ for 90%+. XP and ranks from Gully Rookie to Cricket Legend, module badges,
+  family leaderboard and a printable "Certified Cricket Expert" certificate. Content: `assets/academy.json`.
 - **Live sharing** — share a match link; anyone can watch the score update live (no login needed).
 
 ## Requirements

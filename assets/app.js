@@ -24,6 +24,7 @@ const I = {
   chev: sv('<path d="M9 6l6 6-6 6"/>'),
   edit: sv('<path d="M4 20h4L19 9l-4-4L4 16v4z"/>'),
   refresh: sv('<path d="M20 11a8 8 0 10-2.3 5.7"/><path d="M20 5v6h-6"/>'),
+  learn: sv('<path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2.5 9 2.5 12 0v-5"/><path d="M22 9v6"/>'),
 };
 const LOGO = `<svg class="logo" viewBox="0 0 64 64" aria-label="Cric-Scorer logo"><rect width="64" height="64" rx="18" fill="#0d4a36"/><rect x="2" y="2" width="60" height="60" rx="16" fill="none" stroke="#b6e94a" stroke-opacity=".35" stroke-width="1.5" stroke-dasharray="3 3"/>
 <g fill="#f6ecd2"><rect x="13" y="17" width="4.5" height="32" rx="2.2"/><rect x="21" y="17" width="4.5" height="32" rx="2.2"/><rect x="29" y="17" width="4.5" height="32" rx="2.2"/><rect x="12" y="13.5" width="10" height="3" rx="1.5"/><rect x="24.5" y="13.5" width="10" height="3" rx="1.5"/></g>
@@ -110,7 +111,7 @@ function renderTabbar(tab) {
   const bar = $('#tabbar');
   if (!tab || !S.user) { bar.classList.add('hidden'); return; }
   bar.classList.remove('hidden');
-  const items = [['home', '#/', 'Home', I.home], ['matches', '#/matches', 'Matches', I.ball], ['teams', '#/teams', 'Teams', I.team], ['tournaments', '#/tournaments', 'Cups', I.trophy], ['more', '#/more', 'More', I.more]];
+  const items = [['home', '#/', 'Home', I.home], ['matches', '#/matches', 'Matches', I.ball], ['learn', '#/learn', 'Learn', I.learn], ['teams', '#/teams', 'Teams', I.team], ['tournaments', '#/tournaments', 'Cups', I.trophy], ['more', '#/more', 'More', I.more]];
   bar.innerHTML = `<div class="wrap">${items.map(([k, h, l, ic]) => `<a href="${h}" class="${k === tab ? 'on' : ''}">${ic}<span>${l}</span><i class="pip"></i></a>`).join('')}</div>`;
 }
 function sheet(html, { locked = false } = {}) {
@@ -144,7 +145,26 @@ const ROUTES = [
   [/^#\/types$/, viewTypes],
   [/^#\/profile$/, viewProfile],
   [/^#\/more$/, viewMore],
+  [/^#\/learn$/, () => academy('home')],
+  [/^#\/learn\/lesson\/(\w+)$/, id => academy('lesson', id)],
+  [/^#\/learn\/quiz\/(\w+)$/, id => academy('quiz', id)],
+  [/^#\/learn\/certificate$/, () => academy('certificate')],
 ];
+/* Cricket Academy code loads only when the Learn tab is first opened */
+function loadAcademy() {
+  if (window.Academy) return Promise.resolve();
+  return new Promise((ok, bad) => {
+    const s = document.createElement('script');
+    s.src = 'assets/academy.js?v=' + (window.CS_VERSION || '');
+    s.onload = ok; s.onerror = () => bad(new Error('Could not load the Academy. Check your connection.'));
+    document.head.appendChild(s);
+  });
+}
+async function academy(fn, ...args) {
+  if (!window.Academy) mount(topbar('Cricket Academy') + `<div class="content">${sk(4)}</div>`, 'learn');
+  await loadAcademy();
+  return Academy[fn](...args);
+}
 function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; }
 async function render() {
   clearTimers(); closeSheet();
@@ -227,6 +247,7 @@ async function viewHome() {
       <div class="tile" onclick="go('#/teams?c=international')"><span class="ic">🌍</span>International</div>
       <div class="tile" onclick="go('#/teams?c=custom')"><span class="ic">🧢</span>Our Teams</div>
       <div class="tile" onclick="go('#/stats')"><span class="ic">📊</span>Leaderboard</div>
+      <div class="tile" style="grid-column:1/-1;background:linear-gradient(135deg,#fff7df,#ffeec2);color:#5b3d00" onclick="go('#/learn')"><span class="ic" style="background:#fff">🎓</span><div class="grow">Cricket Academy<div class="small" style="font-weight:700;opacity:.8">Lessons, quizzes & your certificate</div></div></div>
     </div></div>`, 'home');
 }
 App.install = async () => {

@@ -329,3 +329,86 @@ select.input{background-image:linear-gradient(45deg,transparent 50%,var(--muted)
 /* ---------- DLS ---------- */
 .dls-tag{display:inline-block;font-size:10px;font-weight:900;letter-spacing:.5px;background:var(--lime);color:#13241b;border-radius:5px;padding:1px 5px;vertical-align:2px;font-style:normal}
 details summary{cursor:pointer;list-style:none}
+
+/* ---------- Cricket Academy ---------- */
+#tabbar a span{font-size:10.5px}
+.ac-hero{padding:16px}
+.ac-rank-ic{font-size:40px}
+.ac-rank{font-family:var(--display);font-size:26px;line-height:1}
+.ac-stats{display:flex;justify-content:space-between;margin-top:10px;font-size:12.5px;font-weight:700;opacity:.9}
+.ac-stats b{font-family:var(--display);font-size:18px;color:var(--lime)}
+.ac-mod{margin-bottom:14px}
+.ac-mod-h{display:flex;gap:12px;padding:14px;background:var(--soft);border-bottom:1px solid var(--line)}
+.ac-mod-e{font-size:34px;line-height:1}
+.ac-mod.locked .ac-mod-h{opacity:.6}
+.ac-badge{color:#b07a12}
+.list .item.locked{opacity:.5}
+.ac-ic{font-size:20px;width:28px;text-align:center;flex:none}
+.ac-stars{white-space:nowrap;flex:none}
+.ac-stars i{font-style:normal;color:var(--line);font-size:15px}
+.ac-stars i.on{color:#f2b134}
+.ac-stars.big i{font-size:40px;margin:0 3px;display:inline-block;animation:pop .5s ease backwards}
+.ac-stars.big i:nth-child(2){animation-delay:.15s}.ac-stars.big i:nth-child(3){animation-delay:.3s}
+.ac-me{background:var(--green-soft)}
+.ac-final{cursor:pointer;border:2px solid #f2b134}
+.ac-final.locked{opacity:.65;border-color:var(--line)}
+.ac-dots,.ac-qbar{display:flex;gap:5px;margin-bottom:12px}
+.ac-dots i,.ac-qbar i{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.ac-dots i.done{background:var(--pitch-3)}.ac-dots i.on{background:var(--red)}
+.ac-qbar i.on{background:var(--ink)}.ac-qbar i.ok{background:var(--green)}.ac-qbar i.bad{background:var(--red)}
+.ac-card{padding:18px}
+.ac-card-n{font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+.ac-card-t{font-family:var(--display);font-size:28px;line-height:1.1;margin:4px 0 10px}
+.ac-card p{margin:0 0 10px;font-size:16px;line-height:1.5}
+.ac-fact{background:#fff7e0;color:#6b4800;border-radius:13px;padding:11px 13px;font-size:14.5px;font-weight:700;margin-top:6px}
+@media (prefers-color-scheme:dark){.ac-fact{background:#2e2610;color:#f2c94c}}
+.ac-fig{margin:6px auto 12px;max-width:340px}
+.ac-field{width:100%;height:auto;display:block}
+.ac-field .ac-side{fill:rgba(255,255,255,.75);font:800 13px var(--font);letter-spacing:1.5px}
+.ac-field .ac-lbl{fill:#fff;font:900 12.5px var(--font);paint-order:stroke;stroke:#13241b;stroke-width:4px}
+.ac-field .ac-q{fill:#13241b;font:900 14px var(--font)}
+.ac-field .ac-mini{font-size:14px}
+.ac-field .ac-mini2{fill:var(--muted);font:800 11px var(--font)}
+.ac-field .ac-side2{fill:var(--pitch-3);font:900 13px var(--font);letter-spacing:1px}
+.ac-field .ac-dot{animation:pulse 1.4s ease infinite}
+.ac-field .ac-arrow{stroke-dasharray:500;stroke-dashoffset:500;animation:draw 1s ease forwards}
+@keyframes pulse{50%{r:13}}
+@keyframes draw{to{stroke-dashoffset:0}}
+.ac-qcard{padding:16px}
+.ac-qn{display:inline-block;background:var(--pitch);color:#fff;font-family:var(--display);font-weight:800;border-radius:8px;padding:2px 8px;font-size:15px}
+.ac-qt{font-size:19px;line-height:1.35;margin:8px 0 6px}
+.ac-opts{display:flex;flex-direction:column;gap:9px;margin-bottom:12px}
+.ac-opt{text-align:left;border:2px solid var(--line);background:var(--card);border-radius:15px;padding:14px 15px;font-size:16px;font-weight:800;cursor:pointer;color:var(--ink);transition:transform .08s}
+.ac-opt:active{transform:scale(.98)}
+.ac-opt.ok{border-color:var(--green);background:var(--green-soft);color:var(--green)}
+.ac-opt.ok::before{content:"✓ "}
+.ac-opt.bad{border-color:var(--red);background:var(--red-soft);color:var(--red);animation:shake .35s}
+.ac-opt.bad::before{content:"✗ "}
+.ac-opt.dim{opacity:.45}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.ac-ex{border-radius:14px;padding:12px 14px;margin-bottom:12px;font-size:15px;line-height:1.45}
+.ac-ex.ok{background:var(--green-soft)}.ac-ex.bad{background:var(--red-soft)}
+.ac-result{text-align:center;padding:22px 16px}
+.ac-res-emoji{font-size:56px}
+.ac-result h2{font-family:var(--display);font-size:30px;margin:4px 0 6px}
+.ac-score{font-family:var(--display);font-size:22px;margin-top:8px}
+.ac-score b{font-size:56px}
+.ac-score span{display:block;font-size:16px;color:var(--muted)}
+.ac-xp{display:inline-block;margin:8px 0;background:var(--lime);color:#13241b;font-weight:900;border-radius:999px;padding:6px 14px}
+.ac-rankup{margin-top:10px;background:#fff7e0;color:#6b4800;border-radius:12px;padding:10px;font-weight:800;animation:pop .6s ease}
+.ac-rev{border-left:4px solid var(--green);background:var(--soft);border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px}
+.ac-rev.bad{border-left-color:var(--red)}
+.ac-rev div{margin-top:3px}
+.ac-cert{background:linear-gradient(135deg,#f6e7b9,#fff8e4 40%,#f2dc9d);border-radius:18px;padding:10px;box-shadow:var(--shadow);color:#3d2a00}
+.ac-cert-in{border:3px double #b07a12;border-radius:12px;padding:20px 14px;text-align:center}
+.ac-cert-logo svg{width:58px;height:58px}
+.ac-cert-k{font-size:11px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:#8a5d00;margin-top:4px}
+.ac-cert-h{font-family:var(--display);font-size:30px;font-weight:800;margin:6px 0}
+.ac-cert-name{font-family:var(--display);font-size:38px;font-weight:800;color:#0d4a36;border-bottom:2px solid #b07a12;display:inline-block;padding:0 14px;margin:6px 0 10px}
+.ac-cert-score{font-family:var(--display);font-size:22px;margin:8px 0}
+.ac-cert-t{display:inline-block;background:#0d4a36;color:#fff;font-weight:900;border-radius:999px;padding:8px 16px;margin:6px 0 14px}
+.ac-cert-meta{display:flex;justify-content:space-around;font-weight:800;font-size:13px}
+.ac-cert-meta small{font-weight:600;color:#8a5d00}
+.ac-cert-sign{display:flex;justify-content:space-between;margin-top:22px;font-size:12px;font-weight:800}
+.ac-cert-sign span{border-top:1.5px solid #3d2a00;padding-top:4px;width:42%}
+@media print{ #tabbar,.topbar,.btn,#toast,.update-bar{display:none!important} body,#app{background:#fff} .ac-cert{box-shadow:none} }
