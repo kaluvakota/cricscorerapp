@@ -26,7 +26,8 @@ Made for Aarush & Aayush.
 1. **Create a database**: cPanel → *MySQL Databases* → create a database (e.g. `youruser_cric`),
    a user with a strong password, and add the user to the database with **ALL PRIVILEGES**.
 2. **Upload** the contents of this folder to your web server, e.g. `public_html/cricket/`.
-3. **Edit `config.php`** — set `DB_NAME`, `DB_USER`, `DB_PASS` (and `DB_HOST` if not `localhost`).
+3. **Copy `config.local.sample.php` to `config.local.php`** and set `DB_NAME`, `DB_USER`, `DB_PASS`
+   (on Hostinger these include the `u…_` prefix). Leave `config.php` unchanged — it holds placeholders only.
 4. **Open** `https://your-domain/cricket/install.php` in a browser, create the admin account, and click *Install*.
 5. **Delete `install.php`** from the server.
 6. Open `https://your-domain/cricket/` on the phone → browser menu → **Add to Home screen**.
@@ -53,3 +54,8 @@ index.php        app shell        api.php       JSON API        install.php   on
 config.php       database config  inc/          scoring engine  assets/       app JS, CSS, icons
 manifest.json    PWA manifest     sw.js         offline cache   sql/          schema + seed data
 ```
+
+## Keeping your password out of Git
+Real database settings live in `config.local.php`, which is listed in `.gitignore` and blocked from the web
+by `.htaccess`. `config.php` (in Git) only has placeholders and loads `config.local.php` when it exists, so a
+`git pull` or zip upload never overwrites your server's password.

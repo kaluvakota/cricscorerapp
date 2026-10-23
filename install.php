@@ -28,7 +28,7 @@ try {
     $pdo = new PDO('mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=utf8mb4', DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 } catch (Throwable $e) {
     page('Database connection failed', '<div class="err">' . htmlspecialchars($e->getMessage()) . '</div>
-      <p>Open <code>config.php</code> and set the correct values:</p><ul><li><code>DB_HOST</code> (usually <code>localhost</code>)</li><li><code>DB_NAME</code> — the database you created</li><li><code>DB_USER</code> / <code>DB_PASS</code> — a MySQL user with full access to that database</li></ul><a class="btn" href="install.php">Try again</a>');
+      <p>Copy <code>config.local.sample.php</code> to <code>config.local.php</code> and set the correct values there (it is never overwritten by updates):</p><ul><li><code>DB_HOST</code> (usually <code>localhost</code>)</li><li><code>DB_NAME</code> — the database you created</li><li><code>DB_USER</code> / <code>DB_PASS</code> — a MySQL user with full access to that database</li></ul><a class="btn" href="install.php">Try again</a>');
 }
 try { $hasData = (bool)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn(); } catch (Throwable $e) { $hasData = false; }
 

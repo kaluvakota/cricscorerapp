@@ -1,3 +1,4 @@
 install.lock
+config.local.php
 .DS_Store
 *.log
