@@ -35,11 +35,11 @@ function users_search(array $u, array $in): array {
     $q = trim(str_in($in, 'q', 60));
     [$pv, $pp] = people_vis($u);
     $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
-    $list = rows("SELECT u.*, (SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followee_id=u.id) following,
+    $list = rows("SELECT u.*, (SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followee_id=u.id) is_following,
                     (SELECT COUNT(*) FROM follows f JOIN users fu ON fu.id=f.follower_id WHERE f.followee_id=u.id AND fu.is_private=0) followers
                   FROM users u WHERE u.id<>? AND $pv AND (? = '' OR u.username LIKE ? OR u.display_name LIKE ?)
                   ORDER BY followers DESC, u.display_name LIMIT 40", array_merge([$u['id'], $u['id']], $pp, [$q, $like, $like]));
-    return ['users' => array_map(fn($r) => person($r) + ['following' => (bool)$r['following'], 'followers' => (int)$r['followers']], $list)];
+    return ['users' => array_map(fn($r) => person($r) + ['following' => (bool)$r['is_following'], 'followers' => (int)$r['followers']], $list)];
 }
 
 function user_profile(array $u, array $in): array {
