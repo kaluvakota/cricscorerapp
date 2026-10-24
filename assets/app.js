@@ -150,6 +150,11 @@ const ROUTES = [
   [/^#\/profile$/, viewProfile],
   [/^#\/more$/, viewMore],
   [/^#\/people(?:\?t=(\w+))?$/, viewPeople],
+  [/^#\/academies$/, viewAcademies],
+  [/^#\/academy\/new$/, () => viewAcademyForm(0)],
+  [/^#\/academy\/(\d+)\/edit$/, viewAcademyForm],
+  [/^#\/academy\/(\d+)$/, viewAcademy],
+  [/^#\/wa$/, viewWaLogin, true],
   [/^#\/user\/(\d+)\/(followers|following)$/, viewFollowList],
   [/^#\/user\/(\d+)$/, viewUser],
   [/^#\/play$/, () => duel('lobby')],
@@ -347,6 +352,7 @@ function viewLogin() {
     <div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="current-password" required></div>
     <div id="cap" class="cap"></div>
     <button class="btn block">Let's play 🏏</button></form>
+    ${S.auth && S.auth.whatsapp ? `<a class="btn block" href="#/wa" onclick="S.waMode='login'" style="background:#25d366;margin-top:10px">📲 Sign in with WhatsApp</a>` : ''}
     <div class="switch-link">New player? <a href="#/register">Create an account</a></div>`), null);
   renderGoogleButton('gbtn', 'signin_with'); renderCaptcha();
 }
@@ -1516,6 +1522,7 @@ function viewMore() {
       ${item('👥', 'Find players', 'Search, follow, and see your followers', "go('#/people')")}
       ${item('📊', 'Leaderboard', 'Top run scorers & wicket takers', "go('#/stats')")}
       ${item('⚙️', 'Match types', 'T20, ODI, Gully cricket & your own', "go('#/types')")}
+      ${item('🎓', 'Cricket academies', (u.academies && u.academies.length) ? 'You train at ' + esc(u.academies.map(a => a.name).join(', ')) : 'Find an academy, or register yours', "go('#/academies')")}
       ${item('🧢', 'Our teams' + (S.extras && S.extras.team_requests ? ' <span class="dot-new"></span>' : ''), S.extras && S.extras.team_requests ? `${plural(S.extras.team_requests, 'player')} asking to use your teams` : 'Teams you and your friends made', "go('#/teams?c=custom')")}
       ${item('🔊', 'Sound & commentary', (Sound.sfx ? 'Sounds on' : 'Sounds off') + ' · ' + (Sound.voice ? 'voice on' : 'voice muted'), 'App.soundSheet()')}
       ${item('📲', 'Install app', 'Add Cric-Scorer to your home screen', 'App.installHelp()')}
@@ -1598,6 +1605,7 @@ function viewProfile() {
     <label class="switch" style="margin-bottom:6px"><span><b>🔒 Private profile</b><div class="small muted">Others can't find you, see your profile or follow you. Your followers lists stay hidden too.</div></span>
       <input type="checkbox" name="is_private" ${u.is_private ? 'checked' : ''}><span class="knob"></span></label>
     <div class="small muted" style="margin:0 2px 4px">Tip: you can also make a single match private when you create it.</div>
+    ${mobileCard(u)}
     ${gCard}
     <div class="section"><h2>${u.has_password ? 'Change password' : 'Set a password (optional)'}</h2></div><div class="card">
     ${u.has_password ? `<div class="field"><label>Current password</label><input class="input" type="password" name="current_password" autocomplete="current-password"></div>` : ''}
@@ -1628,6 +1636,129 @@ App.deleteAccountGo = e => {
     try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (x) { /* ignore */ }
     toast('Your account has been deleted. Thanks for playing! 🏏');
     go('#/');
+  }, e.submitter);
+};
+/* ---------- Cricket academies ---------- */
+async function viewAcademies() {
+  mount(topbar('Cricket academies', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
+  const d = await api('academies_list', { q: S.acq || '' });
+  mount(topbar('Cricket academies', { back: true }) + `<div class="content">
+    <div class="search">${I.search}<input class="input" placeholder="Search by name or city" value="${esc(S.acq || '')}" oninput="App.filterList(this.value)"></div>
+    ${d.mine.length ? `<div class="news news-new"><div class="grow"><b>🎓 You train at ${d.mine.map(a => `<a class="link" href="#/academy/${a.id}">${esc(a.name)}</a>`).join(', ')}</b></div></div>` : ''}
+    ${d.academies.length ? `<div class="card flush list">${d.academies.map(a => `<div class="item" data-q="${esc((a.name + ' ' + (a.city || '')).toLowerCase())}" onclick="go('#/academy/${a.id}')"><span class="avatar" style="background:#0ca678;color:#fff">🎓</span>
+        <div class="grow"><div class="t ellipsis">${esc(a.name)}</div><div class="s">${esc([a.city, plural(a.students, 'student')].filter(Boolean).join(' · '))}${a.can_edit ? ' · yours' : ''}</div></div><span class="chev">${I.chev}</span></div>`).join('')}</div>`
+      : `<div class="card empty"><div class="big">🎓</div>No academies registered yet.</div>`}
+    <div class="card" style="margin-top:14px"><b>Run a cricket academy?</b><div class="small muted" style="margin:4px 0 10px">Register it here, add your students, and they can play and score matches as your academy team.</div><button class="btn block" onclick="go('#/academy/new')">🎓 Register your academy</button></div>
+  </div>`, 'more');
+}
+async function viewAcademy(id) {
+  mount(topbar('Academy', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
+  const d = await api('academy_get', { id: +id }), a = d.academy;
+  const stu = s => `<div class="item" ${s.user_id ? `style="cursor:pointer" onclick="go('#/user/${s.user_id}')"` : ''}>${s.user_id ? personAvatar({ avatar: s.avatar, avatar_preset: s.avatar_preset, display_name: s.name }, 40) : `<span class="avatar">${esc(s.name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</span>`}
+      <div class="grow"><div class="t ellipsis">${esc(s.name)}${s.verified ? ' ✅' : ''}</div><div class="s">${s.username ? '@' + esc(s.username) : 'Added by the academy'}</div></div>
+      ${a.can_edit || s.user_id === S.user.id ? `<button class="btn sm light" onclick="event.stopPropagation();App.academyRemove(${s.id})">${s.user_id === S.user.id && !a.can_edit ? 'Leave' : 'Remove'}</button>` : ''}</div>`;
+  mount(topbar(a.name, { back: true, actions: a.can_edit ? `<button class="icon-btn" aria-label="Edit" onclick="go('#/academy/${a.id}/edit')">${I.edit}</button>` : '' }) + `<div class="team-hero" style="background:#0ca678;color:#fff"><span class="badge lg" style="background:rgba(255,255,255,.18);color:#fff">🎓</span>
+      <div><h2>${esc(a.name)}</h2><p>${esc([a.city, plural(a.students, 'student')].filter(Boolean).join(' · '))}</p>${a.coach ? `<p>Coach: ${esc(a.coach)}</p>` : ''}${a.address ? `<p>📍 ${esc(a.address)}</p>` : ''}${a.phone ? `<p>📞 +${esc(a.phone)}</p>` : ''}</div></div>
+    <div class="content">
+      ${a.about ? `<div class="card bio">${esc(a.about)}</div>` : ''}
+      ${a.can_edit ? `<div class="card"><b>➕ Add a student</b><div class="small muted" style="margin:2px 0 10px">Type a player's <b>username or mobile number</b> if they use the app, or just a <b>name</b> to add them to the squad.</div>
+        <form class="row" onsubmit="App.academyAdd(event,${a.id},'user')"><input class="input grow" name="user" placeholder="Username or mobile number" autocapitalize="none" autocomplete="off" required><button class="btn sm">Add player</button></form>
+        <form class="row" style="margin-top:8px" onsubmit="App.academyAdd(event,${a.id},'name')"><input class="input grow" name="name" placeholder="Or a name, e.g. Rahul (no account)" required><select class="input" name="role" style="max-width:120px"><option>Batter</option><option>Bowler</option><option>All-rounder</option><option>Wicket-keeper</option></select><button class="btn sm light">Add</button></form></div>` : ''}
+      <div class="section"><h2>Students</h2><span class="small muted">${d.students.length}</span></div>
+      ${d.students.length ? `<div class="card flush list">${d.students.map(stu).join('')}</div>` : '<div class="card empty"><div class="big">👥</div>No students yet.</div>'}
+      ${d.team ? `<div class="section"><h2>Academy team</h2></div><div class="card row" style="cursor:pointer" onclick="go('#/team/${d.team.id}')">${badge(d.team)}<div class="grow"><b>${esc(d.team.name)}</b><div class="small muted">Students can pick this team for their matches</div></div><span class="chev">${I.chev}</span></div>` : ''}
+      ${d.recent.length ? `<div class="section"><h2>Recent matches</h2></div>${d.recent.map(matchCard).join('')}` : ''}
+      <p class="small muted" style="text-align:center">Run by ${esc(a.owner_name || '-')}${a.owner_username ? ' (@' + esc(a.owner_username) + ')' : ''}</p>
+    </div>`, 'more');
+}
+App.academyAdd = (e, id, kind) => {
+  e.preventDefault(); const f = formData(e.target);
+  run(async () => { await api('academy_student_add', Object.assign({ academy_id: id }, kind === 'user' ? { user: f.user } : { name: f.name, role: f.role })); toast('Added ✓'); render(); }, e.submitter);
+};
+App.academyRemove = id => confirmSheet('Remove this student?', 'They will no longer be listed with the academy.', 'Remove', () => run(async () => { await api('academy_student_remove', { id }); closeSheet(); render(); }));
+async function viewAcademyForm(id) {
+  id = +id || 0;
+  let a = { name: '', address: '', city: '', phone: '', coach: S.user.display_name, about: '' };
+  if (id) { const d = await api('academy_get', { id }); a = d.academy; if (!a.can_edit) return go('#/academy/' + id); }
+  mount(topbar(id ? 'Edit academy' : 'Register academy', { back: true }) + `<form class="content" onsubmit="App.academySave(event,${id})">
+    <div class="card">
+      <div class="field"><label>Academy name</label><input class="input" name="name" value="${esc(a.name)}" placeholder="e.g. Hyderabad Young Cricketers" required></div>
+      <div class="field"><label>Address</label><input class="input" name="address" value="${esc(a.address || '')}" placeholder="Ground / street"></div>
+      <div class="grid2"><div class="field"><label>City</label><input class="input" name="city" value="${esc(a.city || '')}" placeholder="Hyderabad"></div>
+      <div class="field"><label>Phone</label><input class="input" name="phone" inputmode="tel" value="${esc(a.phone || '')}" placeholder="98765 43210"></div></div>
+      <div class="field"><label>Head coach</label><input class="input" name="coach" value="${esc(a.coach || '')}"></div>
+      <div class="field"><label>About</label><textarea class="input" name="about" rows="3" maxlength="600" placeholder="Age groups, timings, what you teach…">${esc(a.about || '')}</textarea></div>
+    </div>
+    <div class="small muted" style="margin:0 2px 10px">Registering creates a team with the academy's name. Students you add appear in it, and students with accounts can pick it for their matches.</div>
+    <button class="btn block">${id ? 'Save' : 'Register academy →'}</button>
+    ${id ? `<button type="button" class="btn light block" style="margin-top:8px;color:var(--red)" onclick="App.academyDelete(${id})">Delete academy</button>` : ''}</form>`, 'more');
+}
+App.academySave = (e, id) => { e.preventDefault(); const f = formData(e.target); f.id = id; run(async () => { const r = await api('academy_save', f); toast(id ? 'Saved ✓' : 'Academy registered 🎓'); go('#/academy/' + r.id); }, e.submitter); };
+App.academyDelete = id => confirmSheet('Delete this academy?', 'The student list is removed. The team and its matches stay.', 'Delete', () => run(async () => { await api('academy_delete', { id }); closeSheet(); go('#/academies'); }));
+
+/* ---------- Mobile number + WhatsApp verification (optional) ---------- */
+function mobileCard(u) {
+  const wa = S.auth && S.auth.whatsapp;
+  return `<div class="section"><h2>Mobile number</h2></div><div class="card">
+    ${u.mobile ? `<div class="row"><span class="avatar" style="background:#25d366;color:#fff">📱</span><div class="grow"><b>${esc(u.mobile)}</b><div class="small muted">${u.mobile_verified ? '✅ Verified on WhatsApp' : 'Not verified yet'}</div></div>
+        <button type="button" class="btn sm light" onclick="App.mobileRemove()">Remove</button></div>`
+      : `<div class="small muted" style="margin-bottom:10px">Optional. Add your WhatsApp number so academies can find you, and sign in with one tap - no password needed.</div>`}
+    <div class="row" style="margin-top:10px"><input class="input grow" id="mobIn" inputmode="tel" autocomplete="tel" placeholder="${u.mobile ? 'Change number' : 'e.g. 98765 43210'}" maxlength="20" onkeydown="if(event.key==='Enter'){event.preventDefault();App.mobileVerify(this.nextElementSibling)}">
+      <button type="button" class="btn sm" style="background:#25d366" onclick="App.mobileVerify(this)">${u.mobile_verified ? 'Change' : 'Verify on WhatsApp'}</button></div>
+    ${wa ? '' : '<div class="small muted" style="margin-top:8px">WhatsApp messages are not switched on for this website yet' + (S.user.is_admin ? ' - add the Meta keys to config.local.php (see README). As admin you can still test: the link is shown to you.' : '.') + '</div>'}
+  </div>`;
+}
+App.mobileVerify = btn => {
+  const mobile = (document.getElementById('mobIn').value || '').trim() || (S.user.mobile || '');
+  if (!mobile) return toast('Type your mobile number first', true);
+  run(async () => { const r = await api('wa_request', { purpose: 'link', mobile }); waSheet(r, 'link'); }, btn);
+};
+App.mobileRemove = () => confirmSheet('Remove your mobile number?', 'You will no longer be able to sign in with WhatsApp.', 'Remove', () => run(async () => { const r = await api('mobile_remove'); S.user = r.user; closeSheet(); viewProfile(); }));
+/* the "check WhatsApp" sheet: tap the link, or type the code */
+function waSheet(r, purpose) {
+  S.wa = { id: r.id, purpose };
+  sheet(`<h3>📲 Check WhatsApp</h3><div class="sub">${r.sent ? `We sent a message to <b>${esc(r.mobile)}</b>. Tap the <b>Verify</b> button in it and you're done - or type the 6-digit code here.` : `<span style="color:var(--red)">${esc(r.error_hint || 'Message not sent')}</span>`}</div>
+    ${r.dev_link ? `<div class="card" style="box-shadow:none;border:1px dashed var(--line)"><b>Test mode (admin only)</b><div class="small muted">WhatsApp is not set up, so here is the link that would have been sent:</div><a class="link" href="${esc(r.dev_link)}" style="word-break:break-all">${esc(r.dev_link)}</a><div class="small muted">Code: <b>${esc(r.dev_code)}</b></div></div>` : ''}
+    <form onsubmit="App.waCode(event)"><input class="input duel-code-in" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="one-time-code" required>
+    <button class="btn block" style="margin-top:12px">Verify code</button></form>
+    <div class="small muted" style="text-align:center;margin-top:10px">The link works for ${r.minutes} minutes. Opening it signs you in on that phone.</div>`);
+}
+App.waCode = e => {
+  e.preventDefault();
+  const code = formData(e.target).code.trim();
+  run(async () => {
+    const r = await api('wa_verify_code', { id: S.wa.id, code });
+    S.user = r.user; closeSheet(); toast('Mobile verified ✓');
+    if (S.wa.purpose === 'link') viewProfile(); else { const a = S.after; S.after = null; go(a && !/^#\/(login|register|wa)/.test(a) ? a : '#/'); }
+  }, e.submitter);
+};
+/* Sign in or sign up with WhatsApp - no password */
+function viewWaLogin() {
+  if (S.user) return go('#/');
+  S.gMode = 'login';
+  const signup = S.waMode === 'signup';
+  mount(authPage(`<form class="panel" onsubmit="App.waGo(event)"><h2>${signup ? 'Join with WhatsApp 📲' : 'Sign in with WhatsApp 📲'}</h2>
+    <p class="small muted" style="margin-top:0">${signup ? 'We\'ll send a WhatsApp message. Tap the button in it and your account is ready - no password.' : 'We\'ll send a one-tap sign-in link to your WhatsApp. No password needed.'}</p>
+    ${signup ? '<div class="field"><label>Your name</label><input class="input" name="display_name" placeholder="e.g. Aarush" required></div>' : ''}
+    <div class="field"><label>Mobile number</label><input class="input" name="mobile" inputmode="tel" autocomplete="tel" placeholder="98765 43210" required></div>
+    ${signup ? consentBox() : ''}
+    <div id="cap" class="cap"></div>
+    <button class="btn block" style="background:#25d366">Send WhatsApp link</button></form>
+    <div class="switch-link">${signup ? 'Already a player? <a href="#/wa" onclick="S.waMode=\'login\'">Sign in</a>' : 'New here? <a href="#/wa" onclick="S.waMode=\'signup\'">Join with WhatsApp</a>'} · <a href="#/login">Use a password</a></div>`), null);
+  renderCaptcha();
+}
+App.waGo = e => {
+  e.preventDefault();
+  const f = formData(e.target), signup = S.waMode === 'signup';
+  run(async () => {
+    try {
+      f.captcha = await captchaToken(signup ? 'register' : 'login');
+      f.purpose = signup ? 'signup' : 'login';
+      const r = await api('wa_request', f);
+      if (r.new) { toast('No account uses that number yet - join with WhatsApp', true); S.waMode = 'signup'; return viewWaLogin(); }
+      if (r.exists) { toast('That number already has an account - signing you in instead'); S.waMode = 'login'; f.purpose = 'login'; const r2 = await api('wa_request', f); return waSheet(r2, 'login'); }
+      waSheet(r, signup ? 'signup' : 'login');
+    } catch (err) { resetCaptcha(); throw err; }
   }, e.submitter);
 };
 App.unlinkGoogle = () => confirmSheet('Unlink Google?', 'You will log in with your username and password instead.', 'Unlink', () =>
@@ -1889,7 +2020,7 @@ async function viewUser(id) {
   const u = d.user, r = d.academy && d.academy.rank;
   const btn = d.me ? `<button class="btn sm light" onclick="go('#/profile')">✏️ Edit profile</button>` : followBtn({ ...u, following: d.following });
   mount(topbar(u.display_name, { back: true }) + `<div class="board" style="padding:18px 16px">
-      <div class="row">${personAvatar(u, 64)}<div class="grow"><b style="font-family:var(--display);font-size:26px;line-height:1.05">${esc(u.display_name)}${u.is_private ? ' 🔒' : ''}</b>
+      <div class="row">${personAvatar(u, 64)}<div class="grow"><b style="font-family:var(--display);font-size:26px;line-height:1.05">${esc(u.display_name)}${u.verified ? ' <span title="Mobile verified" style="font-size:16px">✅</span>' : ''}${u.is_private ? ' 🔒' : ''}</b>
         <div class="other" style="margin:2px 0 0">@${esc(u.username)}${u.is_admin ? ' · Admin' : ''}${d.follows_me ? ' · <span class="pill" style="background:var(--lime);color:#13241b">Follows you</span>' : ''}</div></div></div>
       <div class="ustats">
         <a href="#/user/${u.id}/followers"><b id="fcount-${u.id}">${d.counts.followers}</b><span>Followers</span></a>
@@ -1901,6 +2032,7 @@ async function viewUser(id) {
     <div class="content">
       ${d.me && u.is_private ? `<div class="notice">🔒 Your profile is private. Only you (and the app admin) can see this page.</div>` : ''}
       ${u.bio ? `<div class="card bio">“${esc(u.bio)}”</div>` : (d.me ? `<div class="card empty small" style="padding:14px">Add a short bio in <a class="link" href="#/profile">My Profile</a> ✏️</div>` : '')}
+      ${u.academies && u.academies.length ? `<div class="card"><b>🎓 Trains at</b> ${u.academies.map(a => `<a class="link" href="#/academy/${a.id}">${esc(a.name)}</a>`).join(', ')}</div>` : ''}
       ${cricketCard(u, d.me)}
       ${statsCard(d.player_stats, u.player)}
       <div class="section"><h2>${d.me ? 'My matches' : 'Matches scored'}</h2></div>
@@ -1946,6 +2078,7 @@ window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.defe
 (async function boot() {
   try { const me = await api('me'); S.user = me.user; S.auth = me.auth || null; S.extras = me; checkVersion(me.version, me.force_version); } catch (e) { /* offline */ }
   initErrorReports();
+  if (/[?&]verified=1/.test(location.search)) { history.replaceState(null, '', location.pathname + location.hash); setTimeout(() => toast('✅ Mobile verified - welcome!'), 600); }
   initPullToRefresh();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) api('me').then(r => { S.extras = r; if (r.user) S.user = r.user; checkVersion(r.version, r.force_version); }).catch(() => {}); });
   window.addEventListener('hashchange', () => { navDepth++; render(); });

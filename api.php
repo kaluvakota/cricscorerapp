@@ -9,7 +9,7 @@ $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'CricScorer') fail('Bad request', 400);
-    $public = ['login', 'register', 'me', 'match_get', 'google_login', 'client_error'];
+    $public = ['login', 'register', 'me', 'match_get', 'google_login', 'client_error', 'wa_request', 'wa_verify_code'];
     ensure_schema();
     $u = current_user();
     if (!in_array($action, $public, true) && !$u) fail('Please log in', 401);
@@ -50,6 +50,22 @@ function handle(string $action, array $in, ?array $u) {
     /* ===== Help desk, admin portal, Gully Duel ===== */
     case 'team_access_request': case 'team_access_cancel': case 'team_access_set': case 'team_access_add': case 'team_share_mode':
         return team_access_action($action, $u, $in);
+    /* ===== Mobile number & WhatsApp verification (optional) ===== */
+    case 'wa_request': {                               // purpose: link (signed in), login, signup
+        $purpose = in_array($in['purpose'] ?? '', ['link', 'login', 'signup'], true) ? $in['purpose'] : 'link';
+        if ($purpose !== 'link') recaptcha_check($in, $purpose === 'login' ? 'login' : 'register');
+        otp_cleanup();
+        return otp_request((string)($in['mobile'] ?? ''), $purpose, $u, $in);
+    }
+    case 'wa_verify_code': {                           // typed the 6-digit code instead of tapping the link
+        $nu = otp_consume(null, (int)($in['id'] ?? 0), (string)($in['code'] ?? ''));
+        return ['user' => public_user($nu)];
+    }
+    case 'mobile_remove':
+        q('UPDATE users SET mobile=NULL, mobile_verified_at=NULL WHERE id=?', [$u['id']]);
+        return ['user' => public_user(row('SELECT * FROM users WHERE id=?', [$u['id']]))];
+    case 'academies_list': case 'academy_get': case 'academy_save': case 'academy_delete': case 'academy_student_add': case 'academy_student_remove':
+        return academies_action($action, $u, $in);
     case 'help_send': case 'help_list':
         return help_action($action, $u, $in);
     case 'game_create': case 'game_join': case 'game_get': case 'game_bowl': case 'game_bat': case 'game_nudge':

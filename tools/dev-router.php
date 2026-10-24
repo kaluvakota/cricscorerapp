@@ -6,5 +6,6 @@ $map = ['#^/privacy/?$#' => 'privacy.php', '#^/terms/?$#' => 'terms.php', '#^/le
 foreach ($map as $re => $file) if (preg_match($re, $path)) { chdir($root); require "$root/$file"; return true; }
 if (preg_match('#^/learn/([a-z0-9-]+)/?$#', $path, $m)) { $_GET['l'] = $m[1]; chdir($root); require "$root/learn.php"; return true; }
 if (preg_match('#^/m/([0-9]+)/?$#', $path, $m)) { $_GET['id'] = $m[1]; chdir($root); require "$root/match.php"; return true; }
+if (preg_match('#^/v/([a-f0-9]{32})/?$#', $path, $m)) { $_GET['t'] = $m[1]; chdir($root); require "$root/verify.php"; return true; }
 if ($path === '/' ) { chdir($root); require "$root/index.php"; return true; }
 return false;

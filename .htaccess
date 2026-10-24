@@ -37,6 +37,7 @@ DirectoryIndex index.php
   RewriteRule ^learn/?$ learn.php [L]
   RewriteRule ^learn/([a-z0-9-]+)/?$ learn.php?l=$1 [L,QSA]
   RewriteRule ^m/([0-9]+)/?$ match.php?id=$1 [L,QSA]
+  RewriteRule ^v/([a-f0-9]{32})/?$ verify.php?t=$1 [L,QSA]
   RewriteRule ^sitemap\.xml$ sitemap.php [L]
   RewriteRule ^robots\.txt$ robots.php [L]
 </IfModule>

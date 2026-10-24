@@ -134,6 +134,32 @@ All keys go in `config.local.php` (see `config.local.sample.php`). Leave a key e
   domains → put the keys in `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` and set `RECAPTCHA_VERSION` to match.
 - The server checks every Google sign-in and every captcha with Google, so it needs outbound HTTPS (normal on Hostinger).
 
+## WhatsApp verification (Meta Cloud API) - optional
+Players can add a mobile number (one account per number) and verify it on WhatsApp; the same message signs them in
+with one tap, and *Sign in with WhatsApp* on the login page works without a password. Players who don't verify can
+still use everything. Set-up, all in `config.local.php`:
+1. **Meta for Developers** → your app → **WhatsApp → API Setup**: copy the **Phone number ID** into `WHATSAPP_PHONE_ID`.
+2. **Meta Business Suite → Business settings → System users** → create a system user, *Add assets* (your WhatsApp
+   account), **Generate token** with `whatsapp_business_messaging` and `whatsapp_business_management`, never expires.
+   Put it in `WHATSAPP_TOKEN`.
+3. **WhatsApp Manager → Message templates → Create**: name `cricscorer_verify`, category **Utility**, language
+   English. Body: `Your Cric-Scorer verification code is {{1}}. Tap the button to verify and sign in - or type the
+   code in the app. The link works for 15 minutes.` Add a **Call to action → Visit website** button with a
+   **dynamic** URL: `https://cricscorerapp.com/v/{{1}}` (button text "Verify"). Submit it for approval (usually
+   minutes to a few hours). The name goes in `WHATSAPP_TEMPLATE`; use `WHATSAPP_TEMPLATE_LANG` if not `en`.
+4. While the app is in development mode on Meta, only numbers added under *API Setup → To* receive messages; go
+   live (business verification) to message anyone. Numbers without a country code are treated as Indian
+   (`DEFAULT_COUNTRY_CODE`).
+Until the keys are set, the Verify button tells players WhatsApp is not switched on; the admin still gets the test
+link on screen. Links are single-use, expire after 15 minutes, and a number gets at most 3 messages in 10 minutes.
+`/v/TOKEN` is served by `verify.php` (mod_rewrite rule included).
+
+## Cricket academies
+*More → Cricket academies*: anyone can register an academy (name, address, city, phone, coach, about; up to 3 per
+account). Registering creates a team with the academy's name. The owner adds students by **username or mobile
+number** (players with accounts, who are then allowed to use the academy team) or by **name** (added to the squad
+only). Students can leave; profiles show "Trains at".
+
 ## Keeping your password out of Git
 Real database settings live in `config.local.php`, which is listed in `.gitignore` and blocked from the web
 by `.htaccess`. `config.php` (in Git) only has placeholders and loads `config.local.php` when it exists, so a

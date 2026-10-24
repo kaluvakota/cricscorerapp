@@ -4,6 +4,13 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.14.0 - 24 October 2026
+- Mobile number on your profile (optional, one account per number) with WhatsApp verification through the Meta Cloud API
+- One-tap WhatsApp link: tapping it verifies the number and signs you in - no code to type (a 6-digit code works as a fallback)
+- Sign in or join with WhatsApp instead of a password
+- Cricket academies: register with name and address, add students by username, mobile number or name; each academy gets its own team that students can play with
+- Verified players show a tick; profiles show the academies they train at
+
 ## 1.13.0 - 24 October 2026
 - Only the player who created a match (and the admin) can score it - everyone else just watches
 - The creator can name one other player as scorer by username (Match options → Scorer) and take it back any time

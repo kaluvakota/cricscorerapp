@@ -59,7 +59,7 @@ function user_profile(array $u, array $in): array {
     $matches = match_summaries(rows("SELECT m.* FROM matches m WHERE m.owner_id=? AND $vs ORDER BY m.updated_at DESC LIMIT 10", array_merge([$t['id']], $vp)));
     $xp = function_exists('academy_user_xp') ? academy_user_xp((int)$t['id']) : 0;
     return [
-        'user' => person($t) + ['joined' => $t['created_at'], 'is_admin' => (bool)$t['is_admin']] + cricket_profile($t),
+        'user' => person($t) + ['joined' => $t['created_at'], 'is_admin' => (bool)$t['is_admin'], 'verified' => !empty($t['mobile_verified_at']), 'academies' => user_academies((int)$t['id'])] + cricket_profile($t),
         'player_stats' => !empty($t['player_id']) ? player_stats((int)$t['player_id'], $u) : null,
         'me' => $me,
         'counts' => follow_counts((int)$t['id'], $u),

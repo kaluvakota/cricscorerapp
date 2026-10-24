@@ -45,6 +45,16 @@ define('CONTACT_EMAIL', 'privacy@cricscorerapp.com');      // shown on the Priva
 // define('UPDATE_BRANCH', 'main');
 // define('GITHUB_TOKEN', '');                 // only if the repo is made private: a read-only "Contents" token
 
-/* ===== 6. App options ===== */
+/* ===== 6. WhatsApp verification through the Meta Cloud API (optional) =====
+   Meta for Developers → your app → WhatsApp → API Setup: copy the Phone number ID and create a permanent token
+   (Business settings → System users → Generate token with whatsapp_business_messaging). Then create a message
+   template (see README "WhatsApp verification") and put its name below. Leave the token '' to keep this off. */
+define('WHATSAPP_TOKEN', '');
+define('WHATSAPP_PHONE_ID', '');
+define('WHATSAPP_TEMPLATE', 'cricscorer_verify');
+define('WHATSAPP_TEMPLATE_LANG', 'en');
+// define('DEFAULT_COUNTRY_CODE', '91');       // numbers typed without a country code
+
+/* ===== 7. App options ===== */
 // define('APP_TIMEZONE', 'Asia/Kolkata');
 // define('DEBUG', true);                      // show error details while fixing problems - turn off afterwards

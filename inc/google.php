@@ -21,6 +21,7 @@ function auth_public_config(): array {
         'google_client_id' => google_enabled() ? GOOGLE_CLIENT_ID : null,
         'google_signup' => (bool)GOOGLE_ALLOW_SIGNUP,
         'recaptcha' => recaptcha_enabled() ? ['site_key' => RECAPTCHA_SITE_KEY, 'version' => recaptcha_version()] : null,
+        'whatsapp' => function_exists('wa_enabled') && wa_enabled(),
     ];
 }
 

@@ -9,6 +9,8 @@ require_once __DIR__ . '/admin.php';
 require_once __DIR__ . '/updater.php';
 require_once __DIR__ . '/game.php';
 require_once __DIR__ . '/teams.php';
+require_once __DIR__ . '/whatsapp.php';
+require_once __DIR__ . '/academies.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 
@@ -91,6 +93,18 @@ function ensure_schema(): void {
     if (!val("SHOW TABLES LIKE 'game_profiles'")) db()->exec("CREATE TABLE IF NOT EXISTS game_profiles (user_id INT PRIMARY KEY, coins INT NOT NULL DEFAULT 100, wins INT NOT NULL DEFAULT 0, losses INT NOT NULL DEFAULT 0,
         chars TEXT NULL, squad TEXT NULL, stadium VARCHAR(20) NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     if (!val("SHOW COLUMNS FROM matches LIKE 'scorer_id'")) db()->exec("ALTER TABLE matches ADD COLUMN scorer_id INT NULL AFTER owner_id, ADD INDEX idx_scorer (scorer_id)");
+    if (!val("SHOW COLUMNS FROM users LIKE 'mobile'")) {   // v1.14: mobile numbers, WhatsApp verification, academies
+        db()->exec("ALTER TABLE users ADD COLUMN mobile VARCHAR(20) NULL AFTER email, ADD COLUMN mobile_verified_at DATETIME NULL AFTER mobile, ADD UNIQUE KEY uniq_mobile (mobile)");
+        db()->exec("CREATE TABLE IF NOT EXISTS otp_tokens (id INT AUTO_INCREMENT PRIMARY KEY, token_hash CHAR(64) NOT NULL, code_hash VARCHAR(255) NOT NULL, mobile VARCHAR(20) NOT NULL,
+            purpose VARCHAR(10) NOT NULL, user_id INT NULL, data TEXT NULL, tries TINYINT NOT NULL DEFAULT 0, used_at DATETIME NULL, expires_at DATETIME NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (token_hash), INDEX (mobile, created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        db()->exec("CREATE TABLE IF NOT EXISTS academies (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(120) NOT NULL, address VARCHAR(250) NULL, city VARCHAR(80) NULL, phone VARCHAR(20) NULL,
+            coach VARCHAR(100) NULL, about VARCHAR(600) NULL, owner_id INT NOT NULL, team_id INT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX (owner_id), INDEX (city), FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+        db()->exec("CREATE TABLE IF NOT EXISTS academy_students (id INT AUTO_INCREMENT PRIMARY KEY, academy_id INT NOT NULL, user_id INT NULL, player_id INT NULL, name VARCHAR(100) NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (academy_id), INDEX (user_id),
+            FOREIGN KEY (academy_id) REFERENCES academies(id) ON DELETE CASCADE, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
     if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
@@ -145,7 +159,8 @@ function start_session(): void {
 function public_user(array $u): array {
     return ['id' => (int)$u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'], 'is_admin' => (bool)$u['is_admin'],
             'email' => $u['email'] ?? null, 'google' => !empty($u['google_sub']), 'avatar' => $u['avatar_url'] ?? null,
-            'has_password' => (string)($u['password_hash'] ?? '') !== '', 'is_private' => !empty($u['is_private']), 'features' => user_features($u)] + cricket_profile($u);
+            'has_password' => (string)($u['password_hash'] ?? '') !== '', 'is_private' => !empty($u['is_private']), 'features' => user_features($u),
+            'mobile' => !empty($u['mobile']) ? pretty_mobile($u['mobile']) : null, 'mobile_verified' => !empty($u['mobile_verified_at']), 'academies' => user_academies((int)$u['id'])] + cricket_profile($u);
 }
 
 function current_user(): ?array {

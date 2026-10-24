@@ -41,6 +41,8 @@ page_start([
   <tr><th>What</th><th>Details</th><th>Why</th></tr>
   <tr><td><b>Account</b></td><td>Username, display name and password. We store passwords only as a secure one-way hash, so nobody can read them, not even us.</td><td>To create your account and let you sign in.</td></tr>
   <tr><td><b>Sign in with Google</b> (optional)</td><td>If you use it: your Google account ID, email address, name and profile picture, which Google shares with us when you agree.</td><td>To sign you in without a password.</td></tr>
+  <tr><td><b>Mobile number</b> (optional)</td><td>Your WhatsApp number, if you choose to add it, and the date it was verified. We send the verification message through Meta's WhatsApp Cloud API; Meta receives your number and the message (see <a href="https://www.whatsapp.com/legal/business-data-transfer-addendum" rel="noopener">WhatsApp's business terms</a>). One account per number.</td><td>To verify it's you, sign you in with one tap, and let academies you train at find you. Never for marketing messages.</td></tr>
+  <tr><td><b>Academy</b> (optional)</td><td>If an academy registers on Cric-Scorer and adds you as a student: the academy's name and your membership. Academy owners also give us the academy's name, address and phone.</td><td>So academies can run teams and matches with their students.</td></tr>
   <tr><td><b>Profile</b> (optional)</td><td>Profile photo or chosen figure, a short bio, playing role, batting and bowling style, years of experience, and the team player you link to yourself.</td><td>To show your player profile and career stats.</td></tr>
   <tr><td><b>Cricket data you enter</b></td><td>Teams, player names, matches, tournaments and every ball you score, including venues and dates.</td><td>This is the main purpose of the app: scorecards, results and statistics.</td></tr>
   <tr><td><b>Learning progress</b></td><td>Lessons completed, quiz scores, stars, XP and rank in the Cricket Academy.</td><td>To unlock lessons, show your progress and the Academy leaderboard.</td></tr>
@@ -52,7 +54,7 @@ page_start([
   <tr><td><b>Consent record</b></td><td>The date and time you accepted these terms (including a parent's permission for under-18s).</td><td>To show we have your consent.</td></tr>
   <tr><td><b>Technical data</b></td><td>Our hosting provider's servers automatically record standard web logs (such as IP address, browser type and the pages requested), and we log errors to fix problems. Error reports have names, emails and typed text blanked out before they are saved.</td><td>To keep the service running, secure and free of abuse.</td></tr>
 </table>
-<p>We do <b>not</b> ask for your phone number, home address, school, payment details or exact location. Please don't type such details into names, bios or match titles.</p>
+<p>We do <b>not</b> ask for your home address, school, payment details or exact location. Please don't type such details into names, bios or match titles.</p>
 
 <h2 id="use">3. How we use it</h2>
 <ul>
@@ -86,6 +88,7 @@ page_start([
 <p>We share data only with service providers that help us run the app, and only as needed:</p>
 <ul>
   <li><b>Hostinger</b>, our web hosting provider, which stores the website, the database and uploaded photos.</li>
+  <li><b>Meta (WhatsApp)</b>: if you verify a mobile number, we send one WhatsApp message to it through the WhatsApp Business Cloud API, under <a href="https://www.whatsapp.com/legal/privacy-policy" rel="noopener">WhatsApp's Privacy Policy</a>.</li>
   <li><b>Google</b>: for <i>Sign in with Google</i> (if you use it), <i>reCAPTCHA</i> on the sign-in and sign-up pages to stop bots, and <i>Google Fonts</i>, which loads the app's lettering. When these load, Google receives technical data such as your IP address, under <a href="https://policies.google.com/privacy" rel="noopener">Google's Privacy Policy</a>.</li>
 </ul>
 <p>We may also disclose information if required by law, a court order or a government authority, or to protect the safety of our users. We do not sell, rent or trade your personal data. Some providers may process data outside India; where they do, we rely on their standard protections and on the DPDP Act's rules on transfers.</p>
