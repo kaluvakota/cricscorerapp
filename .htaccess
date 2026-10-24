@@ -28,3 +28,19 @@ DirectoryIndex index.php
     Header set Cache-Control "no-cache"
   </Files>
 </IfModule>
+
+# Friendly page addresses (SEO)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^privacy/?$ privacy.php [L]
+  RewriteRule ^terms/?$ terms.php [L]
+  RewriteRule ^learn/?$ learn.php [L]
+  RewriteRule ^learn/([a-z0-9-]+)/?$ learn.php?l=$1 [L,QSA]
+  RewriteRule ^m/([0-9]+)/?$ match.php?id=$1 [L,QSA]
+  RewriteRule ^sitemap\.xml$ sitemap.php [L]
+  RewriteRule ^robots\.txt$ robots.php [L]
+</IfModule>
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer by Aaryush — one-time installer. Delete this file after installation. */
+/* Cric-Scorer by Aaryush - one-time installer. Delete this file after installation. */
 require_once __DIR__ . '/config.php';
 $lock = __DIR__ . '/install.lock';
 $msg = ''; $err = ''; $done = false; $pdo = null; $hasData = false;
@@ -28,7 +28,7 @@ try {
     $pdo = new PDO('mysql:host=' . DB_HOST . ';port=' . DB_PORT . ';dbname=' . DB_NAME . ';charset=utf8mb4', DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 } catch (Throwable $e) {
     page('Database connection failed', '<div class="err">' . htmlspecialchars($e->getMessage()) . '</div>
-      <p>Copy <code>config.local.sample.php</code> to <code>config.local.php</code> and set the correct values there (it is never overwritten by updates):</p><ul><li><code>DB_HOST</code> (usually <code>localhost</code>)</li><li><code>DB_NAME</code> — the database you created</li><li><code>DB_USER</code> / <code>DB_PASS</code> — a MySQL user with full access to that database</li></ul><a class="btn" href="install.php">Try again</a>');
+      <p>Copy <code>config.local.sample.php</code> to <code>config.local.php</code> and set the correct values there (it is never overwritten by updates):</p><ul><li><code>DB_HOST</code> (usually <code>localhost</code>)</li><li><code>DB_NAME</code> - the database you created</li><li><code>DB_USER</code> / <code>DB_PASS</code> - a MySQL user with full access to that database</li></ul><a class="btn" href="install.php">Try again</a>');
 }
 try { $hasData = (bool)$pdo->query('SELECT COUNT(*) FROM users')->fetchColumn(); } catch (Throwable $e) { $hasData = false; }
 
@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $warn = $hasData ? '<div class="err">This database already has Cric-Scorer data. Installing again will <b>erase everything</b> (matches, teams, users).</div>
-  <form method="post"><input type="hidden" name="mode" value="keep"><button style="background:#15803d">Keep my data & finish setup</button></form><p style="text-align:center;color:#66756d;margin:14px 0 0">— or start fresh —</p>' : '';
+  <form method="post"><input type="hidden" name="mode" value="keep"><button style="background:#15803d">Keep my data & finish setup</button></form><p style="text-align:center;color:#66756d;margin:14px 0 0">- or start fresh -</p>' : '';
 page('Install', ($err ? '<div class="err">' . htmlspecialchars($err) . '</div>' : '') . '<div class="ok">✓ Connected to database <b>' . htmlspecialchars(DB_NAME) . '</b></div>' . $warn . '
   <p>Create the main (admin) account. Admin can edit IPL & international squads.</p>
   <form method="post"><input type="hidden" name="mode" value="fresh">

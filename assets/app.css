@@ -1,4 +1,4 @@
-/* Cric-Scorer by Aaryush — mobile app styles */
+/* Cric-Scorer by Aaryush - mobile app styles */
 :root{
   --bg:#f2efe6; --card:#ffffff; --ink:#13241b; --muted:#66756d; --line:#e2ddd0; --soft:#f7f5ef;
   --pitch:#0d4a36; --pitch-2:#083326; --pitch-3:#126148; --lime:#b6e94a; --red:#d62839; --red-soft:#fde7e9;
@@ -447,3 +447,52 @@ details summary{cursor:pointer;list-style:none}
 .fig-grid button.on{border-color:var(--pitch)}
 textarea.input{resize:vertical;min-height:72px;line-height:1.4}
 .card.bio{font-size:16px;font-style:italic;line-height:1.5;border-left:4px solid var(--lime)}
+
+/* ---------- Visitor landing page ---------- */
+/* Visible by default (so search engines and visitors without JavaScript see it); hidden once the app takes over */
+body.app-mode #landing{display:none}
+body:not(.app-mode) #tabbar{display:none!important}
+.lp-wrap{max-width:900px;margin:0 auto;padding:0 18px}
+.lp-hero{background:radial-gradient(120% 100% at 100% 0%,var(--pitch-3) 0%,var(--pitch) 45%,var(--pitch-2) 100%);color:#fff;padding:calc(var(--safe-t) + 28px) 0 40px;border-radius:0 0 28px 28px}
+.lp-brand{display:flex;align-items:center;gap:12px}
+.lp-brand img{border-radius:14px}
+.lp-brand b{display:block;font-family:var(--display);font-size:28px;line-height:1}
+.lp-brand span{color:var(--lime);font-size:11px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase}
+.lp-hero h1{font-family:var(--display);font-size:44px;line-height:1.02;margin:26px 0 10px}
+.lp-sub{font-size:18px;opacity:.9;margin:0 0 20px;max-width:620px}
+.lp-cta{display:flex;flex-wrap:wrap;gap:10px}
+.lp-btn{display:inline-flex;align-items:center;justify-content:center;padding:14px 20px;border-radius:15px;font-weight:900;font-size:16px;text-decoration:none}
+.lp-btn.lime{background:var(--lime);color:#13241b}
+.lp-btn.ghost{background:rgba(255,255,255,.14);color:#fff}
+.lp-small{font-size:13px;opacity:.75;margin:14px 0 0}
+#landing h2{font-family:var(--display);font-size:30px;margin:34px 0 10px}
+.lp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.lp-grid article{background:var(--card);border-radius:18px;padding:16px;box-shadow:var(--shadow)}
+.lp-grid span{font-size:28px}
+.lp-grid h3{margin:6px 0 4px;font-size:17px}
+.lp-grid p{margin:0;color:var(--muted);font-size:14.5px}
+.lp-steps{padding-left:22px;font-size:16px}
+.lp-steps li{margin:6px 0}
+.lp-lessons{columns:2;column-gap:20px;padding-left:20px}
+.lp-lessons li{margin:4px 0;break-inside:avoid}
+#landing a{color:var(--pitch-3);font-weight:800}
+@media (prefers-color-scheme:dark){#landing a{color:var(--lime)}}
+#landing .lp-btn.lime{color:#13241b}
+#landing .lp-btn.ghost{color:#fff}
+.lp-faq{background:var(--card);border-radius:14px;padding:12px 16px;margin:8px 0;box-shadow:var(--shadow)}
+.lp-faq summary{font-weight:800;cursor:pointer}
+.lp-faq p{margin:8px 0 0;color:var(--muted)}
+.lp-final{background:var(--card);border-radius:20px;padding:22px;text-align:center;margin:30px 0;box-shadow:var(--shadow)}
+.lp-final h2{margin:0 0 12px!important}
+.lp-foot{text-align:center;padding:20px 16px 40px;color:var(--muted);font-size:14px}
+.lp-foot a{margin:0 9px}
+@media (max-width:520px){.lp-hero h1{font-size:36px}.lp-lessons{columns:1}}
+.legal-links{text-align:center;font-size:12.5px;margin-top:14px}
+.legal-links a{color:inherit;margin:0 6px}
+.auth{position:relative}
+.auth-home{position:absolute;top:calc(var(--safe-t) + 14px);left:16px;color:#fff;opacity:.85;font-weight:800;text-decoration:none;font-size:14px}
+.auth .legal-links{color:rgba(255,255,255,.8)}
+/* Terms & privacy consent tick box (sign-up) */
+.consent{display:flex;gap:10px;align-items:flex-start;margin:4px 0 14px;font-size:14px;line-height:1.45;font-weight:600;color:var(--muted);cursor:pointer}
+.consent input{width:22px;height:22px;flex:none;margin:1px 0 0;accent-color:var(--pitch)}
+.consent a{color:var(--pitch-3);font-weight:800}

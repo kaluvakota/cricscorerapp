@@ -1,4 +1,4 @@
-/* Cric-Scorer by Aaryush — stadium sounds (synthesised, no audio files) + spoken commentary */
+/* Cric-Scorer by Aaryush - stadium sounds (synthesised, no audio files) + spoken commentary */
 'use strict';
 const Sound = (() => {
   const get = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };

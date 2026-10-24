@@ -1,7 +1,7 @@
 {
   "name": "Cric-Scorer by Aaryush",
   "short_name": "Cric-Scorer",
-  "description": "Live ball-by-ball cricket scoring — teams, tournaments, scorecards and stats.",
+  "description": "Live ball-by-ball cricket scoring - teams, tournaments, scorecards and stats.",
   "start_url": "./index.php#/",
   "scope": "./",
   "display": "standalone",

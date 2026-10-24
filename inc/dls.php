@@ -1,6 +1,6 @@
 <?php
 /**
- * Cric-Scorer — Duckworth-Lewis-Stern (DLS) Standard Edition
+ * Cric-Scorer - Duckworth-Lewis-Stern (DLS) Standard Edition
  *
  * Resource table: percentage of a team's run-scoring resources remaining, by overs left (row)
  * and wickets lost (column 0..9), as published by the ICC for the D/L Standard Edition.
@@ -179,7 +179,7 @@ function rain_end_match(array $m): void {
     q("UPDATE innings SET status='completed' WHERE id=?", [$i2['id']]);
     if ((int)$i2['legal_balls'] < $min * $bpo && (int)$i2['legal_balls'] < (int)$i2['max_overs'] * $bpo) {
         q("UPDATE matches SET status='abandoned', result_text=?, result_method='rain', winner_team_id=NULL WHERE id=?",
-          ["No result — rain (fewer than $min overs in the chase)", $m['id']]);
+          ["No result - rain (fewer than $min overs in the chase)", $m['id']]);
         return;
     }
     $par = dls_par_now($m, $i1, $i2);
@@ -244,7 +244,7 @@ function dls_preview(array $m, int $overs): array {
     $i1 = row('SELECT * FROM innings WHERE match_id=? AND innings_no=1', [$m['id']]);
     $i2 = row('SELECT * FROM innings WHERE match_id=? AND innings_no=2', [$m['id']]);
     $bpo = (int)$m['balls_per_over'];
-    if (!$i1) return ['note' => "The match becomes $overs overs a side — no DLS needed before the start."];
+    if (!$i1) return ['note' => "The match becomes $overs overs a side - no DLS needed before the start."];
     if (!$i2 && $i1['status'] === 'live') {
         $R1 = dls_innings_resources($m, $i1) - (dls_R((int)$i1['max_overs'] - $i1['legal_balls'] / $bpo, (int)$i1['wickets']) - dls_R($overs - $i1['legal_balls'] / $bpo, (int)$i1['wickets']));
         return ['note' => 'Team batting first loses ' . round(dls_innings_resources($m, $i1) - $R1, 1) . '% of its resources. The DLS target is set at the innings break.'];

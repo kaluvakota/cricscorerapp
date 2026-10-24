@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer — Sign in with Google and Google reCAPTCHA (keys live in config.local.php) */
+/* Cric-Scorer - Sign in with Google and Google reCAPTCHA (keys live in config.local.php) */
 
 // Safe defaults, in case the server still has an older config.php without these settings
 defined('GOOGLE_CLIENT_ID')     || define('GOOGLE_CLIENT_ID', '');
@@ -15,7 +15,7 @@ function google_enabled(): bool { return trim((string)GOOGLE_CLIENT_ID) !== ''; 
 function recaptcha_enabled(): bool { return trim((string)RECAPTCHA_SITE_KEY) !== '' && trim((string)RECAPTCHA_SECRET_KEY) !== ''; }
 function recaptcha_version(): string { return strtolower((string)RECAPTCHA_VERSION) === 'v3' ? 'v3' : 'v2'; }
 
-/** Settings the phone needs (public values only — never the secret key) */
+/** Settings the phone needs (public values only - never the secret key) */
 function auth_public_config(): array {
     return [
         'google_client_id' => google_enabled() ? GOOGLE_CLIENT_ID : null,
@@ -47,13 +47,13 @@ function http_json(string $url, ?array $post = null): ?array {
 /** Check a Google ID token with Google; returns the verified profile or fails */
 function google_verify(string $credential): array {
     if (!google_enabled()) fail('Google sign-in is not set up on this server');
-    if ($credential === '' || strlen($credential) > 4096) fail('Google sign-in failed — please try again');
+    if ($credential === '' || strlen($credential) > 4096) fail('Google sign-in failed - please try again');
     $t = http_json(GOOGLE_TOKENINFO_URL . '?id_token=' . rawurlencode($credential));
     if (!$t) fail('Could not reach Google to check your sign-in. Please try again.');
-    if (!empty($t['error']) || !empty($t['error_description'])) fail('Google sign-in expired — please try again');
+    if (!empty($t['error']) || !empty($t['error_description'])) fail('Google sign-in expired - please try again');
     if (($t['aud'] ?? '') !== GOOGLE_CLIENT_ID) fail('This Google sign-in was not made for Cric-Scorer');
     if (!in_array($t['iss'] ?? '', ['accounts.google.com', 'https://accounts.google.com'], true)) fail('Google sign-in could not be verified');
-    if ((int)($t['exp'] ?? 0) < time()) fail('Google sign-in expired — please try again');
+    if ((int)($t['exp'] ?? 0) < time()) fail('Google sign-in expired - please try again');
     $verified = $t['email_verified'] ?? false;
     if (!($verified === true || $verified === 'true')) fail('Your Google email address is not verified');
     if (empty($t['sub']) || empty($t['email'])) fail('Google did not share your account details');
@@ -65,13 +65,13 @@ function google_verify(string $credential): array {
 function recaptcha_check(array $in, string $action): void {
     if (!recaptcha_enabled()) return;
     $token = (string)($in['captcha'] ?? '');
-    if ($token === '') fail(recaptcha_version() === 'v2' ? 'Please tick "I\'m not a robot"' : 'Security check did not load — please refresh and try again');
+    if ($token === '') fail(recaptcha_version() === 'v2' ? 'Please tick "I\'m not a robot"' : 'Security check did not load - please refresh and try again');
     $r = http_json(RECAPTCHA_VERIFY_URL, ['secret' => RECAPTCHA_SECRET_KEY, 'response' => $token, 'remoteip' => $_SERVER['REMOTE_ADDR'] ?? '']);
     if (!$r) fail('Could not reach Google to check the security test. Please try again.');
-    if (empty($r['success'])) fail('Security check failed — please try the "I\'m not a robot" box again');
+    if (empty($r['success'])) fail('Security check failed - please try the "I\'m not a robot" box again');
     if (recaptcha_version() === 'v3') {
-        if (isset($r['action']) && $r['action'] !== $action) fail('Security check failed — please refresh and try again');
-        if ((float)($r['score'] ?? 0) < (float)RECAPTCHA_MIN_SCORE) fail('Security check failed — please try again in a moment');
+        if (isset($r['action']) && $r['action'] !== $action) fail('Security check failed - please refresh and try again');
+        if ((float)($r['score'] ?? 0) < (float)RECAPTCHA_MIN_SCORE) fail('Security check failed - please try again in a moment');
     }
 }
 
@@ -88,7 +88,15 @@ function username_from_email(string $email): string {
 
 /** Sign in (or sign up) with a verified Google account */
 function google_login(array $in): array {
-    $g = google_verify((string)($in['credential'] ?? ''));
+    start_session();
+    if (!empty($in['pending'])) {
+        // Second step for a brand-new player: the Google account we checked a moment ago, now with consent
+        $p = $_SESSION['g_pending'] ?? null;
+        if (!$p || time() - (int)$p['t'] > 900) { unset($_SESSION['g_pending']); fail('That took too long - tap "Sign in with Google" again'); }
+        $g = $p['g'];
+    } else {
+        $g = google_verify((string)($in['credential'] ?? ''));
+    }
     $u = row('SELECT * FROM users WHERE google_sub=?', [$g['sub']]);
     if (!$u) {
         // A player who linked this Gmail address earlier, before Google IDs were stored
@@ -97,8 +105,14 @@ function google_login(array $in): array {
     }
     if (!$u) {
         if (!GOOGLE_ALLOW_SIGNUP) fail('No Cric-Scorer account is linked to ' . $g['email'] . '. Log in with your username first, then link Google in My Profile.');
+        if (empty($in['consent'])) {
+            // Don't create anything until the player (or their parent) agrees to the Terms and Privacy Policy
+            $_SESSION['g_pending'] = ['g' => $g, 't' => time()];
+            return ['needs_consent' => true, 'email' => $g['email'], 'name' => $g['name']];
+        }
+        unset($_SESSION['g_pending']);
         $first = !val('SELECT 1 FROM users LIMIT 1');
-        q('INSERT INTO users (username, password_hash, display_name, is_admin, email, google_sub, avatar_url) VALUES (?,?,?,?,?,?,?)',
+        q('INSERT INTO users (username, password_hash, display_name, is_admin, email, google_sub, avatar_url, terms_accepted_at) VALUES (?,?,?,?,?,?,?,NOW())',
           [username_from_email($g['email']), '', mb_substr($g['name'] ?: explode('@', $g['email'])[0], 0, 100), $first ? 1 : 0, $g['email'], $g['sub'], mb_substr($g['picture'], 0, 255) ?: null]);
         $u = row('SELECT * FROM users WHERE id=?', [lastId()]);
         $created = true;

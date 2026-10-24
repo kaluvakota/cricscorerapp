@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer — follow players, private profiles, private matches */
+/* Cric-Scorer - follow players, private profiles, private matches */
 
 /** SQL condition: which matches this viewer may see. Admin (parent) sees everything. */
 function vis_sql(?array $u, string $a = 'matches'): array {

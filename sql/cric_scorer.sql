@@ -1,4 +1,4 @@
--- Cric-Scorer by Aaryush — database schema (MySQL 5.7+ / MariaDB 10.3+)
+-- Cric-Scorer by Aaryush - database schema (MySQL 5.7+ / MariaDB 10.3+)
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
@@ -35,6 +35,7 @@ CREATE TABLE users (
   bowling_style VARCHAR(40) NULL,
   experience_years TINYINT NULL,
   player_id INT NULL,
+  terms_accepted_at DATETIME NULL,
   is_private TINYINT(1) NOT NULL DEFAULT 0,
   is_admin TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

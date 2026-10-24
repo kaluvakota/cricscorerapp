@@ -1,4 +1,4 @@
-/* Cric-Scorer by Aaryush — mobile web app */
+/* Cric-Scorer by Aaryush - mobile web app */
 'use strict';
 
 const App = {};
@@ -66,7 +66,7 @@ function formData(form) {
 }
 
 async function api(action, data = {}) {
-  const tok = S.routeTok;       // which screen asked — used to drop answers that arrive after you've moved on
+  const tok = S.routeTok;       // which screen asked - used to drop answers that arrive after you've moved on
   let r;
   try {
     r = await fetch('api.php?action=' + action, {
@@ -131,6 +131,7 @@ function confirmSheet(title, text, label, fn, danger = true) {
 const ROUTES = [
   [/^#\/login$/, viewLogin, true],
   [/^#\/register$/, viewRegister, true],
+  [/^#\/consent$/, viewConsent, true],
   [/^#\/?$/, viewHome],
   [/^#\/matches$/, viewMatches],
   [/^#\/match\/new(?:\?t=(\d+))?$/, viewMatchNew],
@@ -176,6 +177,9 @@ async function render() {
   clearTimers(); closeSheet();
   const h = location.hash || '#/';
   const tok = S.routeTok = (S.routeTok || 0) + 1;
+  // Visitors who are not signed in see the home page (#landing) instead of a login box
+  if (!S.user && (h === '#/' || h === '#')) { document.body.classList.remove('app-mode'); $('#app').innerHTML = ''; window.scrollTo(0, 0); return; }
+  document.body.classList.add('app-mode');
   for (const [re, fn, pub] of ROUTES) {
     const mm = h.match(re);
     if (!mm) continue;
@@ -231,6 +235,7 @@ App.onGoogle = resp => {
   const linking = S.gMode === 'link';
   run(async () => {
     const r = await api(linking ? 'google_link' : 'google_login', { credential: resp.credential });
+    if (r.needs_consent) { S.gPending = { email: r.email, name: r.name }; go('#/consent'); return; }
     S.user = r.user;
     if (linking) { toast('Google account linked ✓'); viewProfile(); return; }
     toast(r.created ? `Welcome to Cric-Scorer, ${r.user.display_name}! 🎉` : `Welcome back, ${r.user.display_name}! 👋`);
@@ -277,12 +282,34 @@ async function captchaToken(action) {
 function resetCaptcha() { try { if (S.capId !== null && window.grecaptcha) grecaptcha.reset(S.capId); } catch (e) { /* ignore */ } }
 
 function authPage(inner) {
-  return `<div class="auth">${LOGO}<h1>Cric-Scorer</h1><div class="tag">by Aaryush</div>${inner}<span class="seam">● ● ● LIVE CRICKET SCORING ● ● ●</span></div>`;
+  return `<div class="auth"><a href="#/" class="auth-home" aria-label="Home">← Home</a>${LOGO}<h1>Cric-Scorer</h1><div class="tag">by Aaryush</div>${inner}
+    <div class="legal-links"><a href="learn/">Learn cricket</a> · <a href="privacy">Privacy Policy</a> · <a href="terms">Terms of Use</a></div>
+    <span class="seam">● ● ● LIVE CRICKET SCORING ● ● ●</span></div>`;
 }
 function googleBlock(id, signup) {
   if (!S.auth || !S.auth.google_client_id || (signup && !S.auth.google_signup)) return '';
   return `<div id="${id}" class="gbtn"></div><div class="or"><span>or ${signup ? 'make a username' : 'use your username'}</span></div>`;
 }
+const consentBox = () => `<label class="consent"><input type="checkbox" name="consent" required><span>I agree to the <a href="terms" target="_blank">Terms of Use</a> and <a href="privacy" target="_blank">Privacy Policy</a>. If I'm under 18, my parent or guardian agrees too.</span></label>`;
+/* A brand-new Google player agrees to the Terms first - nothing is saved until they do */
+function viewConsent() {
+  if (S.user) return go('#/');
+  const g = S.gPending || {};
+  mount(authPage(`<form class="panel" onsubmit="App.consentGo(event)"><h2>One last step ✋</h2>
+    <p class="small muted" style="margin-top:0">${g.email ? `You're joining with <b>${esc(g.email)}</b>. ` : ''}Before we create your account, please read and agree:</p>
+    ${consentBox()}
+    <button class="btn block">Create my account</button></form>
+    <div class="switch-link"><a href="#/login">Cancel</a></div>`), null);
+}
+App.consentGo = e => {
+  e.preventDefault();
+  run(async () => {
+    const r = await api('google_login', { pending: 1, consent: 1 });
+    S.user = r.user; S.gPending = null;
+    toast(`Welcome to Cric-Scorer, ${r.user.display_name}! 🎉`);
+    const a = S.after; S.after = null; go(a && !/^#\/(login|register|consent)/.test(a) ? a : '#/');
+  }, e.submitter);
+};
 function viewLogin() {
   if (S.user) return go('#/');
   S.gMode = 'login';
@@ -304,6 +331,7 @@ function viewRegister() {
     <div class="field"><label>Username</label><input class="input" name="username" autocapitalize="none" autocomplete="username" placeholder="letters & numbers" required></div>
     <div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="new-password" minlength="6" required></div>
     <div class="field"><label>Confirm password</label><input class="input" type="password" name="password2" autocomplete="new-password" required></div>
+    ${consentBox()}
     <div id="cap" class="cap"></div>
     <button class="btn block">Create account</button></form>
     <div class="switch-link">Already have an account? <a href="#/login">Log in</a></div>`), null);
@@ -399,7 +427,7 @@ function teamOptions(teams, selected, only = null) {
   let list = teams;
   if (only) list = teams.filter(t => only.includes(t.id));
   const groups = [['My teams', t => t.category === 'custom' && t.mine], ['Other custom teams', t => t.category === 'custom' && !t.mine], ['IPL', t => t.category === 'ipl'], ['International', t => t.category === 'international']];
-  let html = '<option value="">— Choose team —</option>';
+  let html = '<option value="">- Choose team -</option>';
   for (const [label, f] of groups) {
     const g = list.filter(f);
     if (g.length) html += `<optgroup label="${label}">${g.map(t => `<option value="${t.id}" ${+selected === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</optgroup>`;
@@ -439,7 +467,7 @@ async function viewMatchNew(tid) {
       <div class="field"><label>Match title</label><input class="input" name="title" placeholder="e.g. Sunday Showdown" value="${tour ? 'Match ' + (tour.matches.length + 1) : ''}"></div>
       <div class="field"><label>Venue</label><input class="input" name="venue" placeholder="e.g. Society ground" value="${esc(tour?.tournament.venue || '')}"></div>
       <div class="field"><label>Date & time</label><input class="input" type="datetime-local" name="match_date" value="${localDT()}"></div>
-      ${tour ? `<input type="hidden" name="tournament_id" value="${tour.tournament.id}">` : myTours.length ? `<div class="field"><label>Tournament (optional)</label><select class="input" name="tournament_id"><option value="">— None (friendly) —</option>${myTours.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div>` : ''}
+      ${tour ? `<input type="hidden" name="tournament_id" value="${tour.tournament.id}">` : myTours.length ? `<div class="field"><label>Tournament (optional)</label><select class="input" name="tournament_id"><option value="">- None (friendly) -</option>${myTours.map(x => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select></div>` : ''}
     </div>
     <button class="btn block" style="margin:6px 0 20px">Create match →</button></form>`, 'matches');
   App.vsPreview();
@@ -469,7 +497,7 @@ App.createMatch = e => {
 };
 
 /* =====================================================================
-   MATCH SCREEN — setup, live scoring, scorecard
+   MATCH SCREEN - setup, live scoring, scorecard
    ===================================================================== */
 async function viewMatch(id) {
   id = +id;
@@ -582,7 +610,7 @@ function creasePanel(st, inn) {
     <table><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr>
       ${bats.length ? bats.map(batRow).join('') : '<tr><td colspan="6" class="muted">Waiting for batters…</td></tr>'}
       <tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr>
-      ${inn.bowler_id ? `<tr class="bowl"><td>${esc(bw ? bw.name : pname(inn.bowler_id))}</td><td>${bw ? bw.o : '0.0'}</td><td>${bw ? bw.m : 0}</td><td>${bw ? bw.r : 0}</td><td><b>${bw ? bw.w : 0}</b></td><td>${bw ? bw.econ : '0.00'}</td></tr>` : '<tr class="bowl"><td colspan="6" class="muted">New over — choose the bowler</td></tr>'}
+      ${inn.bowler_id ? `<tr class="bowl"><td>${esc(bw ? bw.name : pname(inn.bowler_id))}</td><td>${bw ? bw.o : '0.0'}</td><td>${bw ? bw.m : 0}</td><td>${bw ? bw.r : 0}</td><td><b>${bw ? bw.w : 0}</b></td><td>${bw ? bw.econ : '0.00'}</td></tr>` : '<tr class="bowl"><td colspan="6" class="muted">New over - choose the bowler</td></tr>'}
     </table>
     <div class="over-strip"><span class="lbl">Over ${cur + 1}</span>${lastBallBadge(st, inn)}${balls.length ? balls.map(b => ballChip(b.label)).join('') : '<span class="muted small">No balls yet</span>'}</div>
     <div class="partner"><span>Partnership: <b>${p.runs}</b> (${p.balls})</span><span>${inn.status === 'live' ? `${inn.max_overs * st.match.balls_per_over - inn.legal_balls} balls left` : 'Innings over'}</span></div></div>`;
@@ -820,11 +848,11 @@ App.retireSheet = () => {
 };
 function batterSheet() {
   const st = S.m, inn = curInn();
-  const end = !inn.striker_id ? "striker's end — on strike" : "non-striker's end";
+  const end = !inn.striker_id ? "striker's end - on strike" : "non-striker's end";
   const players = st.xi[inn.batting_team_id].filter(p => st.available_batters.includes(p.id));
   const retired = new Set(inn.batting.filter(b => b.how === 'retired hurt').map(b => b.id));
   sheet(`<h3>Next batter 🏏</h3><div class="sub">Coming in at the ${end}</div>
-    <div class="plist">${players.map(p => `<button class="pbtn" onclick="App.setBatter(${p.id})">${roleIcon(p.role)} ${esc(p.name)}<span class="s">${retired.has(p.id) ? 'retired hurt — returning' : esc(p.role)}</span></button>`).join('')}</div>
+    <div class="plist">${players.map(p => `<button class="pbtn" onclick="App.setBatter(${p.id})">${roleIcon(p.role)} ${esc(p.name)}<span class="s">${retired.has(p.id) ? 'retired hurt - returning' : esc(p.role)}</span></button>`).join('')}</div>
     <button class="btn light block" onclick="App.undo()">↶ Undo last ball</button>`, { locked: true });
 }
 App.bowlerSheet = (change = false) => {
@@ -840,7 +868,7 @@ App.bowlerSheet = (change = false) => {
     return `<button class="pbtn" ${dis ? 'disabled' : ''} onclick="App.setBowler(${p.id})">${roleIcon(p.role)} ${esc(p.name)}<span class="s">${why}</span></button>`;
   });
   const overNo = Math.floor(inn.legal_balls / bpo) + 1;
-  sheet(`<h3>${change ? 'Change bowler' : `Over ${overNo} — who bowls? 🎯`}</h3>
+  sheet(`<h3>${change ? 'Change bowler' : `Over ${overNo} - who bowls? 🎯`}</h3>
     <div class="sub">${change ? 'Use this if a bowler is injured mid-over.' : 'Figures shown as Overs-Maidens-Runs-Wickets'}${m.max_overs_bowler ? ` · max ${m.max_overs_bowler} overs each` : ''}</div>
     <div class="plist">${list.join('')}</div>${change ? '' : '<button class="btn light block" onclick="App.undo()">↶ Undo last ball</button>'}`, { locked: !change });
 };
@@ -851,7 +879,7 @@ App.matchMenu = () => {
   sheet(`<h3>Match options</h3><div class="sub">${esc(st.team1.name)} vs ${esc(st.team2.name)}</div><div class="plist">
     ${st.needs === 'completed' && m.status !== 'abandoned' ? '<button class="pbtn" onclick="App.undo()">↶ Undo last ball (re-open match)</button>' : ''}
     ${live ? '<button class="pbtn" onclick="App.endInnings()">⏹️ End this innings now</button>' : ''}
-    ${['live', 'scheduled'].includes(m.status) || m.result_method === 'rain' ? '<button class="pbtn" onclick="App.rainSheet()">🌧️ Rain / DLS — reduce overs, revised target</button>' : ''}
+    ${['live', 'scheduled'].includes(m.status) || m.result_method === 'rain' ? '<button class="pbtn" onclick="App.rainSheet()">🌧️ Rain / DLS - reduce overs, revised target</button>' : ''}
     ${['live', 'scheduled'].includes(m.status) ? '<button class="pbtn" onclick="App.abandon()">⛔ Abandon match (no result)</button>' : ''}
     ${m.visibility === 'private'
       ? '<button class="pbtn" onclick="App.setVis(\'public\')">🌍 Make match public <span class="s">everyone can watch</span></button>'
@@ -870,13 +898,13 @@ App.rainSheet = () => {
   else if (inn.status === 'live') { stage = inn.no === 1 ? 'inn1' : 'inn2'; cur = inn.max_overs; minO = Math.max(1, Math.ceil(inn.legal_balls / bpo)); }
   else stage = 'done';
   const intr = (d.interruptions || []).map(x => `<div class="kv"><span>Inns ${x.innings_no} · at ${x.at} ov, ${x.wickets} wkt</span><span>${x.overs_before} → ${x.overs_after} overs</span></div>`).join('');
-  const level = `<div class="field" style="margin-top:12px"><label>Level (G50 — average 50-over score)</label><div class="chips wrap">
-      <button class="chip ${d.g50 !== 245 ? 'on' : ''}" onclick="App.dlsLevel(200)">Junior / club — 200</button>
-      <button class="chip ${d.g50 === 245 ? 'on' : ''}" onclick="App.dlsLevel(245)">International — 245</button></div></div>`;
+  const level = `<div class="field" style="margin-top:12px"><label>Level (G50 - average 50-over score)</label><div class="chips wrap">
+      <button class="chip ${d.g50 !== 245 ? 'on' : ''}" onclick="App.dlsLevel(200)">Junior / club - 200</button>
+      <button class="chip ${d.g50 === 245 ? 'on' : ''}" onclick="App.dlsLevel(245)">International - 245</button></div></div>`;
   let body = '';
   if (stage === 'done') {
     body = m.result_method === 'rain'
-      ? `<div class="notice">Result decided by rain. Play resumed? Undo it to continue the chase.</div><button class="btn block" onclick="App.undo()">↶ Undo rain result — resume play</button>`
+      ? `<div class="notice">Result decided by rain. Play resumed? Undo it to continue the chase.</div><button class="btn block" onclick="App.undo()">↶ Undo rain result - resume play</button>`
       : `<div class="notice">The match is finished.</div>`;
   } else {
     const batName = stage === 'break' ? teamById(st.next.batting_team_id).name : stage === 'pre' ? '' : teamById(inn.batting_team_id).name;
@@ -893,13 +921,13 @@ App.rainSheet = () => {
       body += `<div class="divider"></div>
         <div class="kv" style="border:0;padding:4px 0"><span>DLS par score now</span><span class="big-num">${d.par}</span></div>
         <div class="small muted">If no more play is possible now, ${esc(teamById(inn.batting_team_id).name)} ${inn.runs > d.par ? 'would WIN' : inn.runs === d.par ? 'would TIE' : 'would LOSE'} (score ${inn.runs}${d.can_result ? '' : `; but at least ${d.min_overs} overs are needed for a result`}).</div>
-        <button class="btn red block" style="margin-top:10px" onclick="App.rainEnd()">⛈️ Rain stopped play — decide by DLS</button>
+        <button class="btn red block" style="margin-top:10px" onclick="App.rainEnd()">⛈️ Rain stopped play - decide by DLS</button>
         ${d.par_table && d.par_table.length ? `<details style="margin-top:12px"><summary class="link">Par score at the end of each over (${inn.wickets} down)</summary>
           <div class="card flush" style="margin-top:8px;box-shadow:none;border:1px solid var(--line)">${d.par_table.map(r => `<div class="kv"><span>After ${r.over} overs</span><span>${r.par}</span></div>`).join('')}</div></details>` : ''}`;
     }
   }
   sheet(`<h3>Rain & DLS 🌧️</h3><div class="sub">Duckworth-Lewis-Stern method (ICC Standard Edition)</div>${body}
-    ${d.R1 !== undefined ? `<div class="divider"></div><div class="kv" style="border:0;padding:3px 0"><span>Resources — team 1</span><span>${d.R1}%</span></div>${d.R2 !== undefined ? `<div class="kv" style="border:0;padding:3px 0"><span>Resources — team 2</span><span>${d.R2}%</span></div>` : ''}` : ''}
+    ${d.R1 !== undefined ? `<div class="divider"></div><div class="kv" style="border:0;padding:3px 0"><span>Resources - team 1</span><span>${d.R1}%</span></div>${d.R2 !== undefined ? `<div class="kv" style="border:0;padding:3px 0"><span>Resources - team 2</span><span>${d.R2}%</span></div>` : ''}` : ''}
     ${intr ? `<div class="section" style="margin-top:12px"><h2 style="font-size:15px">Interruptions</h2><button class="link" onclick="App.rainUndo()">Undo last</button></div><div class="card flush" style="box-shadow:none;border:1px solid var(--line)">${intr}</div>` : (d.inn2_overs ? `<button class="link" onclick="App.rainUndo()">Undo chase overs change</button>` : '')}
     ${stage !== 'done' ? level : ''}
     <button class="link" style="margin-top:10px" onclick="App.dlsHelp()">How does DLS work?</button>`);
@@ -939,20 +967,22 @@ App.dlsHelp = () => sheet(`<h3>How DLS works ☔</h3><div class="small" style="l
   When rain takes overs away, each team's resources (R1, R2) are worked out. Then:<br>
   • If team 2 has <b>fewer</b> resources: target = team 1 score × R2 ÷ R1, plus 1.<br>
   • If team 2 has <b>more</b>: target = team 1 score + G50 × (R2 − R1) ÷ 100, plus 1 (G50 = 245 internationals, 200 junior/club).<br><br>
-  If rain ends the match during the chase, the batting side wins if it is <b>ahead of the par score</b>, ties if level, and loses if behind — provided enough overs were bowled (20 in a 50-over game, 5 in a T20).</div>
+  If rain ends the match during the chase, the batting side wins if it is <b>ahead of the par score</b>, ties if level, and loses if behind - provided enough overs were bowled (20 in a 50-over game, 5 in a T20).</div>
   <button class="btn light block" style="margin-top:12px" onclick="App.rainSheet()">← Back</button>`);
 App.setVis = v => run(async () => {
   S.m = await api('match_visibility', { id: S.m.match.id, visibility: v });
   closeSheet(); drawMatch(false);
-  toast(v === 'private' ? '🔒 Match is now private — only you can see it' : '🌍 Match is now public');
+  toast(v === 'private' ? '🔒 Match is now private - only you can see it' : '🌍 Match is now public');
 });
 App.endInnings = () => confirmSheet('End innings?', 'Use this for rain, bad light or a declaration. The innings will close at the current score.', 'End innings', () => scoreAction('match_end_innings'));
 App.abandon = () => confirmSheet('Abandon match?', 'The match will be recorded as "No result".', 'Abandon', () => scoreAction('match_abandon'));
 App.deleteMatch = () => confirmSheet('Delete this match?', 'All scores for this match will be removed. This cannot be undone.', 'Delete', () => run(async () => { await api('match_delete', { id: S.m.match.id }); closeSheet(); S.m = null; toast('Match deleted'); go('#/matches'); }));
 App.shareMatch = async () => {
-  const st = S.m, url = location.origin + location.pathname + '#/match/' + st.match.id;
+  const st = S.m, base = location.origin + location.pathname.replace(/[^/]*$/, '');
+  // Public matches get the /m/ID page (shows the score as a WhatsApp/Facebook preview); private ones open in the app
+  const url = st.match.visibility === 'private' ? base + '#/match/' + st.match.id : base + 'm/' + st.match.id;
   const inn = st.innings.length ? curInn() : null;
-  const text = `🏏 ${st.team1.name} vs ${st.team2.name}` + (inn ? ` — ${teamById(inn.batting_team_id).short_name} ${inn.runs}/${inn.wickets} (${inn.overs})` : '') + (st.match.result_text ? ` — ${st.match.result_text}` : '') + ' · Cric-Scorer';
+  const text = `🏏 ${st.team1.name} vs ${st.team2.name}` + (inn ? ` - ${teamById(inn.batting_team_id).short_name} ${inn.runs}/${inn.wickets} (${inn.overs})` : '') + (st.match.result_text ? ` - ${st.match.result_text}` : '') + ' · Cric-Scorer';
   closeSheet();
   if (navigator.share) { try { await navigator.share({ title: 'Cric-Scorer', text, url }); } catch (e) { /* cancelled */ } }
   else { try { await navigator.clipboard.writeText(text + '\n' + url); toast('Link copied!'); } catch (e) { toast(url); } }
@@ -1061,11 +1091,11 @@ function openersSetup() {
       ${nx.dls ? `<div class="small muted" style="margin-top:4px">Target revised by the DLS method (${nx.overs} overs)</div>` : ''}</div>`;
   }
   return `<div class="content">${brk}<div class="card">
-    <div class="row" style="margin-bottom:10px">${badge(bt, 'sm')}<b class="grow">${esc(bt.name)} — opening batters</b></div>
+    <div class="row" style="margin-bottom:10px">${badge(bt, 'sm')}<b class="grow">${esc(bt.name)} - opening batters</b></div>
     <div class="field"><label>Striker (faces the first ball)</label><div class="chips wrap">${chips(bat, 's', 'ns')}</div></div>
     ${single ? '' : `<div class="field"><label>Non-striker</label><div class="chips wrap">${chips(bat, 'ns', 's')}</div></div>`}
     <div class="divider"></div>
-    <div class="row" style="margin:10px 0">${badge(bwt, 'sm')}<b class="grow">${esc(bwt.name)} — opening bowler</b></div>
+    <div class="row" style="margin:10px 0">${badge(bwt, 'sm')}<b class="grow">${esc(bwt.name)} - opening bowler</b></div>
     <div class="chips wrap" style="margin-bottom:14px">${chips(bowl, 'b')}</div>
     <button class="btn block" onclick="App.startInnings(this)">Play ball! 🏏</button>
     ${nx.no === 2 ? '<button class="btn light block" style="margin-top:8px" onclick="App.undo()">↶ Undo last ball of 1st innings</button>' : '<button class="btn light block" style="margin-top:8px" onclick="App.undoToss()">← Redo the toss</button>'}
@@ -1144,7 +1174,7 @@ async function viewTeams(cat) {
     <div id="tl">${sk(4)}</div></div><button class="fab" aria-label="Create team" onclick="go('#/team/new')">${I.plus}</button>`, 'teams');
   const d = await api('teams_list', { category: c });
   $('#tl').innerHTML = d.teams.length ? `<div class="card flush list">${d.teams.map(t => `<div class="item" data-q="${esc((t.name + ' ' + t.short_name).toLowerCase())}" onclick="go('#/team/${t.id}')">${badge(t)}
-      <div class="grow"><div class="t ellipsis">${esc(t.name)}</div><div class="s">${plural(+t.players, 'player')}${t.captain && t.captain !== 'TBA' ? ' · C: ' + esc(t.captain) : ''}${c === 'custom' ? ' · by ' + esc(t.mine ? 'you' : t.owner_name || '—') : ''}</div></div><span class="chev">${I.chev}</span></div>`).join('')}</div>`
+      <div class="grow"><div class="t ellipsis">${esc(t.name)}</div><div class="s">${plural(+t.players, 'player')}${t.captain && t.captain !== 'TBA' ? ' · C: ' + esc(t.captain) : ''}${c === 'custom' ? ' · by ' + esc(t.mine ? 'you' : t.owner_name || '-') : ''}</div></div><span class="chev">${I.chev}</span></div>`).join('')}</div>`
     : `<div class="card empty"><div class="big">🧢</div>No teams here yet.<br><button class="btn" style="margin-top:12px" onclick="go('#/team/new')">Create your team</button></div>`;
 }
 App.filterList = q => {
@@ -1206,7 +1236,7 @@ App.deletePlayer = pid => confirmSheet('Delete player?', 'This removes the playe
 }));
 App.pickPlayers = () => {
   S.pickSel = new Set();
-  sheet(`<h3>Pick from other teams</h3><div class="sub">Build your dream team with IPL & international stars — players are copied into your team.</div>
+  sheet(`<h3>Pick from other teams</h3><div class="sub">Build your dream team with IPL & international stars - players are copied into your team.</div>
     <div class="search">${I.search}<input class="input" id="pq" placeholder="Search e.g. Kohli, Bumrah" oninput="App.searchPlayers(this.value)"></div>
     <div id="pres" class="plist"><div class="muted small">Type at least 2 letters…</div></div>
     <button class="btn block" id="padd" disabled onclick="App.copyPlayers(this)">Add players</button>`);
@@ -1267,8 +1297,8 @@ async function viewPlayer(id) {
       <div><h2>${esc(p.name)}</h2><p>${roleIcon(p.role)} ${esc(p.role)}${p.jersey_no ? ' · #' + esc(p.jersey_no) : ''}</p>
       <p onclick="go('#/team/${p.team_id}')" style="cursor:pointer;text-decoration:underline">${esc(p.team_name)}</p></div></div>
     <div class="content">
-      <div class="card flush"><div class="kv" style="border-top:0"><span>Batting</span><span>${esc(p.batting_style || '—')}</span></div>
-        <div class="kv"><span>Bowling</span><span>${esc(p.bowling_style || '—')}</span></div>${p.country ? `<div class="kv"><span>Country</span><span>${esc(p.country)}</span></div>` : ''}</div>
+      <div class="card flush"><div class="kv" style="border-top:0"><span>Batting</span><span>${esc(p.batting_style || '-')}</span></div>
+        <div class="kv"><span>Bowling</span><span>${esc(p.bowling_style || '-')}</span></div>${p.country ? `<div class="kv"><span>Country</span><span>${esc(p.country)}</span></div>` : ''}</div>
       <div class="section"><h2>🏏 Batting stats</h2><span class="small muted">in Cric-Scorer matches</span></div>
       <div class="card flush"><div class="statgrid">${g(b.mat, 'Matches')}${g(b.runs, 'Runs')}${g(b.hs + (b.hs_no ? '*' : ''), 'Best')}${g(b.avg, 'Average')}${g(b.sr, 'Strike rate')}${g(b.inns, 'Innings')}${g(b.f4, 'Fours')}${g(b.f6, 'Sixes')}${g(b.fifties + b.hundreds, '50s / 100s')}</div></div>
       <div class="section"><h2>🎯 Bowling stats</h2></div>
@@ -1304,7 +1334,7 @@ async function viewTournamentForm(id) {
     <div class="card">
       <div class="field"><label>Tournament name</label><input class="input" name="name" value="${esc(t.name)}" placeholder="e.g. Diwali Premier League" required></div>
       <div class="field"><label>Format</label><select class="input" name="format">${Object.entries(FORMAT).map(([k, l]) => `<option value="${k}" ${t.format === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-      <div class="field"><label>Match type</label><select class="input" name="match_type_id">${ty.types.map(x => `<option value="${x.id}" ${+t.match_type_id === x.id ? 'selected' : ''}>${esc(x.name)} — ${x.overs} overs, ${x.players_per_side} a side</option>`).join('')}</select></div>
+      <div class="field"><label>Match type</label><select class="input" name="match_type_id">${ty.types.map(x => `<option value="${x.id}" ${+t.match_type_id === x.id ? 'selected' : ''}>${esc(x.name)} - ${x.overs} overs, ${x.players_per_side} a side</option>`).join('')}</select></div>
       <div class="grid2"><div class="field"><label>Start date</label><input class="input" type="date" name="start_date" value="${esc(t.start_date || '')}"></div>
       <div class="field"><label>End date</label><input class="input" type="date" name="end_date" value="${esc(t.end_date || '')}"></div></div>
       <div class="field"><label>Venue</label><input class="input" name="venue" value="${esc(t.venue || '')}" placeholder="optional"></div>
@@ -1355,7 +1385,7 @@ async function viewTournament(id) {
 }
 function leaderBlock(title, list, val, sub) {
   return `<div class="section"><h2>${title}</h2></div>` + (list.length ? `<div class="card flush list">${list.map((r, i) => `<div class="item" onclick="go('#/player/${r.pid}')"><span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>${badge({ short_name: r.team, color: r.color }, 'sm')}
-    <div class="grow"><div class="t ellipsis">${esc(r.name)}</div><div class="s">${sub(r)}</div></div><b class="big-num">${val(r)}</b></div>`).join('')}</div>` : '<div class="card empty small">No data yet — play some matches!</div>');
+    <div class="grow"><div class="t ellipsis">${esc(r.name)}</div><div class="s">${sub(r)}</div></div><b class="big-num">${val(r)}</b></div>`).join('')}</div>` : '<div class="card empty small">No data yet - play some matches!</div>');
 }
 App.fixtures = btn => run(async () => { const r = await api('tournament_fixtures', { id: S.tour.tournament.id }); toast(`${plural(r.created, 'match')} created ✓`); render(); }, btn);
 App.tourMenu = () => sheet(`<h3>Tournament options</h3><div class="plist">
@@ -1395,13 +1425,15 @@ function viewMore() {
       ${item('📲', 'Install app', 'Add Cric-Scorer to your home screen', 'App.installHelp()')}
       ${item('🔄', 'Update app', 'Version ' + esc(window.CS_VERSION || '') + (S.newVersion ? ' · new version ' + esc(S.newVersion) + ' available!' : ' · reload the latest code'), 'App.updateApp()')}
       ${item('ℹ️', 'About Cric-Scorer', 'How scoring works', 'App.about()')}
+      ${item('🔐', 'Privacy Policy', 'What we keep and your rights', "location.href='privacy'")}
+      ${item('📜', 'Terms of Use', 'The rules for using Cric-Scorer', "location.href='terms'")}
     </div>
     <button class="btn light block" style="color:var(--red)" onclick="App.logout()">Log out</button>
     <p class="small muted" style="text-align:center;margin-top:18px">Cric-Scorer · by Aaryush 🏏</p></div>`, 'more');
 }
 App.about = () => sheet(`<div style="text-align:center">${LOGO.replace('class="logo"', 'style="width:64px;height:64px"')}<h3>Cric-Scorer</h3><div class="sub">by Aaryush · made for Aarush & Aayush</div></div>
   <div class="card" style="box-shadow:none;border:1px solid var(--line)"><b>Scoring tips</b><div class="small muted" style="margin-top:6px">
-  • Tap <b>0–6</b> for runs off the bat.<br>• <b>WD</b> wide and <b>NB</b> no-ball add 1 run and don't count as a ball.<br>• <b>BYE/LB</b> are runs not off the bat.<br>• <b>OUT</b> records a wicket — pick how and who.<br>• Made a mistake? Tap <b>Undo</b> as many times as you need.<br>• Share the match link so family can watch the score live!</div></div>`);
+  • Tap <b>0–6</b> for runs off the bat.<br>• <b>WD</b> wide and <b>NB</b> no-ball add 1 run and don't count as a ball.<br>• <b>BYE/LB</b> are runs not off the bat.<br>• <b>OUT</b> records a wicket - pick how and who.<br>• Made a mistake? Tap <b>Undo</b> as many times as you need.<br>• Share the match link so family can watch the score live!</div></div>`);
 async function viewTypes() {
   mount(topbar('Match Types', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
   const d = await api('types_list'); S.types = d.types;
@@ -1430,7 +1462,7 @@ function viewProfile() {
           <div class="grow"><b>Linked ✓</b><div class="small muted ellipsis">${esc(u.email || '')}</div></div>
           ${u.has_password ? `<button type="button" class="btn sm light" onclick="App.unlinkGoogle()">Unlink</button>` : ''}</div>
           <div class="small muted" style="margin-top:8px">You can sign in with one tap using "Sign in with Google".${u.has_password ? '' : ' Set a password below if you also want to log in with your username.'}</div>`
-        : `<div class="small muted" style="margin-bottom:10px">Link your Gmail so you can sign in with one tap — no password to remember.</div><div id="glink" class="gbtn"></div>`}
+        : `<div class="small muted" style="margin-bottom:10px">Link your Gmail so you can sign in with one tap - no password to remember.</div><div id="glink" class="gbtn"></div>`}
     </div>`;
   const chips = (name, list, val) => `<input type="hidden" name="${name}" value="${esc(val || '')}"><div class="chips wrap" data-for="${name}">${list.map(([v, l]) => `<button type="button" class="chip ${v === (val || '') ? 'on' : ''}" data-v="${esc(v)}" onclick="App.pickChip(this)">${l}</button>`).join('')}</div>`;
   const pl = u.player;
@@ -1473,9 +1505,34 @@ function viewProfile() {
     <div class="section"><h2>${u.has_password ? 'Change password' : 'Set a password (optional)'}</h2></div><div class="card">
     ${u.has_password ? `<div class="field"><label>Current password</label><input class="input" type="password" name="current_password" autocomplete="current-password"></div>` : ''}
     <div class="field"><label>New password</label><input class="input" type="password" name="new_password" minlength="6" autocomplete="new-password"></div></div>
-    <button class="btn block">Save</button></form>`, 'more');
+    <button class="btn block">Save</button>
+    <div class="section"><h2>Delete account</h2></div>
+    ${u.is_admin ? `<div class="small muted" style="margin:0 2px">You're the administrator who looks after this website, so this account can't be deleted from the app.</div>`
+      : `<button type="button" class="btn light block" style="color:var(--red)" onclick="App.deleteAccount()">🗑️ Delete my account</button>`}
+    </form>`, 'more');
   if (gOn && !u.google) { S.gMode = 'link'; renderGoogleButton('glink', 'continue_with'); }
 }
+App.deleteAccount = () => {
+  const u = S.user;
+  sheet(`<h3>Delete your account?</h3>
+    <p class="small muted">This <b>permanently</b> erases your profile, photo, follows, Academy progress, and the matches, tournaments and teams you created. Teams that other players use in their matches are kept for them. <b>This can't be undone.</b></p>
+    <form onsubmit="App.deleteAccountGo(event)">
+    ${u.has_password ? `<div class="field"><label>Enter your password to confirm</label><input class="input" type="password" name="password" autocomplete="current-password" required></div>`
+      : `<div class="field"><label>Type your username <b>${esc(u.username)}</b> to confirm</label><input class="input" name="confirm" autocapitalize="none" autocomplete="off" required></div>`}
+    <button class="btn block" style="background:var(--red)">Delete everything forever</button>
+    <button type="button" class="btn light block" style="margin-top:8px" onclick="closeSheet()">Keep my account</button></form>`);
+};
+App.deleteAccountGo = e => {
+  e.preventDefault();
+  const f = formData(e.target);
+  run(async () => {
+    await api('account_delete', f);
+    S.user = null; closeSheet();
+    try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (x) { /* ignore */ }
+    toast('Your account has been deleted. Thanks for playing! 🏏');
+    go('#/');
+  }, e.submitter);
+};
 App.unlinkGoogle = () => confirmSheet('Unlink Google?', 'You will log in with your username and password instead.', 'Unlink', () =>
   run(async () => { const r = await api('google_unlink'); S.user = r.user; closeSheet(); toast('Google account unlinked'); viewProfile(); }));
 App.pickChip = btn => {
@@ -1663,7 +1720,7 @@ async function viewPeople(tab) {
   const tabs = [['find', '🔍 Find'], ['followers', 'Followers'], ['following', 'Following']];
   mount(topbar('Players') + `<div class="content"><div class="seg">${tabs.map(([k, l]) => `<button class="${t === k ? 'on' : ''}" onclick="go('#/people?t=${k}')">${l}</button>`).join('')}</div>
     ${t === 'find' ? `<div class="search">${I.search}<input class="input" id="pq" placeholder="Search by name or username" autocapitalize="none" value="${esc(S.pq || '')}" oninput="App.peopleSearch(this.value)"></div>` : ''}
-    ${S.user.is_private ? `<div class="notice">🔒 Your profile is private — others can't find or follow you. Change this in <a class="link" href="#/profile">My Profile</a>.</div>` : ''}
+    ${S.user.is_private ? `<div class="notice">🔒 Your profile is private - others can't find or follow you. Change this in <a class="link" href="#/profile">My Profile</a>.</div>` : ''}
     <div id="plist">${sk(3)}</div></div>`, 'more');
   if (t === 'find') return App.peopleSearch(S.pq || '', true);
   const d = await api('follow_list', { id: S.user.id, type: t });

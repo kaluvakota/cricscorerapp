@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer Academy — cricket lessons, quizzes, XP, stars, ranks (graded on the server) */
+/* Cric-Scorer Academy - cricket lessons, quizzes, XP, stars, ranks (graded on the server) */
 
 const ACADEMY_RANKS = [
     [0, 'Gully Rookie', '🧢'], [300, 'Club Cricketer', '🏏'], [800, 'District Player', '🎽'], [1400, 'State Player', '🏅'],
@@ -85,7 +85,7 @@ function academy_submit(array $u, array $in): array {
     $old = row('SELECT * FROM academy_progress WHERE user_id=? AND lesson_id=?', [$u['id'], $lid]);
     $bestCorrect = max($correct, $old ? (int)$old['best_correct'] : 0);
     $bestStars = max($stars, $old ? (int)$old['stars'] : 0);
-    $xp = $bestCorrect * $w + $bestStars * $w;      // only your best attempt counts — no farming XP
+    $xp = $bestCorrect * $w + $bestStars * $w;      // only your best attempt counts - no farming XP
     if ($old) {
         q('UPDATE academy_progress SET best_correct=?, total=?, stars=?, attempts=attempts+1, xp=?, updated_at=NOW() WHERE user_id=? AND lesson_id=?',
           [$bestCorrect, $total, $bestStars, $xp, $u['id'], $lid]);

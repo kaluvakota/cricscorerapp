@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer by Aaryush — JSON API */
+/* Cric-Scorer by Aaryush - JSON API */
 require_once __DIR__ . '/inc/core.php';
 require_once __DIR__ . '/inc/engine.php';
 require_once __DIR__ . '/inc/academy.php';
@@ -43,9 +43,10 @@ function handle(string $action, array $in, ?array $u) {
         if (!preg_match('/^[a-z0-9_.]{3,30}$/', $un)) fail('Username: 3–30 letters, numbers, dot or underscore');
         if (strlen($pw) < 6) fail('Password must be at least 6 characters');
         if (val('SELECT 1 FROM users WHERE username=?', [$un])) fail('That username is taken');
+        if (empty($in['consent'])) fail('Please tick the box to agree to the Terms of Use and Privacy Policy');
         recaptcha_check($in, 'register');
         $first = !val('SELECT 1 FROM users LIMIT 1');
-        q('INSERT INTO users (username, password_hash, display_name, is_admin) VALUES (?,?,?,?)', [$un, password_hash($pw, PASSWORD_DEFAULT), $dn, $first ? 1 : 0]);
+        q('INSERT INTO users (username, password_hash, display_name, is_admin, terms_accepted_at) VALUES (?,?,?,?,NOW())', [$un, password_hash($pw, PASSWORD_DEFAULT), $dn, $first ? 1 : 0]);
         $nu = row('SELECT * FROM users WHERE id=?', [lastId()]);
         login_user($nu, true);
         return ['user' => public_user($nu)];
@@ -55,7 +56,7 @@ function handle(string $action, array $in, ?array $u) {
         recaptcha_check($in, 'login');
         $un = strtolower(str_in($in, 'username', 50));
         $nu = row('SELECT * FROM users WHERE username=?', [$un]);
-        if ($nu && (string)$nu['password_hash'] === '' && !empty($nu['google_sub'])) fail('This player signs in with Google — tap "Sign in with Google"');
+        if ($nu && (string)$nu['password_hash'] === '' && !empty($nu['google_sub'])) fail('This player signs in with Google - tap "Sign in with Google"');
         if (!$nu || !password_verify((string)($in['password'] ?? ''), $nu['password_hash'])) { usleep(600000); fail('Wrong username or password'); }
         login_user($nu, !isset($in['remember']) || $in['remember']);
         return ['user' => public_user($nu)];
@@ -67,6 +68,9 @@ function handle(string $action, array $in, ?array $u) {
         return google_link($u, $in);
     case 'google_unlink':
         return google_unlink($u);
+
+    case 'account_delete':
+        return account_delete($u, $in);
 
     case 'logout':
         clear_remember_token();

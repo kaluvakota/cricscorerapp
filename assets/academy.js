@@ -1,4 +1,4 @@
-/* Cric-Scorer Academy — learn cricket: lessons first, then quizzes, stars, XP and ranks */
+/* Cric-Scorer Academy - learn cricket: lessons first, then quizzes, stars, XP and ranks */
 'use strict';
 const Academy = (() => {
   let D = null;            // syllabus data (assets/academy.json)
@@ -6,7 +6,7 @@ const Academy = (() => {
   const A = {};
 
   /* ---------- Field diagram (right-handed batter, batter's end at the top, off side on the left) ---------- */
-  // [x, y, name, label dx, label dy, anchor]  — hand-placed on a 400×400 field, batter's stumps at y=140
+  // [x, y, name, label dx, label dy, anchor]  - hand-placed on a 400×400 field, batter's stumps at y=140
   const POS = {
     keeper: [200, 96, 'Wicket-keeper', 0, -15], bowler: [200, 284, 'Bowler', 0, 27],
     'first-slip': [176, 100, '1st slip', 0, 27], 'second-slip': [154, 106, '2nd slip', 0, -15], 'third-slip': [134, 115, '3rd slip', -2, 27],
@@ -137,7 +137,7 @@ const Academy = (() => {
         <div class="row"><span class="ac-rank-ic">${r.icon}</span><div class="grow"><div class="small" style="opacity:.8">Your rank</div><b class="ac-rank">${esc(r.name)}</b></div>
         <div style="text-align:right"><b class="big-num" style="color:var(--lime)">${P.xp}</b><div class="small" style="opacity:.8">XP</div></div></div>
         <div class="progress" style="background:rgba(255,255,255,.15);margin-top:10px"><i style="background:var(--lime);width:${pct}%"></i></div>
-        <div class="other">${r.next ? `${r.next.xp - P.xp} XP to ${r.next.icon} ${esc(r.next.name)}` : 'Top rank reached — you are a Cricket Legend!'}</div>
+        <div class="other">${r.next ? `${r.next.xp - P.xp} XP to ${r.next.icon} ${esc(r.next.name)}` : 'Top rank reached - you are a Cricket Legend!'}</div>
         <div class="ac-stats"><span><b>${done}/${all.length}</b> lessons</span><span><b>${stars}</b> ★ stars</span><span><b>${D.modules.filter(moduleDone).length}/${D.modules.length}</b> badges</span></div>
       </div>
       <div class="content">
@@ -224,7 +224,7 @@ const Academy = (() => {
           <button class="btn block" onclick="Academy.nextQ(this)">${z.n === z.qs.length - 1 ? 'See my score 🏁' : 'Next question →'}</button>` : ''}
       </div>`, null);
   }
-  const PRAISE = ['Correct! 🎉', 'Spot on! 🏏', 'Brilliant! ⭐', 'Howzat — right! ☝️', 'Superb! 🔥', 'Well played! 👏'];
+  const PRAISE = ['Correct! 🎉', 'Spot on! 🏏', 'Brilliant! ⭐', 'Howzat - right! ☝️', 'Superb! 🔥', 'Well played! 👏'];
   let lastPraise = PRAISE[0];
   const pickPraise = () => lastPraise;
   A.pick = k => {
@@ -260,10 +260,10 @@ const Academy = (() => {
         <h2>${title}</h2>
         ${starsHtml(r.stars, true)}
         <div class="ac-score"><b>${r.correct}</b>/${r.total}<span>${pct}%</span></div>
-        <div class="ac-xp">${r.xp_gained > 0 ? `+${r.xp_gained} XP` : r.new_best ? 'Best score kept' : 'No new XP — beat your best score to earn more'}</div>
+        <div class="ac-xp">${r.xp_gained > 0 ? `+${r.xp_gained} XP` : r.new_best ? 'Best score kept' : 'No new XP - beat your best score to earn more'}</div>
         <div class="small muted">Best streak: ${z.best} 🔥 · Pass mark ${Math.round(r.pass_mark * 100)}%</div>
         ${rankUp ? `<div class="ac-rankup">⬆️ Rank up! <b>${r.rank.icon} ${esc(r.rank.name)}</b></div>` : ''}
-        ${!r.passed ? `<p class="small" style="margin-top:10px">${isFinal ? 'Revise the modules where you dropped marks, then try again.' : 'Read the lesson cards again — every answer is in them — then retry.'}</p>` : ''}
+        ${!r.passed ? `<p class="small" style="margin-top:10px">${isFinal ? 'Revise the modules where you dropped marks, then try again.' : 'Read the lesson cards again - every answer is in them - then retry.'}</p>` : ''}
       </div>
       <div class="plist">
         ${r.passed && next && !isFinal ? `<button class="btn block" onclick="go('#/learn/lesson/${next.id}')">Next lesson: ${esc(next.title)} →</button>` : ''}
@@ -290,7 +290,7 @@ const Academy = (() => {
     sheet(`<h3>Your answers</h3><div class="sub">${z.right}/${z.qs.length} correct</div>` + z.qs.map((q, k) => {
       const a = z.answers[q.i], ok = a === q.a;
       return `<div class="ac-rev ${ok ? 'ok' : 'bad'}"><div><b>${ok ? '✅' : '❌'} Q${k + 1}.</b> ${md(q.q)}</div>
-        ${!ok ? `<div class="small">Your answer: ${md(q.options[a] ?? '—')}</div>` : ''}
+        ${!ok ? `<div class="small">Your answer: ${md(q.options[a] ?? '-')}</div>` : ''}
         <div class="small"><b>Correct:</b> ${md(q.options[q.a])}</div><div class="small muted">${md(q.ex || '')}</div></div>`;
     }).join(''));
   };
@@ -310,7 +310,7 @@ const Academy = (() => {
           <div class="ac-cert-h">Certificate of Achievement</div>
           <div class="small">This certifies that</div>
           <div class="ac-cert-name">${esc(S.user.display_name)}</div>
-          <div class="small">has completed the full cricket syllabus — Laws of the Game, Field Positions, Batting, Bowling, Fielding & Wicket-keeping — and passed the Final Exam with</div>
+          <div class="small">has completed the full cricket syllabus - Laws of the Game, Field Positions, Batting, Bowling, Fielding & Wicket-keeping - and passed the Final Exam with</div>
           <div class="ac-cert-score">${f.best}/${f.total} · ${starsHtml(f.stars)}</div>
           <div class="ac-cert-t">🏏 Certified Cricket Expert 🏏</div>
           <div class="ac-cert-meta"><span>${esc(P.rank.icon + ' ' + P.rank.name)}<br><small>Rank</small></span><span>${P.xp} XP · ${stars} ★<br><small>Academy record</small></span><span>${esc(date)}<br><small>Date</small></span></div>

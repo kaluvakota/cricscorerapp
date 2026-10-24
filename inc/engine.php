@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer — scoring engine, scorecards, results and statistics */
+/* Cric-Scorer - scoring engine, scorecards, results and statistics */
 
 const BOWLER_WICKETS = ['bowled', 'caught', 'lbw', 'stumped', 'hit wicket'];
 const WICKET_TYPES   = ['bowled', 'caught', 'lbw', 'run out', 'stumped', 'hit wicket', 'retired hurt'];
@@ -278,7 +278,7 @@ function player_of_match(int $matchId, ?int $winner): ?int {
 }
 
 function undo_ball(array $m): void {
-    if ($m['result_method'] === 'rain') {          // undo "rain stopped play" — resume the chase
+    if ($m['result_method'] === 'rain') {          // undo "rain stopped play" - resume the chase
         q("UPDATE innings SET status='live' WHERE match_id=? AND innings_no=2", [$m['id']]);
         q("UPDATE matches SET status='live', winner_team_id=NULL, result_text=NULL, result_method=NULL, player_of_match_id=NULL WHERE id=?", [$m['id']]);
         return;
@@ -363,7 +363,7 @@ function ball_desc(array $b, array $n): string {
         case 'lb': $d = (int)$b['extra_runs'] . ' leg bye' . ((int)$b['extra_runs'] > 1 ? 's' : ''); break;
         default:   $d = $r === 4 ? 'FOUR!' : ($r === 6 ? 'SIX!' : ($r === 0 ? 'no run' : "$r run" . ($r > 1 ? 's' : '')));
     }
-    if ($b['is_wicket']) $d .= ' — OUT! ' . ($n[(int)$b['dismissed_id']] ?? '?') . ' ' . dismissal_text($b, $n);
+    if ($b['is_wicket']) $d .= ' - OUT! ' . ($n[(int)$b['dismissed_id']] ?? '?') . ' ' . dismissal_text($b, $n);
     return $head . $d;
 }
 

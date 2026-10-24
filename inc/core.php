@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer — core helpers: database, JSON output, authentication */
+/* Cric-Scorer - core helpers: database, JSON output, authentication */
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/google.php';
@@ -77,6 +77,7 @@ function ensure_schema(): void {
             PRIMARY KEY (user_id, lesson_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
     if (!val("SHOW COLUMNS FROM matches LIKE 'visibility'")) db()->exec("ALTER TABLE matches ADD COLUMN visibility ENUM('public','private') NOT NULL DEFAULT 'public' AFTER status, ADD INDEX idx_visibility (visibility)");
+    if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
     db()->exec("UPDATE innings i JOIN matches m ON m.id=i.match_id SET i.max_overs=m.overs, i.start_overs=m.overs");

@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer — player profile: photo or figure, bio, cricket profile, linked scorer player */
+/* Cric-Scorer - player profile: photo or figure, bio, cricket profile, linked scorer player */
 
 const PROFILE_ROLES = ['Batter', 'Bowler', 'All-rounder', 'Wicket-keeper'];
 const PROFILE_BATTING = ['Right-hand bat', 'Left-hand bat'];
@@ -98,4 +98,49 @@ function avatar_remove(array $u): array {
     q('UPDATE users SET avatar_url=NULL WHERE id=?', [$u['id']]);
     avatar_delete_file($old);
     return ['user' => public_user(row('SELECT * FROM users WHERE id=?', [$u['id']]))];
+}
+
+/** Permanently delete the signed-in player's account and everything they created (Privacy Policy section 10) */
+function account_delete(array $u, array $in): array {
+    if (!empty($u['is_admin'])) fail('The administrator account looks after this website, so it can\'t be deleted from the app');
+    if ((string)$u['password_hash'] !== '') {
+        if (!password_verify((string)($in['password'] ?? ''), $u['password_hash'])) { usleep(600000); fail('That password is wrong'); }
+    } elseif (strtolower(trim((string)($in['confirm'] ?? ''))) !== strtolower($u['username'])) {
+        fail('Type your username exactly to confirm');
+    }
+    $uid = (int)$u['id'];
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        // Matches they scored (innings, balls and line-ups go with them)
+        q('DELETE FROM matches WHERE owner_id=?', [$uid]);
+        // Tournaments and match types they made; other people's matches just lose the link
+        q('DELETE FROM tournaments WHERE owner_id=?', [$uid]);
+        $mt = array_map('intval', array_column(rows('SELECT id FROM match_types WHERE owner_id=? AND is_system=0', [$uid]), 'id'));
+        if ($mt) {
+            $in_ = implode(',', $mt);
+            q("UPDATE matches SET match_type_id=NULL WHERE match_type_id IN ($in_)");
+            q("UPDATE tournaments SET match_type_id=NULL WHERE match_type_id IN ($in_)");
+            q("DELETE FROM match_types WHERE id IN ($in_)");
+        }
+        // Their teams: keep any team someone else is still using, but unlink it from this account
+        foreach (array_map('intval', array_column(rows("SELECT id FROM teams WHERE owner_id=? AND category='custom'", [$uid]), 'id')) as $tid) {
+            $used = val('SELECT 1 FROM matches WHERE team1_id=? OR team2_id=? LIMIT 1', [$tid, $tid])
+                 || val('SELECT 1 FROM tournament_teams WHERE team_id=? LIMIT 1', [$tid]);
+            if ($used) { q('UPDATE teams SET owner_id=NULL WHERE id=?', [$tid]); continue; }
+            q('UPDATE users SET player_id=NULL WHERE player_id IN (SELECT id FROM players WHERE team_id=?)', [$tid]);
+            q('DELETE FROM teams WHERE id=?', [$tid]);   // its players go with it
+        }
+        q('UPDATE teams SET owner_id=NULL WHERE owner_id=?', [$uid]);
+        q('UPDATE match_types SET owner_id=NULL WHERE owner_id=?', [$uid]);
+        // The account itself; follows, Academy progress and sign-in tokens are removed with it
+        q('DELETE FROM users WHERE id=?', [$uid]);
+        $pdo->commit();
+    } catch (Throwable $e) { $pdo->rollBack(); throw $e; }
+    avatar_delete_file($u['avatar_url'] ?? null);
+    error_log("Cric-Scorer: account $uid deleted by its owner");
+    clear_remember_token();
+    $_SESSION = [];
+    if (session_status() === PHP_SESSION_ACTIVE) session_destroy();
+    return ['ok' => true];
 }

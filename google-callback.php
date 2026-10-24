@@ -1,5 +1,5 @@
 <?php
-/* Cric-Scorer — return page for "Sign in with Google" in redirect mode (used by iPhone home-screen apps) */
+/* Cric-Scorer - return page for "Sign in with Google" in redirect mode (used by iPhone home-screen apps) */
 require_once __DIR__ . '/inc/core.php';
 
 $back = './#/';
@@ -10,8 +10,8 @@ try {
     $posted = (string)($_POST['g_csrf_token'] ?? '');
     if ($cookie === '' || !hash_equals($cookie, $posted)) throw new ApiError('Sign-in check failed. Please try again.');
     ensure_schema();
-    google_login(['credential' => (string)($_POST['credential'] ?? '')]);
-    header('Location: ' . $back, true, 303);
+    $r = google_login(['credential' => (string)($_POST['credential'] ?? '')]);
+    header('Location: ' . (!empty($r['needs_consent']) ? './#/consent' : $back), true, 303);
     exit;
 } catch (Throwable $e) {
     $msg = $e instanceof ApiError ? $e->getMessage() : 'Something went wrong. Please try again.';
