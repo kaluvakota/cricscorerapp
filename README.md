@@ -26,6 +26,10 @@ Made for Aarush & Aayush.
   filter and Home feed. *Private profile* (My Profile) hides a player from search, profiles and follower lists and stops new
   follows. *Private match* (choose when creating, or Match options) hides it from everyone else's lists, Home, leaderboards
   and stats, and blocks its link; only the scorer — and the admin (parent) account — can open it.
+- **Player profiles** — profile photo (taken or picked on the phone, cropped to 320×320 and re-saved on the server) or one
+  of 16 cricket figures, a short bio, role, batting & bowling style, years of experience, and an optional link to *your*
+  player in one of your teams so your real batting and bowling career stats show on your profile. Photos are stored in
+  `uploads/avatars/` (scripts can never run there) — back this folder up along with the database.
 - **Live sharing** — share a match link; anyone can watch the score update live (no login needed).
 
 ## Requirements

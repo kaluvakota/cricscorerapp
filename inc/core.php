@@ -4,6 +4,7 @@ require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/google.php';
 require_once __DIR__ . '/social.php';
+require_once __DIR__ . '/profile.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 
@@ -56,6 +57,12 @@ function ensure_schema(): void {
         db()->exec("ALTER TABLE users ADD COLUMN email VARCHAR(190) NULL AFTER display_name, ADD COLUMN google_sub VARCHAR(64) NULL AFTER email,
                     ADD COLUMN avatar_url VARCHAR(255) NULL AFTER google_sub, ADD UNIQUE KEY uniq_google_sub (google_sub), ADD INDEX idx_email (email)");
     }
+    if (!val("SHOW COLUMNS FROM users LIKE 'bio'")) {
+        if (!val("SHOW COLUMNS FROM users LIKE 'is_private'")) db()->exec("ALTER TABLE users ADD COLUMN is_private TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_url");
+        db()->exec("ALTER TABLE users ADD COLUMN avatar_preset VARCHAR(20) NULL AFTER avatar_url, ADD COLUMN bio VARCHAR(200) NULL AFTER avatar_preset,
+                    ADD COLUMN role VARCHAR(20) NULL AFTER bio, ADD COLUMN batting_style VARCHAR(30) NULL AFTER role, ADD COLUMN bowling_style VARCHAR(40) NULL AFTER batting_style,
+                    ADD COLUMN experience_years TINYINT NULL AFTER bowling_style, ADD COLUMN player_id INT NULL AFTER experience_years, ADD UNIQUE KEY uniq_player (player_id)");
+    }
     if (!val("SHOW COLUMNS FROM users LIKE 'is_private'")) db()->exec("ALTER TABLE users ADD COLUMN is_private TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_url");
     if (!val("SHOW TABLES LIKE 'follows'")) {
         db()->exec("CREATE TABLE IF NOT EXISTS follows (follower_id INT NOT NULL, followee_id INT NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -97,7 +104,7 @@ function start_session(): void {
 function public_user(array $u): array {
     return ['id' => (int)$u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'], 'is_admin' => (bool)$u['is_admin'],
             'email' => $u['email'] ?? null, 'google' => !empty($u['google_sub']), 'avatar' => $u['avatar_url'] ?? null,
-            'has_password' => (string)($u['password_hash'] ?? '') !== '', 'is_private' => !empty($u['is_private'])];
+            'has_password' => (string)($u['password_hash'] ?? '') !== '', 'is_private' => !empty($u['is_private'])] + cricket_profile($u);
 }
 
 function current_user(): ?array {

@@ -1383,9 +1383,9 @@ function viewMore() {
   const u = S.user;
   const item = (ic, t, s, fn) => `<div class="item" onclick="${fn}"><span class="tile ic" style="box-shadow:none;padding:0;width:38px;height:38px;justify-content:center">${ic}</span><div class="grow"><div class="t">${t}</div>${s ? `<div class="s">${s}</div>` : ''}</div><span class="chev">${I.chev}</span></div>`;
   mount(topbar('More') + `<div class="content">
-    <div class="card row">${u.avatar ? `<img src="${esc(u.avatar)}" alt="" class="gavatar" style="width:52px;height:52px" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<span class="avatar" style="width:52px;height:52px;font-size:20px;background:var(--pitch);color:#fff">${esc(u.display_name.slice(0, 1).toUpperCase())}</span>`}
+    <div class="card row" style="cursor:pointer" onclick="go('#/user/${u.id}')">${personAvatar(u, 52)}
       <div class="grow"><b style="font-size:18px">${esc(u.display_name)}</b><div class="small muted">@${esc(u.username)}${u.is_admin ? ' · Admin' : ''}${u.google ? ' · Google ✓' : ''}</div></div>
-      <button class="btn sm light" onclick="go('#/profile')">Edit</button></div>
+      <button class="btn sm light" onclick="event.stopPropagation();go('#/profile')">Edit</button></div>
     <div class="card flush list">
       ${item('👥', 'Find players', 'Search, follow, and see your followers', "go('#/people')")}
       ${item('📊', 'Leaderboard', 'Top run scorers & wicket takers', "go('#/stats')")}
@@ -1426,15 +1426,45 @@ App.deleteType = id => run(async () => { await api('type_delete', { id }); close
 function viewProfile() {
   const u = S.user, gOn = S.auth && S.auth.google_client_id;
   const gCard = !gOn && !u.google ? '' : `<div class="section"><h2>Google account</h2></div><div class="card">
-      ${u.google ? `<div class="row">${u.avatar ? `<img src="${esc(u.avatar)}" alt="" class="gavatar" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<span class="avatar">G</span>'}
+      ${u.google ? `<div class="row"><span class="avatar" style="font-weight:900;color:#4285f4;background:#fff;border:1px solid var(--line)">G</span>
           <div class="grow"><b>Linked ✓</b><div class="small muted ellipsis">${esc(u.email || '')}</div></div>
           ${u.has_password ? `<button type="button" class="btn sm light" onclick="App.unlinkGoogle()">Unlink</button>` : ''}</div>
           <div class="small muted" style="margin-top:8px">You can sign in with one tap using "Sign in with Google".${u.has_password ? '' : ' Set a password below if you also want to log in with your username.'}</div>`
         : `<div class="small muted" style="margin-bottom:10px">Link your Gmail so you can sign in with one tap — no password to remember.</div><div id="glink" class="gbtn"></div>`}
     </div>`;
-  mount(topbar('My Profile', { back: true }) + `<form class="content" onsubmit="App.saveProfile(event)"><div class="card">
+  const chips = (name, list, val) => `<input type="hidden" name="${name}" value="${esc(val || '')}"><div class="chips wrap" data-for="${name}">${list.map(([v, l]) => `<button type="button" class="chip ${v === (val || '') ? 'on' : ''}" data-v="${esc(v)}" onclick="App.pickChip(this)">${l}</button>`).join('')}</div>`;
+  const pl = u.player;
+  mount(topbar('My Profile', { back: true }) + `<form class="content" onsubmit="App.saveProfile(event)">
+    <div class="card ph-card">
+      <div class="ph-big" onclick="App.photoMenu()">${personAvatar(u, 96)}<span class="ph-cam">📷</span></div>
+      <div class="grow"><b style="font-size:18px">${esc(u.display_name)}</b><div class="small muted">@${esc(u.username)}</div>
+        <div class="row" style="gap:6px;margin-top:8px;flex-wrap:wrap"><button type="button" class="btn sm" onclick="App.pickPhoto()">📷 Upload photo</button>
+        <button type="button" class="btn sm light" onclick="App.figureSheet()">😀 Choose figure</button></div></div>
+      <input type="file" id="photoFile" accept="image/*" hidden onchange="App.photoChosen(this)">
+    </div>
+    <div class="card">
     <div class="field"><label>Display name</label><input class="input" name="display_name" value="${esc(u.display_name)}" required></div>
-    <div class="field"><label>Username</label><input class="input" value="${esc(u.username)}" disabled></div></div>
+    <div class="field"><label>Username</label><input class="input" value="${esc(u.username)}" disabled></div>
+    <div class="field" style="margin-bottom:0"><label>About me <span class="muted" id="bioCount" style="float:right">${(u.bio || '').length}/160</span></label>
+      <textarea class="input" name="bio" rows="3" maxlength="160" placeholder="e.g. Opening batter who loves pull shots 🏏 Big CSK fan!" oninput="document.getElementById('bioCount').textContent=this.value.length+'/160'">${esc(u.bio || '')}</textarea></div></div>
+    <div class="section"><h2>🏏 My cricket profile</h2></div>
+    <div class="card">
+      <div class="field"><label>I play as</label>${chips('role', [['Batter', '🏏 Batter'], ['Bowler', '🎯 Bowler'], ['All-rounder', '⭐ All-rounder'], ['Wicket-keeper', '🧤 Keeper']], u.role)}</div>
+      <div class="field"><label>Batting</label>${chips('batting_style', [['Right-hand bat', '👉 Right-hand'], ['Left-hand bat', '👈 Left-hand']], u.batting_style)}</div>
+      <div class="field"><label>Bowling</label><select class="input" name="bowling_style">${BOWL_STYLES.map(b => `<option value="${esc(b)}" ${b === (u.bowling_style || '') ? 'selected' : ''}>${b || "I don't bowl"}</option>`).join('')}</select></div>
+      <div class="field" style="margin-bottom:0"><label>Cricket experience (years)</label>
+        <div class="row"><button type="button" class="btn sm light" onclick="App.expStep(-1)">−</button>
+        <input class="input" id="expIn" name="experience_years" type="number" inputmode="numeric" min="0" max="60" placeholder="0" value="${u.experience_years ?? ''}" style="text-align:center;font-size:20px;font-weight:900;max-width:110px">
+        <button type="button" class="btn sm light" onclick="App.expStep(1)">+</button><span class="small muted">years playing</span></div></div>
+    </div>
+    <div class="section"><h2>📊 My stats from the scorer</h2></div>
+    <div class="card">
+      ${pl ? `<div class="row">${badge({ short_name: pl.short_name, color: pl.color })}<div class="grow"><b>${esc(pl.name)}</b><div class="small muted">${esc(pl.team)}</div></div>
+          <button type="button" class="btn sm light" onclick="App.linkPlayer(null)">Unlink</button></div>
+          <div class="small muted" style="margin-top:8px">Your batting & bowling stats from matches scored in the app now show on your profile.</div>`
+        : `<div class="small muted" style="margin-bottom:10px">Are you a player in one of your own teams? Link yourself so your real <b>batting and bowling stats</b> show on your profile.</div>
+          <button type="button" class="btn block light" onclick="App.findMe()">🔍 Find me in a team</button>`}
+    </div>
     <div class="section"><h2>Privacy</h2></div>
     <label class="switch" style="margin-bottom:6px"><span><b>🔒 Private profile</b><div class="small muted">Others can't find you, see your profile or follow you. Your followers lists stay hidden too.</div></span>
       <input type="checkbox" name="is_private" ${u.is_private ? 'checked' : ''}><span class="knob"></span></label>
@@ -1448,6 +1478,90 @@ function viewProfile() {
 }
 App.unlinkGoogle = () => confirmSheet('Unlink Google?', 'You will log in with your username and password instead.', 'Unlink', () =>
   run(async () => { const r = await api('google_unlink'); S.user = r.user; closeSheet(); toast('Google account unlinked'); viewProfile(); }));
+App.pickChip = btn => {
+  const wrap = btn.parentElement, inp = wrap.previousElementSibling, on = btn.classList.contains('on');
+  wrap.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  if (!on) btn.classList.add('on');
+  inp.value = on ? '' : btn.dataset.v;          // tap again to clear
+};
+App.expStep = d => { const i = document.getElementById('expIn'); i.value = Math.max(0, Math.min(60, (+i.value || 0) + d)); };
+// Re-draw My Profile after a photo / figure / player change, keeping anything typed but not yet saved
+function refreshProfileKeepForm() {
+  const f = document.querySelector('form.content');
+  const keep = f ? formData(f) : null;
+  viewProfile();
+  const g = document.querySelector('form.content');
+  if (!keep || !g) return;
+  for (const [k, v] of Object.entries(keep)) {
+    const el = g.elements[k];
+    if (!el || el.type === 'password' || el.disabled) continue;
+    if (el.type === 'checkbox') el.checked = !!+v; else el.value = v;
+  }
+  g.querySelectorAll('.chips[data-for]').forEach(w => {
+    const val = g.elements[w.dataset.for].value;
+    w.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.v === val));
+  });
+  const bc = document.getElementById('bioCount'); if (bc && g.elements.bio) bc.textContent = g.elements.bio.value.length + '/160';
+}
+async function quickSave(extra) {             // save one profile setting straight away
+  const r = await api('profile_save', { display_name: S.user.display_name, ...extra });
+  S.user = r.user; return r.user;
+}
+App.photoMenu = () => sheet(`<h3>Profile picture</h3><div class="sub">Show your face, or pick a cricket figure.</div><div class="plist">
+  <button class="pbtn" onclick="closeSheet();App.pickPhoto()">📷 Upload a photo</button>
+  <button class="pbtn" onclick="App.figureSheet()">😀 Choose a figure</button>
+  ${S.user.avatar ? '<button class="pbtn" style="color:var(--red)" onclick="App.removePhoto()">🗑️ Remove photo</button>' : ''}</div>`);
+App.pickPhoto = () => document.getElementById('photoFile')?.click();
+App.photoChosen = input => {
+  const f = input.files && input.files[0];
+  input.value = '';
+  if (!f) return;
+  if (!/^image\//.test(f.type)) return toast('Please choose a photo', true);
+  if (f.size > 15 * 1024 * 1024) return toast('That photo is too big', true);
+  const url = URL.createObjectURL(f), img = new Image();
+  img.onload = () => run(async () => {
+    // Crop the middle square and shrink to 320×320 on the phone, so uploads are small and quick
+    const side = Math.min(img.naturalWidth, img.naturalHeight), c = document.createElement('canvas');
+    c.width = c.height = 320;
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, 320, 320);
+    g.drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, 320, 320);
+    URL.revokeObjectURL(url);
+    toast('Uploading photo…');
+    const r = await api('avatar_upload', { image: c.toDataURL('image/jpeg', 0.86) });
+    S.user = r.user; toast('Looking great! 📸'); refreshProfileKeepForm();
+  });
+  img.onerror = () => { URL.revokeObjectURL(url); toast("This photo type can't be opened here. Try a JPG or PNG.", true); };
+  img.src = url;
+};
+App.removePhoto = () => run(async () => { const r = await api('avatar_remove'); S.user = r.user; closeSheet(); toast('Photo removed'); refreshProfileKeepForm(); });
+App.figureSheet = () => {
+  const cur = figureFor(S.user);
+  sheet(`<h3>Choose your figure</h3><div class="sub">${S.user.avatar ? 'Shown when you remove your photo.' : 'Shown instead of a photo.'}</div>
+    <div class="fig-grid">${FIG_KEYS.map(k => `<button class="${k === cur ? 'on' : ''}" onclick="App.setFigure('${k}')">${figureHtml(k, 56)}</button>`).join('')}</div>
+    ${S.user.avatar ? '<button class="btn light block" onclick="App.removePhoto()">Remove photo and use this figure</button>' : ''}`);
+};
+App.setFigure = k => run(async () => { await quickSave({ avatar_preset: k }); closeSheet(); toast('Figure saved ' + FIGURES[k][0]); refreshProfileKeepForm(); });
+App.findMe = () => {
+  sheet(`<h3>Find yourself 🔍</h3><div class="sub">Type your name as it appears in your team.</div>
+    <div class="search">${I.search}<input class="input" id="meq" placeholder="Your name" oninput="App.findMeSearch(this.value)"></div>
+    <div id="meres" class="plist"><div class="muted small">Only players in teams made in the app (not IPL or international squads).</div></div>`);
+  setTimeout(() => document.getElementById('meq')?.focus(), 250);
+};
+let meT;
+App.findMeSearch = q => {
+  clearTimeout(meT);
+  meT = setTimeout(async () => {
+    if (q.trim().length < 2) return;
+    try {
+      const d = await api('players_search', { q, custom_only: 1 });
+      const el = document.getElementById('meres'); if (!el) return;
+      el.innerHTML = d.players.length ? d.players.map(p => `<button class="pbtn" ${p.linked_to && p.linked_to !== S.user.username ? 'disabled' : ''} onclick="App.linkPlayer(${p.id})">${badge({ short_name: p.team, color: p.color }, 'sm')} ${esc(p.name)}<span class="s">${p.linked_to ? '@' + esc(p.linked_to) : esc(p.team_name)}</span></button>`).join('')
+        : '<div class="muted small">No players found. Add yourself to one of your teams first (Teams → your team → Add player).</div>';
+    } catch (e) { toast(e.message, true); }
+  }, 250);
+};
+App.linkPlayer = id => run(async () => { await quickSave({ player_id: id }); closeSheet(); toast(id ? "Linked! Your stats will show on your profile 📊" : 'Unlinked'); refreshProfileKeepForm(); });
 App.saveProfile = e => { e.preventDefault(); run(async () => { const r = await api('profile_save', formData(e.target)); S.user = r.user; toast('Profile saved'); go('#/more'); }, e.submitter); };
 
 /* ---------- Refresh, pull-to-refresh & app updates ---------- */
@@ -1508,10 +1622,23 @@ function initPullToRefresh() {
 /* =====================================================================
    PLAYERS: search, follow, followers / following, profiles
    ===================================================================== */
+const FIGURES = {
+  bat: ['🏏', '#0d4a36', '#25a36b'], ball: ['🥎', '#7f1d1d', '#e23a4b'], gloves: ['🧤', '#1e3a8a', '#3b82f6'], trophy: ['🏆', '#92400e', '#f2b134'],
+  lion: ['🦁', '#9a3412', '#fb923c'], tiger: ['🐯', '#b45309', '#fbbf24'], eagle: ['🦅', '#334155', '#94a3b8'], rocket: ['🚀', '#4c1d95', '#8b5cf6'],
+  fire: ['🔥', '#991b1b', '#f97316'], star: ['⭐', '#1e40af', '#60a5fa'], bolt: ['⚡', '#3f3f46', '#facc15'], target: ['🎯', '#14532d', '#4ade80'],
+  crown: ['👑', '#6b21a8', '#e879f9'], rhino: ['🦏', '#374151', '#9ca3af'], shark: ['🦈', '#0c4a6e', '#38bdf8'], wolf: ['🐺', '#1f2937', '#6b7280'],
+};
+const FIG_KEYS = Object.keys(FIGURES);
+function figureFor(p) { return FIGURES[p.avatar_preset] ? p.avatar_preset : FIG_KEYS[(Number(p.id) || 0) % FIG_KEYS.length]; }
+function figureHtml(key, size) {
+  const [e, a, b] = FIGURES[key] || FIGURES.bat;
+  return `<span class="avatar fig" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.55)}px;background:linear-gradient(135deg,${a},${b})">${e}</span>`;
+}
 function personAvatar(p, size = 44) {
-  const ini = esc(String(p.display_name || p.username || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase());
-  return p.avatar ? `<img src="${esc(p.avatar)}" alt="" class="gavatar" style="width:${size}px;height:${size}px" referrerpolicy="no-referrer" onerror="this.outerHTML='<span class=&quot;avatar&quot; style=&quot;width:${size}px;height:${size}px&quot;>${ini}</span>'">`
-    : `<span class="avatar" style="width:${size}px;height:${size}px">${ini}</span>`;
+  if (!p) return figureHtml('bat', size);
+  const fig = figureHtml(figureFor(p), size).replace(/"/g, '&quot;');
+  return p.avatar ? `<img src="${esc(p.avatar)}" alt="" class="gavatar" style="width:${size}px;height:${size}px" referrerpolicy="no-referrer" onerror="this.outerHTML='${fig.replace(/'/g, '&#39;')}'">`
+    : figureHtml(figureFor(p), size);
 }
 function followBtn(p) {
   if (!S.user || p.id === S.user.id || p.is_me) return '';
@@ -1577,11 +1704,33 @@ async function viewUser(id) {
       <div style="margin-top:12px">${btn}</div></div>
     <div class="content">
       ${d.me && u.is_private ? `<div class="notice">🔒 Your profile is private. Only you (and the app admin) can see this page.</div>` : ''}
+      ${u.bio ? `<div class="card bio">“${esc(u.bio)}”</div>` : (d.me ? `<div class="card empty small" style="padding:14px">Add a short bio in <a class="link" href="#/profile">My Profile</a> ✏️</div>` : '')}
+      ${cricketCard(u, d.me)}
+      ${statsCard(d.player_stats, u.player)}
       <div class="section"><h2>${d.me ? 'My matches' : 'Matches scored'}</h2></div>
       ${d.matches.length ? d.matches.map(matchCard).join('') : `<div class="card empty small">No ${d.me ? '' : 'public '}matches yet.</div>`}
     </div>`, 'more');
 }
 
+function cricketCard(u, me) {
+  const rows = [
+    ['I play as', u.role ? (ROLE_ICON[u.role] || '') + ' ' + u.role : null],
+    ['Batting', u.batting_style], ['Bowling', u.bowling_style],
+    ['Experience', u.experience_years != null ? (u.experience_years === 0 ? 'Just starting!' : plural(u.experience_years, 'year')) : null],
+  ].filter(r => r[1]);
+  if (!rows.length) return me ? `<div class="card empty small" style="padding:14px">Fill in your cricket profile in <a class="link" href="#/profile">My Profile</a> 🏏</div>` : '';
+  return `<div class="section"><h2>🏏 Cricket profile</h2></div><div class="card flush">${rows.map(([k, v], i) => `<div class="kv" ${i ? '' : 'style="border-top:0"'}><span>${k}</span><span>${esc(v)}</span></div>`).join('')}</div>`;
+}
+function statsCard(st, pl) {
+  if (!st || !pl) return '';
+  const b = st.batting, w = st.bowling, g = (v, l) => `<div><b>${v ?? '–'}</b><span>${l}</span></div>`;
+  return `<div class="section"><h2>📊 Career stats</h2><a href="#/player/${pl.id}">${esc(pl.short_name)} ›</a></div>
+    <div class="small muted" style="margin:-4px 2px 8px">From matches scored in Cric-Scorer as ${esc(pl.name)} (${esc(pl.team)})</div>
+    <div class="card flush"><div class="kv" style="border-top:0"><span>🏏 Batting</span><span></span></div>
+      <div class="statgrid">${g(b.mat, 'Matches')}${g(b.runs, 'Runs')}${g(b.hs + (b.hs_no ? '*' : ''), 'Best')}${g(b.avg, 'Average')}${g(b.sr, 'Strike rate')}${g(b.f4 + ' / ' + b.f6, '4s / 6s')}</div>
+      <div class="kv"><span>🎯 Bowling</span><span></span></div>
+      <div class="statgrid">${g(w.wkts, 'Wickets')}${g(w.balls ? Math.floor(w.balls / 6) + '.' + (w.balls % 6) : 0, 'Overs')}${g(w.inns ? w.best_w + '/' + w.best_r : null, 'Best')}${g(w.econ, 'Economy')}${g(w.avg, 'Average')}${g(st.catches, 'Catches')}</div></div>`;
+}
 async function viewFollowList(id, type) {
   mount(topbar(type === 'followers' ? 'Followers' : 'Following', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
   let d;

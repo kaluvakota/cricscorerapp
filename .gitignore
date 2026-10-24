@@ -1,4 +1,6 @@
 install.lock
 config.local.php
+uploads/avatars/*
+!uploads/avatars/.gitkeep
 .DS_Store
 *.log

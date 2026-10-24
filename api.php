@@ -74,6 +74,7 @@ function handle(string $action, array $in, ?array $u) {
         if ($dn === '') fail('Enter a name');
         q('UPDATE users SET display_name=? WHERE id=?', [$dn, $u['id']]);
         if (isset($in['is_private'])) q('UPDATE users SET is_private=? WHERE id=?', [!empty($in['is_private']) ? 1 : 0, $u['id']]);
+        profile_fields_save($u, $in);
         if (!empty($in['new_password'])) {
             if ((string)$u['password_hash'] !== '' && !password_verify((string)($in['current_password'] ?? ''), $u['password_hash'])) fail('Current password is wrong');
             if (strlen($in['new_password']) < 6) fail('New password must be at least 6 characters');
@@ -83,6 +84,8 @@ function handle(string $action, array $in, ?array $u) {
     }
 
     /* ===== Players: search, follow, privacy ===== */
+    case 'avatar_upload':  return avatar_upload($u, $in);
+    case 'avatar_remove':  return avatar_remove($u);
     case 'users_search':   return users_search($u, $in);
     case 'user_get':       return user_profile($u, $in);
     case 'follow_list':    return follow_list($u, $in);
@@ -197,8 +200,11 @@ function handle(string $action, array $in, ?array $u) {
     case 'players_search': {
         $qs = '%' . str_in($in, 'q', 60) . '%';
         $exclude = int_in($in, 'exclude_team');
-        return ['players' => rows("SELECT p.id, p.name, p.role, p.country, t.short_name team, t.color FROM players p JOIN teams t ON t.id=p.team_id
-                                   WHERE p.name LIKE ? AND p.team_id<>? ORDER BY t.category='custom', p.name LIMIT 60", [$qs, $exclude])];
+        $custom = !empty($in['custom_only']) ? " AND t.category='custom'" : '';
+        return ['players' => rows("SELECT p.id, p.name, p.role, p.country, t.name team_name, t.short_name team, t.color,
+                                     (SELECT username FROM users WHERE player_id=p.id) linked_to
+                                   FROM players p JOIN teams t ON t.id=p.team_id
+                                   WHERE p.name LIKE ? AND p.team_id<>?$custom ORDER BY t.category='custom' DESC, p.name LIMIT 60", [$qs, $exclude])];
     }
 
     case 'player_copy': {

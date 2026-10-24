@@ -103,7 +103,8 @@ function google_login(array $in): array {
         $u = row('SELECT * FROM users WHERE id=?', [lastId()]);
         $created = true;
     } else {
-        q('UPDATE users SET email=?, avatar_url=? WHERE id=?', [$g['email'], mb_substr($g['picture'], 0, 255) ?: null, $u['id']]);
+        q('UPDATE users SET email=? WHERE id=?', [$g['email'], $u['id']]);
+        if (!avatar_is_upload($u['avatar_url'] ?? null)) q('UPDATE users SET avatar_url=? WHERE id=?', [mb_substr($g['picture'], 0, 255) ?: null, $u['id']]);
         $u = row('SELECT * FROM users WHERE id=?', [$u['id']]);
     }
     login_user($u, true);
@@ -115,7 +116,8 @@ function google_link(array $u, array $in): array {
     $g = google_verify((string)($in['credential'] ?? ''));
     $other = row('SELECT id, username FROM users WHERE google_sub=? AND id<>?', [$g['sub'], $u['id']]);
     if ($other) fail('That Google account is already linked to the player "' . $other['username'] . '"');
-    q('UPDATE users SET google_sub=?, email=?, avatar_url=? WHERE id=?', [$g['sub'], $g['email'], mb_substr($g['picture'], 0, 255) ?: null, $u['id']]);
+    q('UPDATE users SET google_sub=?, email=? WHERE id=?', [$g['sub'], $g['email'], $u['id']]);
+    if (!avatar_is_upload($u['avatar_url'] ?? null) && $g['picture'] !== '') q('UPDATE users SET avatar_url=? WHERE id=?', [mb_substr($g['picture'], 0, 255), $u['id']]);
     return ['user' => public_user(row('SELECT * FROM users WHERE id=?', [$u['id']]))];
 }
 

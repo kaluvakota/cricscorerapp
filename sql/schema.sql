@@ -28,10 +28,18 @@ CREATE TABLE users (
   email VARCHAR(190) NULL,
   google_sub VARCHAR(64) NULL,
   avatar_url VARCHAR(255) NULL,
+  avatar_preset VARCHAR(20) NULL,
+  bio VARCHAR(200) NULL,
+  role VARCHAR(20) NULL,
+  batting_style VARCHAR(30) NULL,
+  bowling_style VARCHAR(40) NULL,
+  experience_years TINYINT NULL,
+  player_id INT NULL,
   is_private TINYINT(1) NOT NULL DEFAULT 0,
   is_admin TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_google_sub (google_sub),
+  UNIQUE KEY uniq_player (player_id),
   INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

@@ -435,3 +435,15 @@ details summary{cursor:pointer;list-style:none}
 .fbtn{flex:none;min-width:96px}
 .board .fbtn:not(.light){background:var(--lime);color:#13241b}
 .board .fbtn.light{background:rgba(255,255,255,.92);color:#13241b;border:0}
+
+/* ---------- Profile picture, figures, bio ---------- */
+.avatar.fig{color:#fff;line-height:1;box-shadow:inset 0 -3px 0 rgba(0,0,0,.15)}
+.ph-card{display:flex;align-items:center;gap:16px}
+.ph-big{position:relative;cursor:pointer;flex:none}
+.ph-big .gavatar,.ph-big .avatar{box-shadow:0 0 0 3px var(--card),0 0 0 5px var(--lime)}
+.ph-cam{position:absolute;right:-2px;bottom:-2px;width:32px;height:32px;border-radius:50%;background:var(--pitch);color:#fff;display:flex;align-items:center;justify-content:center;font-size:15px;box-shadow:0 0 0 3px var(--card)}
+.fig-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:8px 0 14px}
+.fig-grid button{border:3px solid transparent;background:none;border-radius:50%;padding:3px;cursor:pointer;display:flex;justify-content:center}
+.fig-grid button.on{border-color:var(--pitch)}
+textarea.input{resize:vertical;min-height:72px;line-height:1.4}
+.card.bio{font-size:16px;font-style:italic;line-height:1.5;border-left:4px solid var(--lime)}
