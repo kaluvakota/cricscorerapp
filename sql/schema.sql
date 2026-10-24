@@ -2,6 +2,7 @@
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP TABLE IF EXISTS follows;
 DROP TABLE IF EXISTS academy_progress;
 DROP TABLE IF EXISTS interruptions;
 DROP TABLE IF EXISTS balls;
@@ -27,6 +28,7 @@ CREATE TABLE users (
   email VARCHAR(190) NULL,
   google_sub VARCHAR(64) NULL,
   avatar_url VARCHAR(255) NULL,
+  is_private TINYINT(1) NOT NULL DEFAULT 0,
   is_admin TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_google_sub (google_sub),
@@ -122,6 +124,7 @@ CREATE TABLE matches (
   dls_g50 INT NOT NULL DEFAULT 200,
   inn2_overs INT NULL,
   result_method VARCHAR(10) NULL,
+  visibility ENUM('public','private') NOT NULL DEFAULT 'public',
   venue VARCHAR(150) NULL,
   match_date DATETIME NULL,
   toss_winner_id INT NULL,
@@ -227,6 +230,16 @@ CREATE TABLE academy_progress (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (user_id, lesson_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE follows (
+  follower_id INT NOT NULL,
+  followee_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (follower_id, followee_id),
+  INDEX (followee_id),
+  FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (followee_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Match formats (system defaults; users can add their own)

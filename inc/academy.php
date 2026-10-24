@@ -53,7 +53,8 @@ function academy_progress(array $u): array {
     }
     $xp = academy_user_xp((int)$u['id']);
     $board = rows("SELECT u.id, u.display_name name, SUM(a.xp) xp, SUM(a.stars) stars, SUM(a.stars > 0) passed
-                   FROM academy_progress a JOIN users u ON u.id=a.user_id GROUP BY u.id, u.display_name HAVING xp > 0 ORDER BY xp DESC LIMIT 20");
+                   FROM academy_progress a JOIN users u ON u.id=a.user_id WHERE " . people_vis($u)[0] . "
+                   GROUP BY u.id, u.display_name HAVING xp > 0 ORDER BY xp DESC LIMIT 20", people_vis($u)[1]);
     foreach ($board as &$b) { $b['xp'] = (int)$b['xp']; $b['stars'] = (int)$b['stars']; $b['passed'] = (int)$b['passed']; $b['rank'] = academy_rank($b['xp']); $b['me'] = (int)$b['id'] === (int)$u['id']; }
     unset($b);
     $maxXp = 0;

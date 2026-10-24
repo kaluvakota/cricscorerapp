@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/google.php';
+require_once __DIR__ . '/social.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 
@@ -55,6 +56,12 @@ function ensure_schema(): void {
         db()->exec("ALTER TABLE users ADD COLUMN email VARCHAR(190) NULL AFTER display_name, ADD COLUMN google_sub VARCHAR(64) NULL AFTER email,
                     ADD COLUMN avatar_url VARCHAR(255) NULL AFTER google_sub, ADD UNIQUE KEY uniq_google_sub (google_sub), ADD INDEX idx_email (email)");
     }
+    if (!val("SHOW COLUMNS FROM users LIKE 'is_private'")) db()->exec("ALTER TABLE users ADD COLUMN is_private TINYINT(1) NOT NULL DEFAULT 0 AFTER avatar_url");
+    if (!val("SHOW TABLES LIKE 'follows'")) {
+        db()->exec("CREATE TABLE IF NOT EXISTS follows (follower_id INT NOT NULL, followee_id INT NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (follower_id, followee_id), INDEX (followee_id),
+            FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (followee_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
     if (!val("SHOW TABLES LIKE 'academy_progress'")) {
         db()->exec("CREATE TABLE IF NOT EXISTS academy_progress (
             user_id INT NOT NULL, lesson_id VARCHAR(20) NOT NULL, best_correct INT NOT NULL DEFAULT 0, total INT NOT NULL DEFAULT 0,
@@ -62,6 +69,7 @@ function ensure_schema(): void {
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (user_id, lesson_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
+    if (!val("SHOW COLUMNS FROM matches LIKE 'visibility'")) db()->exec("ALTER TABLE matches ADD COLUMN visibility ENUM('public','private') NOT NULL DEFAULT 'public' AFTER status, ADD INDEX idx_visibility (visibility)");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
     db()->exec("UPDATE innings i JOIN matches m ON m.id=i.match_id SET i.max_overs=m.overs, i.start_overs=m.overs");
@@ -89,7 +97,7 @@ function start_session(): void {
 function public_user(array $u): array {
     return ['id' => (int)$u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'], 'is_admin' => (bool)$u['is_admin'],
             'email' => $u['email'] ?? null, 'google' => !empty($u['google_sub']), 'avatar' => $u['avatar_url'] ?? null,
-            'has_password' => (string)($u['password_hash'] ?? '') !== ''];
+            'has_password' => (string)($u['password_hash'] ?? '') !== '', 'is_private' => !empty($u['is_private'])];
 }
 
 function current_user(): ?array {

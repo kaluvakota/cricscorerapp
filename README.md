@@ -22,6 +22,10 @@ Made for Aarush & Aayush.
   diagrams, 232 quiz questions and a 25-question Final Exam. Lessons first, then a quiz (marked on the server);
   60% unlocks the next lesson, 3 ★ for 90%+. XP and ranks from Gully Rookie to Cricket Legend, module badges,
   family leaderboard and a printable "Certified Cricket Expert" certificate. Content: `assets/academy.json`.
+- **Players & privacy** — search and follow other players, see your followers and who you follow, a "Following" match
+  filter and Home feed. *Private profile* (My Profile) hides a player from search, profiles and follower lists and stops new
+  follows. *Private match* (choose when creating, or Match options) hides it from everyone else's lists, Home, leaderboards
+  and stats, and blocks its link; only the scorer — and the admin (parent) account — can open it.
 - **Live sharing** — share a match link; anyone can watch the score update live (no login needed).
 
 ## Requirements

@@ -66,6 +66,7 @@ function formData(form) {
 }
 
 async function api(action, data = {}) {
+  const tok = S.routeTok;       // which screen asked — used to drop answers that arrive after you've moved on
   let r;
   try {
     r = await fetch('api.php?action=' + action, {
@@ -76,19 +77,21 @@ async function api(action, data = {}) {
   } catch (e) { throw new Error('No internet connection. Please try again.'); }
   let j;
   try { j = await r.json(); } catch (e) { throw new Error('Server error (' + r.status + ')'); }
+  if (tok !== S.routeTok) { const st = new Error(''); st.stale = true; throw st; }
   if (r.status === 401 && !['me', 'login'].includes(action)) { S.user = null; S.after = location.hash; go('#/login'); }
   if (j.error) throw new Error(j.error);
   return j;
 }
 let toastTimer;
 function toast(msg, err = false) {
+  if (!msg) return;
   const t = $('#toast');
   t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = '', 2600);
 }
 async function run(fn, btn) {
   try { if (btn) btn.disabled = true; return await fn(); }
-  catch (e) { toast(e.message || 'Something went wrong', true); }
+  catch (e) { if (!e.stale) toast(e.message || 'Something went wrong', true); }
   finally { if (btn) btn.disabled = false; }
 }
 
@@ -145,6 +148,9 @@ const ROUTES = [
   [/^#\/types$/, viewTypes],
   [/^#\/profile$/, viewProfile],
   [/^#\/more$/, viewMore],
+  [/^#\/people(?:\?t=(\w+))?$/, viewPeople],
+  [/^#\/user\/(\d+)\/(followers|following)$/, viewFollowList],
+  [/^#\/user\/(\d+)$/, viewUser],
   [/^#\/learn$/, () => academy('home')],
   [/^#\/learn\/lesson\/(\w+)$/, id => academy('lesson', id)],
   [/^#\/learn\/quiz\/(\w+)$/, id => academy('quiz', id)],
@@ -169,12 +175,13 @@ function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; }
 async function render() {
   clearTimers(); closeSheet();
   const h = location.hash || '#/';
+  const tok = S.routeTok = (S.routeTok || 0) + 1;
   for (const [re, fn, pub] of ROUTES) {
     const mm = h.match(re);
     if (!mm) continue;
     if (!pub && !S.user) { S.after = h; go('#/login'); return; }
     try { await fn(...mm.slice(1)); }
-    catch (e) { mount(topbar('Oops', { back: true }) + `<div class="content"><div class="empty"><div class="big">🏏</div>${esc(e.message)}</div></div>`, S.user ? 'home' : null); }
+    catch (e) { if (e.stale || tok !== S.routeTok) return; mount(topbar('Oops', { back: true }) + `<div class="content"><div class="empty"><div class="big">🏏</div>${esc(e.message)}</div></div>`, S.user ? 'home' : null); }
     return;
   }
   go('#/');
@@ -332,7 +339,9 @@ function matchCard(m) {
   const row = (t, sc) => `<div class="tm ${t && m.winner_team_id === t.id ? 'win' : ''}">${badge(t, 'sm')}<span class="n">${esc(t?.name)}</span><span class="sc">${esc(sc || '')}</span></div>`;
   const foot = m.result_text ? `<div class="foot">${esc(m.result_text)}</div>`
     : `<div class="foot m">${esc(fmtDate(m.match_date))}${m.venue ? ' · ' + esc(m.venue) : ''} · ${m.overs} ov</div>`;
-  return `<div class="mcard ${m.status}" onclick="go('#/match/${m.id}')"><div class="top"><span class="ellipsis">${esc(m.title || 'Match')}</span>${st}</div>${row(m.team1, m.score1)}${row(m.team2, m.score2)}${foot}</div>`;
+  const by = m.owner && S.user && m.owner.id !== S.user.id ? ` · by ${esc(m.owner.name)}` : '';
+  const lock = m.visibility === 'private' ? '<span class="pill lock" title="Private match">🔒 Private</span>' : '';
+  return `<div class="mcard ${m.status}" onclick="go('#/match/${m.id}')"><div class="top"><span class="ellipsis">${esc(m.title || 'Match')}${by}</span><span class="row" style="gap:5px;flex:none">${lock}${st}</span></div>${row(m.team1, m.score1)}${row(m.team2, m.score2)}${foot}</div>`;
 }
 
 /* ---------- Home ---------- */
@@ -351,6 +360,7 @@ async function viewHome() {
     <div class="content">${install}
     ${d.live.length ? sec('🔴 Live now', d.live, '#/matches') : ''}
     ${d.upcoming.length ? sec('Up next', d.upcoming) : ''}
+    ${d.following && d.following.length ? sec('👥 From players you follow', d.following, '#/matches') : ''}
     ${sec('Recent results', d.recent, '#/matches', `<div class="card empty"><div class="big">🏏</div>No matches yet.<br>Tap <b>New Match</b> to score your first game!</div>`)}
     <div class="section"><h2>Explore</h2></div>
     <div class="tiles">
@@ -376,11 +386,12 @@ App.installHelp = () => sheet(`<h3>Install as an app 📲</h3><div class="sub">C
 async function viewMatches() {
   const tabs = [['live', 'Live'], ['scheduled', 'Upcoming'], ['completed', 'Completed']];
   mount(topbar('Matches') + `<div class="content"><div class="seg">${tabs.map(([k, l]) => `<button class="${S.mtab === k ? 'on' : ''}" onclick="S.mtab='${k}';render()">${l}</button>`).join('')}</div>
-    <label class="switch" style="margin-bottom:12px"><span><b>Only my matches</b></span><input type="checkbox" ${S.mine ? 'checked' : ''} onchange="S.mine=this.checked;render()"><span class="knob"></span></label>
+    <div class="chips" style="margin-bottom:12px">${[['all', '🌍 Everyone'], ['mine', '🧢 Mine'], ['following', '👥 Following']].map(([k, l]) => `<button class="chip ${(S.mscope || 'all') === k ? 'on' : ''}" onclick="S.mscope='${k}';render()">${l}</button>`).join('')}</div>
     <div id="ml">${sk(3)}</div></div><button class="fab" aria-label="New match" onclick="go('#/match/new')">${I.plus}</button>`, 'matches');
-  const d = await api('matches_list', { status: S.mtab, mine: S.mine ? 1 : 0 });
+  const d = await api('matches_list', { status: S.mtab, scope: S.mscope || 'all' });
   $('#ml').innerHTML = d.matches.length ? d.matches.map(matchCard).join('')
-    : `<div class="card empty"><div class="big">${S.mtab === 'live' ? '📡' : S.mtab === 'scheduled' ? '📅' : '🏁'}</div>No ${S.mtab === 'scheduled' ? 'upcoming' : S.mtab} matches.</div>`;
+    : `<div class="card empty"><div class="big">${S.mtab === 'live' ? '📡' : S.mtab === 'scheduled' ? '📅' : '🏁'}</div>No ${S.mtab === 'scheduled' ? 'upcoming' : S.mtab} matches${S.mscope === 'following' ? ' from players you follow' : ''}.
+      ${S.mscope === 'following' ? `<br><button class="btn sm" style="margin-top:10px" onclick="go('#/people')">👥 Find players to follow</button>` : ''}</div>`;
 }
 
 /* ---------- New match ---------- */
@@ -418,6 +429,11 @@ async function viewMatchNew(tid) {
       <input type="hidden" name="balls_per_over" value="${t.balls_per_over}"><input type="hidden" name="match_type_id" value="${t.id}">
       <label class="switch"><span><b>Last man stands</b><div class="small muted">Last batter can bat alone</div></span><input type="checkbox" name="last_man_stands" ${t.last_man_stands ? 'checked' : ''}><span class="knob"></span></label>
       <div class="small muted" style="margin-top:8px">Max overs per bowler: 0 = no limit.</div></div>
+    <div class="section"><h2>Who can see this match?</h2></div>
+    <input type="hidden" name="visibility" value="public">
+    <div class="toss-pick vis-pick" style="margin-bottom:4px">
+      <button type="button" class="on" data-v="public" onclick="App.pickVis(this)"><span style="font-size:26px">🌍</span>Public<small>Everyone can watch</small></button>
+      <button type="button" data-v="private" onclick="App.pickVis(this)"><span style="font-size:26px">🔒</span>Private<small>Only you</small></button></div>
     <div class="section"><h2>Details</h2></div>
     <div class="card">
       <div class="field"><label>Match title</label><input class="input" name="title" placeholder="e.g. Sunday Showdown" value="${tour ? 'Match ' + (tour.matches.length + 1) : ''}"></div>
@@ -439,6 +455,11 @@ App.vsPreview = () => {
   const a = find(f.team1_id.value), b = find(f.team2_id.value);
   const side = t => `<div class="side">${t ? badge(t, 'lg') : '<span class="badge lg" style="background:var(--soft);color:var(--muted)">?</span>'}<span>${esc(t?.name || 'Pick a team')}</span></div>`;
   $('#vs').innerHTML = side(a) + '<div class="v">VS</div>' + side(b);
+};
+App.pickVis = btn => {
+  const f = btn.closest('form');
+  f.visibility.value = btn.dataset.v;
+  f.querySelectorAll('.vis-pick button').forEach(b => b.classList.toggle('on', b === btn));
 };
 App.createMatch = e => {
   e.preventDefault();
@@ -487,7 +508,7 @@ function drawMatch(first) {
   const actions = `<button class="icon-btn" id="spk" aria-label="Sound and commentary" onclick="App.soundSheet()">${spkIcon()}</button><button class="icon-btn" aria-label="Share" onclick="App.shareMatch()">${I.share}</button>` +
     (st.can_edit ? `<button class="icon-btn" aria-label="Match options" onclick="App.matchMenu()">${I.dots}</button>` :
       '');
-  const sub = [m.title, m.tournament?.name].filter(Boolean).join(' · ');
+  const sub = [m.visibility === 'private' ? '🔒 Private' : '', m.title, m.tournament?.name].filter(Boolean).join(' · ');
   let html = topbar(`${t1.short_name} vs ${t2.short_name}`, { back: true, actions, sub });
   const inn = st.innings.length ? curInn() : null;
   html += inn ? scoreBoard(st, inn) : preBoard(st);
@@ -832,7 +853,10 @@ App.matchMenu = () => {
     ${live ? '<button class="pbtn" onclick="App.endInnings()">⏹️ End this innings now</button>' : ''}
     ${['live', 'scheduled'].includes(m.status) || m.result_method === 'rain' ? '<button class="pbtn" onclick="App.rainSheet()">🌧️ Rain / DLS — reduce overs, revised target</button>' : ''}
     ${['live', 'scheduled'].includes(m.status) ? '<button class="pbtn" onclick="App.abandon()">⛔ Abandon match (no result)</button>' : ''}
-    <button class="pbtn" onclick="App.shareMatch()">🔗 Share live score link</button>
+    ${m.visibility === 'private'
+      ? '<button class="pbtn" onclick="App.setVis(\'public\')">🌍 Make match public <span class="s">everyone can watch</span></button>'
+      : '<button class="pbtn" onclick="App.setVis(\'private\')">🔒 Make match private <span class="s">only you can see it</span></button>'}
+    ${m.visibility === 'private' ? '' : '<button class="pbtn" onclick="App.shareMatch()">🔗 Share live score link</button>'}
     <button class="pbtn" style="color:var(--red)" onclick="App.deleteMatch()">🗑️ Delete match</button></div>`);
 };
 /* ----- Rain / DLS (Duckworth-Lewis-Stern, ICC Standard Edition) ----- */
@@ -917,6 +941,11 @@ App.dlsHelp = () => sheet(`<h3>How DLS works ☔</h3><div class="small" style="l
   • If team 2 has <b>more</b>: target = team 1 score + G50 × (R2 − R1) ÷ 100, plus 1 (G50 = 245 internationals, 200 junior/club).<br><br>
   If rain ends the match during the chase, the batting side wins if it is <b>ahead of the par score</b>, ties if level, and loses if behind — provided enough overs were bowled (20 in a 50-over game, 5 in a T20).</div>
   <button class="btn light block" style="margin-top:12px" onclick="App.rainSheet()">← Back</button>`);
+App.setVis = v => run(async () => {
+  S.m = await api('match_visibility', { id: S.m.match.id, visibility: v });
+  closeSheet(); drawMatch(false);
+  toast(v === 'private' ? '🔒 Match is now private — only you can see it' : '🌍 Match is now public');
+});
 App.endInnings = () => confirmSheet('End innings?', 'Use this for rain, bad light or a declaration. The innings will close at the current score.', 'End innings', () => scoreAction('match_end_innings'));
 App.abandon = () => confirmSheet('Abandon match?', 'The match will be recorded as "No result".', 'Abandon', () => scoreAction('match_abandon'));
 App.deleteMatch = () => confirmSheet('Delete this match?', 'All scores for this match will be removed. This cannot be undone.', 'Delete', () => run(async () => { await api('match_delete', { id: S.m.match.id }); closeSheet(); S.m = null; toast('Match deleted'); go('#/matches'); }));
@@ -1358,6 +1387,7 @@ function viewMore() {
       <div class="grow"><b style="font-size:18px">${esc(u.display_name)}</b><div class="small muted">@${esc(u.username)}${u.is_admin ? ' · Admin' : ''}${u.google ? ' · Google ✓' : ''}</div></div>
       <button class="btn sm light" onclick="go('#/profile')">Edit</button></div>
     <div class="card flush list">
+      ${item('👥', 'Find players', 'Search, follow, and see your followers', "go('#/people')")}
       ${item('📊', 'Leaderboard', 'Top run scorers & wicket takers', "go('#/stats')")}
       ${item('⚙️', 'Match types', 'T20, ODI, Gully cricket & your own', "go('#/types')")}
       ${item('🧢', 'Our teams', 'Teams you and your friends made', "go('#/teams?c=custom')")}
@@ -1405,6 +1435,10 @@ function viewProfile() {
   mount(topbar('My Profile', { back: true }) + `<form class="content" onsubmit="App.saveProfile(event)"><div class="card">
     <div class="field"><label>Display name</label><input class="input" name="display_name" value="${esc(u.display_name)}" required></div>
     <div class="field"><label>Username</label><input class="input" value="${esc(u.username)}" disabled></div></div>
+    <div class="section"><h2>Privacy</h2></div>
+    <label class="switch" style="margin-bottom:6px"><span><b>🔒 Private profile</b><div class="small muted">Others can't find you, see your profile or follow you. Your followers lists stay hidden too.</div></span>
+      <input type="checkbox" name="is_private" ${u.is_private ? 'checked' : ''}><span class="knob"></span></label>
+    <div class="small muted" style="margin:0 2px 4px">Tip: you can also make a single match private when you create it.</div>
     ${gCard}
     <div class="section"><h2>${u.has_password ? 'Change password' : 'Set a password (optional)'}</h2></div><div class="card">
     ${u.has_password ? `<div class="field"><label>Current password</label><input class="input" type="password" name="current_password" autocomplete="current-password"></div>` : ''}
@@ -1470,6 +1504,97 @@ function initPullToRefresh() {
     } else reset();
   }, { passive: true });
 }
+
+/* =====================================================================
+   PLAYERS: search, follow, followers / following, profiles
+   ===================================================================== */
+function personAvatar(p, size = 44) {
+  const ini = esc(String(p.display_name || p.username || '?').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase());
+  return p.avatar ? `<img src="${esc(p.avatar)}" alt="" class="gavatar" style="width:${size}px;height:${size}px" referrerpolicy="no-referrer" onerror="this.outerHTML='<span class=&quot;avatar&quot; style=&quot;width:${size}px;height:${size}px&quot;>${ini}</span>'">`
+    : `<span class="avatar" style="width:${size}px;height:${size}px">${ini}</span>`;
+}
+function followBtn(p) {
+  if (!S.user || p.id === S.user.id || p.is_me) return '';
+  return `<button class="btn sm ${p.following ? 'light' : ''} fbtn" data-uid="${p.id}" onclick="event.stopPropagation();App.toggleFollow(${p.id},this)">${p.following ? 'Following ✓' : '+ Follow'}</button>`;
+}
+function personRow(p, extra = '', tail = '') {
+  return `<div class="item" onclick="go('#/user/${p.id}')">${personAvatar(p)}
+    <div class="grow"><div class="t ellipsis">${esc(p.display_name)}${p.is_private ? ' 🔒' : ''}</div><div class="s ellipsis">@${esc(p.username)}${extra}</div></div>${followBtn(p)}${tail}</div>`;
+}
+App.toggleFollow = (id, btn) => run(async () => {
+  const on = !btn.textContent.includes('Following');
+  const r = await api(on ? 'follow' : 'unfollow', { id });
+  document.querySelectorAll(`.fbtn[data-uid="${id}"]`).forEach(b => { b.textContent = r.following ? 'Following ✓' : '+ Follow'; b.classList.toggle('light', r.following); });
+  const fc = document.getElementById('fcount-' + id); if (fc) fc.textContent = r.counts.followers;
+  if (on) Sound.fx && Sound.fx('correct');
+  toast(r.following ? 'Following! You\'ll see their matches on Home 👥' : 'Unfollowed');
+}, btn);
+
+async function viewPeople(tab) {
+  if (tab) S.pTab = tab;
+  const t = S.pTab || 'find';
+  const tabs = [['find', '🔍 Find'], ['followers', 'Followers'], ['following', 'Following']];
+  mount(topbar('Players') + `<div class="content"><div class="seg">${tabs.map(([k, l]) => `<button class="${t === k ? 'on' : ''}" onclick="go('#/people?t=${k}')">${l}</button>`).join('')}</div>
+    ${t === 'find' ? `<div class="search">${I.search}<input class="input" id="pq" placeholder="Search by name or username" autocapitalize="none" value="${esc(S.pq || '')}" oninput="App.peopleSearch(this.value)"></div>` : ''}
+    ${S.user.is_private ? `<div class="notice">🔒 Your profile is private — others can't find or follow you. Change this in <a class="link" href="#/profile">My Profile</a>.</div>` : ''}
+    <div id="plist">${sk(3)}</div></div>`, 'more');
+  if (t === 'find') return App.peopleSearch(S.pq || '', true);
+  const d = await api('follow_list', { id: S.user.id, type: t });
+  $('#plist').innerHTML = d.users.length ? `<div class="card flush list">${d.users.map(p => personRow(p, ' · since ' + esc(fmtDate(p.since, false)))).join('')}</div>`
+    : `<div class="card empty"><div class="big">${t === 'followers' ? '🙋' : '👀'}</div>${t === 'followers' ? 'No followers yet.<br>Share your matches and friends will follow you!' : 'You are not following anyone yet.'}
+       <br><button class="btn sm" style="margin-top:10px" onclick="go('#/people?t=find')">🔍 Find players</button></div>`;
+}
+let peopleT;
+App.peopleSearch = (q, now = false) => {
+  S.pq = q;
+  clearTimeout(peopleT);
+  peopleT = setTimeout(async () => {
+    try {
+      const d = await api('users_search', { q });
+      const el = $('#plist'); if (!el) return;
+      el.innerHTML = d.users.length ? `${q ? '' : '<div class="section" style="margin-top:4px"><h2>Players on Cric-Scorer</h2></div>'}<div class="card flush list">${d.users.map(p => personRow(p, ` · ${plural(p.followers, 'follower')}`)).join('')}</div>`
+        : `<div class="card empty"><div class="big">🔍</div>${q ? `No players found for “${esc(q)}”.` : 'No other players yet.'}<div class="small muted" style="margin-top:6px">Private players don't appear in search.</div></div>`;
+    } catch (e) { toast(e.message, true); }
+  }, now ? 0 : 250);
+};
+
+async function viewUser(id) {
+  mount(topbar('Player', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
+  let d;
+  try { d = await api('user_get', { id: +id }); }
+  catch (e) { mount(topbar('Player', { back: true }) + `<div class="content"><div class="card empty"><div class="big">🔒</div>${esc(e.message)}</div></div>`, 'more'); return; }
+  const u = d.user, r = d.academy && d.academy.rank;
+  const btn = d.me ? `<button class="btn sm light" onclick="go('#/profile')">✏️ Edit profile</button>` : followBtn({ ...u, following: d.following });
+  mount(topbar(u.display_name, { back: true }) + `<div class="board" style="padding:18px 16px">
+      <div class="row">${personAvatar(u, 64)}<div class="grow"><b style="font-family:var(--display);font-size:26px;line-height:1.05">${esc(u.display_name)}${u.is_private ? ' 🔒' : ''}</b>
+        <div class="other" style="margin:2px 0 0">@${esc(u.username)}${u.is_admin ? ' · Admin' : ''}${d.follows_me ? ' · <span class="pill" style="background:var(--lime);color:#13241b">Follows you</span>' : ''}</div></div></div>
+      <div class="ustats">
+        <a href="#/user/${u.id}/followers"><b id="fcount-${u.id}">${d.counts.followers}</b><span>Followers</span></a>
+        <a href="#/user/${u.id}/following"><b>${d.counts.following}</b><span>Following</span></a>
+        <div><b>${d.stats.matches}</b><span>Matches</span></div>
+        ${r ? `<div><b>${r.icon}</b><span>${esc(r.name)}</span></div>` : ''}
+      </div>
+      <div style="margin-top:12px">${btn}</div></div>
+    <div class="content">
+      ${d.me && u.is_private ? `<div class="notice">🔒 Your profile is private. Only you (and the app admin) can see this page.</div>` : ''}
+      <div class="section"><h2>${d.me ? 'My matches' : 'Matches scored'}</h2></div>
+      ${d.matches.length ? d.matches.map(matchCard).join('') : `<div class="card empty small">No ${d.me ? '' : 'public '}matches yet.</div>`}
+    </div>`, 'more');
+}
+
+async function viewFollowList(id, type) {
+  mount(topbar(type === 'followers' ? 'Followers' : 'Following', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
+  let d;
+  try { d = await api('follow_list', { id: +id, type }); }
+  catch (e) { mount(topbar('Players', { back: true }) + `<div class="content"><div class="card empty"><div class="big">🔒</div>${esc(e.message)}</div></div>`, 'more'); return; }
+  const who = d.me ? 'You' : d.user.display_name;
+  mount(topbar(type === 'followers' ? 'Followers' : 'Following', { back: true, sub: d.me ? 'You' : '@' + d.user.username }) + `<div class="content">
+    ${d.users.length ? `<div class="card flush list">${d.users.map(p => personRow(p, '', d.me && type === 'followers' ? `<button class="icon-btn" style="color:var(--muted)" aria-label="Remove follower" onclick="event.stopPropagation();App.removeFollower(${p.id})">✕</button>` : '')).join('')}</div>`
+      : `<div class="card empty"><div class="big">👥</div>${type === 'followers' ? `${esc(who)} ${d.me ? "don't" : "doesn't"} have any followers yet.` : `${esc(who)} ${d.me ? "aren't" : "isn't"} following anyone yet.`}</div>`}
+    <div class="small muted" style="text-align:center;margin-top:8px">Private players are not shown in these lists.</div></div>`, 'more');
+}
+App.removeFollower = id => confirmSheet('Remove follower?', 'They will stop following you. They can follow you again unless your profile is private.', 'Remove',
+  () => run(async () => { await api('remove_follower', { id }); closeSheet(); toast('Follower removed'); render(); }));
 
 /* ---------- Boot ---------- */
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.deferredInstall = e; });

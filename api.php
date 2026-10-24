@@ -73,6 +73,7 @@ function handle(string $action, array $in, ?array $u) {
         $dn = str_in($in, 'display_name', 100);
         if ($dn === '') fail('Enter a name');
         q('UPDATE users SET display_name=? WHERE id=?', [$dn, $u['id']]);
+        if (isset($in['is_private'])) q('UPDATE users SET is_private=? WHERE id=?', [!empty($in['is_private']) ? 1 : 0, $u['id']]);
         if (!empty($in['new_password'])) {
             if ((string)$u['password_hash'] !== '' && !password_verify((string)($in['current_password'] ?? ''), $u['password_hash'])) fail('Current password is wrong');
             if (strlen($in['new_password']) < 6) fail('New password must be at least 6 characters');
@@ -81,17 +82,36 @@ function handle(string $action, array $in, ?array $u) {
         return ['user' => public_user(row('SELECT * FROM users WHERE id=?', [$u['id']]))];
     }
 
+    /* ===== Players: search, follow, privacy ===== */
+    case 'users_search':   return users_search($u, $in);
+    case 'user_get':       return user_profile($u, $in);
+    case 'follow_list':    return follow_list($u, $in);
+    case 'follow':         return follow_user($u, $in, true);
+    case 'unfollow':       return follow_user($u, $in, false);
+    case 'remove_follower': return remove_follower($u, $in);
+    case 'match_visibility': {
+        $m = load_match(int_in($in, 'id'));
+        if (!can_edit_owned($m, $u)) fail('Only the scorer of this match can change who sees it', 403);
+        $v = ($in['visibility'] ?? '') === 'private' ? 'private' : 'public';
+        q('UPDATE matches SET visibility=? WHERE id=?', [$v, $m['id']]);
+        return match_state((int)$m['id'], $u);
+    }
+
     /* ===== Home ===== */
     case 'home': {
-        $live = match_summaries(rows("SELECT * FROM matches WHERE status='live' ORDER BY updated_at DESC LIMIT 10"));
+        [$vs, $vp] = vis_sql($u);
+        $live = match_summaries(rows("SELECT * FROM matches WHERE status='live' AND $vs ORDER BY updated_at DESC LIMIT 10", $vp));
         $mine = match_summaries(rows("SELECT * FROM matches WHERE owner_id=? AND status='scheduled' ORDER BY COALESCE(match_date, created_at) ASC LIMIT 5", [$u['id']]));
-        $recent = match_summaries(rows("SELECT * FROM matches WHERE status IN ('completed','abandoned') ORDER BY updated_at DESC LIMIT 6"));
+        $recent = match_summaries(rows("SELECT * FROM matches WHERE status IN ('completed','abandoned') AND $vs ORDER BY updated_at DESC LIMIT 6", $vp));
+        $followFeed = match_summaries(rows("SELECT m.* FROM matches m JOIN follows f ON f.followee_id=m.owner_id AND f.follower_id=? JOIN users o ON o.id=m.owner_id
+                                            WHERE m.visibility='public' AND o.is_private=0 AND m.status IN ('live','completed') ORDER BY m.updated_at DESC LIMIT 5", [$u['id']]));
         $counts = [
             'matches' => (int)val("SELECT COUNT(*) FROM matches WHERE owner_id=?", [$u['id']]),
             'teams' => (int)val("SELECT COUNT(*) FROM teams WHERE owner_id=?", [$u['id']]),
             'tournaments' => (int)val("SELECT COUNT(*) FROM tournaments WHERE owner_id=?", [$u['id']]),
         ];
-        return ['live' => $live, 'upcoming' => $mine, 'recent' => $recent, 'counts' => $counts];
+        $counts += follow_counts((int)$u['id'], $u);
+        return ['live' => $live, 'upcoming' => $mine, 'recent' => $recent, 'following' => $followFeed, 'counts' => $counts];
     }
 
     /* ===== Teams & players ===== */
@@ -112,7 +132,8 @@ function handle(string $action, array $in, ?array $u) {
         $t['id'] = (int)$t['id'];
         $t['can_edit'] = can_edit_team($t, $u);
         $players = rows("SELECT * FROM players WHERE team_id=? ORDER BY FIELD(role,'Batter','Wicket-keeper','All-rounder','Bowler'), name", [$t['id']]);
-        $recent = match_summaries(rows("SELECT * FROM matches WHERE (team1_id=? OR team2_id=?) AND status IN ('live','completed') ORDER BY updated_at DESC LIMIT 5", [$t['id'], $t['id']]));
+        [$vs, $vp] = vis_sql($u);
+        $recent = match_summaries(rows("SELECT * FROM matches WHERE (team1_id=? OR team2_id=?) AND status IN ('live','completed') AND $vs ORDER BY updated_at DESC LIMIT 5", array_merge([$t['id'], $t['id']], $vp)));
         return ['team' => $t, 'players' => $players, 'recent' => $recent];
     }
 
@@ -206,8 +227,8 @@ function handle(string $action, array $in, ?array $u) {
                           t1.short_name t1, t2.short_name t2, m.match_date
                         FROM innings_batters ib JOIN innings i ON i.id=ib.innings_id JOIN matches m ON m.id=i.match_id
                         JOIN teams t1 ON t1.id=m.team1_id JOIN teams t2 ON t2.id=m.team2_id
-                        WHERE ib.player_id=? ORDER BY m.id DESC LIMIT 8", [$p['id'], $p['id'], $p['id'], $p['id']]);
-        return ['player' => $p, 'stats' => player_stats((int)$p['id']), 'recent' => $recent];
+                        WHERE ib.player_id=? AND " . vis_sql($u, 'm')[0] . " ORDER BY m.id DESC LIMIT 8", array_merge([$p['id'], $p['id'], $p['id'], $p['id']], vis_sql($u, 'm')[1]));
+        return ['player' => $p, 'stats' => player_stats((int)$p['id'], $u), 'recent' => $recent];
     }
 
     /* ===== Match types ===== */
@@ -244,7 +265,10 @@ function handle(string $action, array $in, ?array $u) {
         $st = $in['status'] ?? '';
         $where = []; $p = [];
         if (in_array($st, ['scheduled', 'live', 'completed'], true)) { $where[] = $st === 'completed' ? "status IN ('completed','abandoned')" : 'status=?'; if ($st !== 'completed') $p[] = $st; }
-        if (!empty($in['mine'])) { $where[] = 'owner_id=?'; $p[] = $u['id']; }
+        $scope = $in['scope'] ?? (!empty($in['mine']) ? 'mine' : 'all');
+        if ($scope === 'mine') { $where[] = 'owner_id=?'; $p[] = $u['id']; }
+        elseif ($scope === 'following') { $where[] = "owner_id IN (SELECT f.followee_id FROM follows f JOIN users o ON o.id=f.followee_id WHERE f.follower_id=? AND o.is_private=0)"; $p[] = $u['id']; }
+        [$vs, $vp] = vis_sql($u); $where[] = $vs; $p = array_merge($p, $vp);
         $sql = 'SELECT * FROM matches' . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . ' ORDER BY ' . ($st === 'scheduled' ? 'COALESCE(match_date, created_at) ASC' : 'updated_at DESC') . ' LIMIT 100';
         return ['matches' => match_summaries(rows($sql, $p))];
     }
@@ -258,12 +282,13 @@ function handle(string $action, array $in, ?array $u) {
         if ($tour && !can_edit_owned(row('SELECT * FROM tournaments WHERE id=?', [$tour]), $u)) fail('You cannot add matches to this tournament', 403);
         $date = str_in($in, 'match_date', 20);
         $date = $date ? date('Y-m-d H:i:s', strtotime($date)) : date('Y-m-d H:i:s');
-        q('INSERT INTO matches (owner_id, tournament_id, match_type_id, title, team1_id, team2_id, overs, balls_per_over, players_per_side, max_overs_bowler, last_man_stands, venue, match_date)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+        $visibility = ($in['visibility'] ?? '') === 'private' ? 'private' : 'public';
+        q('INSERT INTO matches (owner_id, tournament_id, match_type_id, title, team1_id, team2_id, overs, balls_per_over, players_per_side, max_overs_bowler, last_man_stands, venue, match_date, visibility)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
             $u['id'], $tour, nint($in['match_type_id'] ?? null), str_in($in, 'title', 100) ?: null, $t1, $t2,
             max(1, min(100, int_in($in, 'overs', 20))), max(1, min(10, int_in($in, 'balls_per_over', 6))),
             max(1, min(15, int_in($in, 'players_per_side', 11))), max(0, min(50, int_in($in, 'max_overs_bowler', 0))),
-            !empty($in['last_man_stands']) ? 1 : 0, str_in($in, 'venue', 150) ?: null, $date]);
+            !empty($in['last_man_stands']) ? 1 : 0, str_in($in, 'venue', 150) ?: null, $date, $visibility]);
         return ['id' => lastId()];
     }
 
@@ -272,6 +297,7 @@ function handle(string $action, array $in, ?array $u) {
 
     case 'match_dls_preview': {
         $m = load_match(int_in($in, 'id'));
+        if (!can_view_match($m, $u)) fail('This match is private 🔒', 403);
         return dls_preview($m, max(1, int_in($in, 'overs', 1)));
     }
 
@@ -314,7 +340,7 @@ function handle(string $action, array $in, ?array $u) {
 
     /* ===== Tournaments ===== */
     case 'tournaments_list': {
-        $list = rows('SELECT t.*, mt.name type_name, u.display_name owner_name,
+        $list = rows('SELECT t.*, mt.name type_name, CASE WHEN u.is_private=1 AND u.id<>' . (int)$u['id'] . ' THEN NULL ELSE u.display_name END owner_name,
                         (SELECT COUNT(*) FROM tournament_teams tt WHERE tt.tournament_id=t.id) teams,
                         (SELECT COUNT(*) FROM matches m WHERE m.tournament_id=t.id) matches,
                         (SELECT COUNT(*) FROM matches m WHERE m.tournament_id=t.id AND m.status IN (\'completed\',\'abandoned\')) done,
@@ -326,17 +352,18 @@ function handle(string $action, array $in, ?array $u) {
     }
 
     case 'tournament_get': {
-        $t = row('SELECT t.*, mt.name type_name, mt.overs, mt.balls_per_over, mt.players_per_side, mt.max_overs_bowler, mt.last_man_stands, u.display_name owner_name
+        $t = row('SELECT t.*, mt.name type_name, mt.overs, mt.balls_per_over, mt.players_per_side, mt.max_overs_bowler, mt.last_man_stands, CASE WHEN u.is_private=1 AND u.id<>' . (int)$u['id'] . ' THEN NULL ELSE u.display_name END owner_name
                   FROM tournaments t LEFT JOIN match_types mt ON mt.id=t.match_type_id LEFT JOIN users u ON u.id=t.owner_id WHERE t.id=?', [int_in($in, 'id')]);
         if (!$t) fail('Tournament not found', 404);
         $t['can_edit'] = can_edit_owned($t, $u);
         $teams = rows('SELECT t.id, t.name, t.short_name, t.color, (SELECT COUNT(*) FROM players p WHERE p.team_id=t.id) players FROM tournament_teams tt JOIN teams t ON t.id=tt.team_id WHERE tt.tournament_id=? ORDER BY t.name', [$t['id']]);
-        $matches = match_summaries(rows('SELECT * FROM matches WHERE tournament_id=? ORDER BY COALESCE(match_date, created_at), id', [$t['id']]));
+        [$vs, $vp] = vis_sql($u);
+        $matches = match_summaries(rows("SELECT * FROM matches WHERE tournament_id=? AND $vs ORDER BY COALESCE(match_date, created_at), id", array_merge([$t['id']], $vp)));
         $t['matches'] = count($matches);
         $t['done'] = count(array_filter($matches, fn($m) => in_array($m['status'], ['completed', 'abandoned'], true)));
         $t['live'] = count(array_filter($matches, fn($m) => $m['status'] === 'live'));
         $t['state'] = tournament_state($t);
-        return ['tournament' => $t, 'teams' => $teams, 'matches' => $matches, 'points' => points_table((int)$t['id']), 'leaders' => leaderboards((int)$t['id'], 5)];
+        return ['tournament' => $t, 'teams' => $teams, 'matches' => $matches, 'points' => points_table((int)$t['id']), 'leaders' => leaderboards((int)$t['id'], 5, $u)];
     }
 
     case 'tournament_save': {
@@ -407,7 +434,7 @@ function handle(string $action, array $in, ?array $u) {
 
     /* ===== Stats ===== */
     case 'leaderboards':
-        return leaderboards(nint($in['tournament_id'] ?? null), 15);
+        return leaderboards(nint($in['tournament_id'] ?? null), 15, $u);
     }
     fail('Unknown action', 404);
 }

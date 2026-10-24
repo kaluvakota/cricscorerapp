@@ -473,6 +473,7 @@ function team_brief(int $id): ?array {
 
 function match_state(int $matchId, ?array $u): array {
     $m = load_match($matchId);
+    if (!can_view_match($m, $u)) fail('This match is private 🔒', 403);
     $names = name_map($matchId);
     $t1 = team_brief((int)$m['team1_id']); $t2 = team_brief((int)$m['team2_id']);
     $xi = [];
@@ -522,6 +523,7 @@ function match_state(int $matchId, ?array $u): array {
             'balls_per_over' => (int)$m['balls_per_over'], 'players_per_side' => (int)$m['players_per_side'],
             'max_overs_bowler' => (int)$m['max_overs_bowler'], 'last_man_stands' => (bool)$m['last_man_stands'],
             'dls_g50' => (int)$m['dls_g50'], 'result_method' => $m['result_method'],
+            'visibility' => $m['visibility'] ?? 'public', 'owner_id' => (int)$m['owner_id'],
             'venue' => $m['venue'], 'match_date' => $m['match_date'],
             'toss_winner_id' => $m['toss_winner_id'] ? (int)$m['toss_winner_id'] : null, 'toss_decision' => $m['toss_decision'],
             'winner_team_id' => $m['winner_team_id'] ? (int)$m['winner_team_id'] : null, 'result_text' => $m['result_text'],
@@ -549,6 +551,10 @@ function match_summaries(array $matches): array {
     $tph = implode(',', array_fill(0, count($teamIds), '?'));
     $teams = [];
     foreach (rows("SELECT id, name, short_name, color FROM teams WHERE id IN ($tph)", $teamIds) as $t) { $t['id'] = (int)$t['id']; $teams[$t['id']] = $t; }
+    $ownerIds = array_values(array_unique(array_map(fn($m) => (int)$m['owner_id'], $matches)));
+    $owners = [];
+    foreach (rows('SELECT id, display_name, is_private FROM users WHERE id IN (' . implode(',', array_fill(0, count($ownerIds), '?')) . ')', $ownerIds) as $o)
+        $owners[(int)$o['id']] = $o['is_private'] ? null : ['id' => (int)$o['id'], 'name' => $o['display_name']];
     $res = [];
     foreach ($matches as $m) {
         $sc = [];
@@ -557,6 +563,7 @@ function match_summaries(array $matches): array {
             'id' => (int)$m['id'], 'title' => $m['title'], 'status' => $m['status'], 'overs' => (int)$m['overs'],
             'match_date' => $m['match_date'], 'venue' => $m['venue'], 'result_text' => $m['result_text'],
             'tournament_id' => $m['tournament_id'] ? (int)$m['tournament_id'] : null, 'owner_id' => (int)$m['owner_id'],
+            'owner' => $owners[(int)$m['owner_id']] ?? null, 'visibility' => $m['visibility'] ?? 'public',
             'team1' => $teams[(int)$m['team1_id']] ?? null, 'team2' => $teams[(int)$m['team2_id']] ?? null,
             'score1' => $sc[(int)$m['team1_id']] ?? null, 'score2' => $sc[(int)$m['team2_id']] ?? null,
             'winner_team_id' => $m['winner_team_id'] ? (int)$m['winner_team_id'] : null,
@@ -602,9 +609,10 @@ function points_table(int $tid): array {
     return $tbl;
 }
 
-function leaderboards(?int $tournamentId = null, int $limit = 10): array {
-    $where = $tournamentId ? 'WHERE m.tournament_id=?' : "WHERE m.status IN ('live','completed')";
-    $p = $tournamentId ? [$tournamentId] : [];
+function leaderboards(?int $tournamentId = null, int $limit = 10, ?array $viewer = null): array {
+    [$vs, $vp] = vis_sql($viewer, 'm');
+    $where = ($tournamentId ? 'WHERE m.tournament_id=?' : "WHERE m.status IN ('live','completed')") . " AND $vs";
+    $p = array_merge($tournamentId ? [$tournamentId] : [], $vp);
     $batSql = "SELECT b.batsman_id pid, p.name, t.short_name team, t.color,
                 SUM(CASE WHEN b.wicket_type='retired hurt' THEN 0 ELSE b.runs_bat END) runs,
                 SUM(CASE WHEN b.extra_type='wd' OR b.wicket_type='retired hurt' THEN 0 ELSE 1 END) balls,
@@ -626,11 +634,12 @@ function leaderboards(?int $tournamentId = null, int $limit = 10): array {
     return ['runs' => $cast($bat), 'wickets' => $cast($bowl), 'sixes' => $cast($six), 'fours' => $cast($four)];
 }
 
-function player_stats(int $pid): array {
+function player_stats(int $pid, ?array $viewer = null): array {
+    [$vs, $vp] = vis_sql($viewer, 'm');
     $bat = ['mat' => 0, 'inns' => 0, 'no' => 0, 'runs' => 0, 'balls' => 0, 'hs' => 0, 'hs_no' => false, 'f4' => 0, 'f6' => 0, 'fifties' => 0, 'hundreds' => 0, 'thirties' => 0];
     $bowl = ['inns' => 0, 'balls' => 0, 'runs' => 0, 'wkts' => 0, 'best_w' => 0, 'best_r' => 0, 'three' => 0, 'five' => 0];
-    $bat['mat'] = (int)val("SELECT COUNT(*) FROM match_players mp JOIN matches m ON m.id=mp.match_id WHERE mp.player_id=? AND m.status IN ('live','completed')", [$pid]);
-    foreach (rows('SELECT ib.innings_id FROM innings_batters ib WHERE ib.player_id=?', [$pid]) as $r) {
+    $bat['mat'] = (int)val("SELECT COUNT(*) FROM match_players mp JOIN matches m ON m.id=mp.match_id WHERE mp.player_id=? AND m.status IN ('live','completed') AND $vs", array_merge([$pid], $vp));
+    foreach (rows("SELECT ib.innings_id FROM innings_batters ib JOIN innings i ON i.id=ib.innings_id JOIN matches m ON m.id=i.match_id WHERE ib.player_id=? AND $vs", array_merge([$pid], $vp)) as $r) {
         $iid = (int)$r['innings_id'];
         $a = row("SELECT COALESCE(SUM(runs_bat),0) r, COALESCE(SUM(CASE WHEN extra_type='wd' OR wicket_type='retired hurt' THEN 0 ELSE 1 END),0) b,
                   COALESCE(SUM(runs_bat=4),0) f4, COALESCE(SUM(runs_bat=6),0) f6 FROM balls WHERE innings_id=? AND batsman_id=?", [$iid, $pid]);
@@ -644,9 +653,9 @@ function player_stats(int $pid): array {
     $outs = $bat['inns'] - $bat['no'];
     $bat['avg'] = $outs > 0 ? round($bat['runs'] / $outs, 2) : null;
     $bat['sr'] = $bat['balls'] > 0 ? round($bat['runs'] * 100 / $bat['balls'], 1) : null;
-    foreach (rows("SELECT innings_id, SUM(is_legal) balls, SUM(runs_bat + CASE WHEN extra_type IN ('wd','nb') THEN extra_runs ELSE 0 END) runs,
-                   SUM(is_wicket=1 AND wicket_type IN ('bowled','caught','lbw','stumped','hit wicket')) wkts
-                   FROM balls WHERE bowler_id=? GROUP BY innings_id", [$pid]) as $r) {
+    foreach (rows("SELECT b.innings_id, SUM(b.is_legal) balls, SUM(b.runs_bat + CASE WHEN b.extra_type IN ('wd','nb') THEN b.extra_runs ELSE 0 END) runs,
+                   SUM(b.is_wicket=1 AND b.wicket_type IN ('bowled','caught','lbw','stumped','hit wicket')) wkts
+                   FROM balls b JOIN innings i ON i.id=b.innings_id JOIN matches m ON m.id=i.match_id WHERE b.bowler_id=? AND $vs GROUP BY b.innings_id", array_merge([$pid], $vp)) as $r) {
         $w = (int)$r['wkts']; $rr = (int)$r['runs'];
         $bowl['inns']++; $bowl['balls'] += (int)$r['balls']; $bowl['runs'] += $rr; $bowl['wkts'] += $w;
         if ($w > $bowl['best_w'] || ($w === $bowl['best_w'] && ($bowl['inns'] === 1 || $rr < $bowl['best_r']))) { $bowl['best_w'] = $w; $bowl['best_r'] = $rr; }
@@ -654,7 +663,7 @@ function player_stats(int $pid): array {
     }
     $bowl['econ'] = $bowl['balls'] > 0 ? round($bowl['runs'] * 6 / $bowl['balls'], 2) : null;
     $bowl['avg'] = $bowl['wkts'] > 0 ? round($bowl['runs'] / $bowl['wkts'], 2) : null;
-    $catches = (int)val("SELECT COUNT(*) FROM balls WHERE fielder_id=? AND is_wicket=1 AND wicket_type IN ('caught','stumped','run out')", [$pid]);
-    $pom = (int)val('SELECT COUNT(*) FROM matches WHERE player_of_match_id=?', [$pid]);
+    $catches = (int)val("SELECT COUNT(*) FROM balls b JOIN innings i ON i.id=b.innings_id JOIN matches m ON m.id=i.match_id WHERE b.fielder_id=? AND b.is_wicket=1 AND b.wicket_type IN ('caught','stumped','run out') AND $vs", array_merge([$pid], $vp));
+    $pom = (int)val("SELECT COUNT(*) FROM matches m WHERE m.player_of_match_id=? AND $vs", array_merge([$pid], $vp));
     return ['batting' => $bat, 'bowling' => $bowl, 'catches' => $catches, 'pom' => $pom];
 }
