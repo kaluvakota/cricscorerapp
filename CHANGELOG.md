@@ -4,6 +4,14 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.12.0 - 24 October 2026
+- Gully Duel plays like Cricket League: quick 2-over 1v1 matches in six stadiums (Mumbai, Dubai, Melbourne, London, Johannesburg, Dhaka)
+- Batting: touch and hold to lift the bat as the bowler runs in, let go and flick to hit; timing bar on the left
+- Bowling: choose a bowler each over, named deliveries (outswing, inswing, yorker, bouncer, slower ball, off-break, leg-break, doosra, flipper, arm ball), over or round the wicket, power bar
+- Three wides or three no-balls lose the game; a 15-second bowling timer - time out twice and you lose
+- Squad of 12 players with power, timing, pace, accuracy and swing stats; coins for every game unlock new players
+- Fielders chase and dive, crowds, floodlights and camera shake on sixes
+
 ## 1.11.0 - 24 October 2026
 - Custom teams are now protected: only the owner (and players they allow) can pick a team for matches and tournaments, or copy its players
 - Other players tap "Ask to use this team"; the owner sees the request on the team page and taps Allow or Decline

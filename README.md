@@ -41,11 +41,12 @@ Made for Aarush & Aayush.
 - **Team permissions** - a custom team can only be picked for matches and tournaments (or have its players copied)
   by its owner, the admin and players the owner allows. Others tap *Ask to use this team*; the owner allows or declines
   on the team page, can add players by username, or switch the team to *Everyone*. IPL and international teams are open.
-- **Gully Duel** - a bat-vs-bowl game in the style of Cricket League, played in landscape from behind the batter.
-  Bowler: Fast / Swing / Spin (In, Straight, Out), drag the landing circle, stop the power bar in the blue (red =
-  no-ball and a free hit). Batter: swipe the direction to hit as the ball arrives (short = ground, long = air, tap =
-  block), graded by a timing bar; fielders, catches and gaps decide the runs. Practice nets, vs the computer, two
-  players on one phone, or two phones online (4-digit code). Rules: `assets/game-engine.js` (phones) and `inc/game.php` (server) -
+- **Gully Duel** - quick 1v1 cricket in the style of Cricket League, played in landscape from behind the batter in six
+  stadiums. Batter: touch and hold to lift the bat, let go and flick to hit (short = ground, long = air, tap = block),
+  graded by a timing bar. Bowler: pick a bowler each over, a named delivery (outswing, yorker, doosra…), over or round
+  the wicket, drag the landing circle and stop the power bar in the blue (red = no-ball + free hit). Three wides or
+  three no-balls lose; a 15 s bowling timer with a warning then a loss. A squad of 12 players with stats, unlocked with
+  coins won in games (`game_profiles` table). Nets, vs the computer, one phone or two phones online (4-digit code). Rules: `assets/game-engine.js` (phones) and `inc/game.php` (server) -
   check they still match with `node tools/test_game_parity.js | php tools/test_game_parity.php`.
 - **Admin portal** (More → Admin portal, admin account only) - totals and charts only, never names or emails:
   players joined/active, devices, app versions, matches, games, Academy; **Roll-out** (switch features off, on for

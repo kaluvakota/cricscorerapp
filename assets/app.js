@@ -153,6 +153,7 @@ const ROUTES = [
   [/^#\/user\/(\d+)\/(followers|following)$/, viewFollowList],
   [/^#\/user\/(\d+)$/, viewUser],
   [/^#\/play$/, () => duel('lobby')],
+  [/^#\/play\/squad$/, () => duel('squad')],
   [/^#\/play\/room\/(\d+)$/, code => duel('room', code)],
   [/^#\/play\/join\/(\d+)$/, code => duel('join', code)],
   [/^#\/admin$/, () => withScript('Admin', 'assets/admin.js').then(() => Admin.show())],

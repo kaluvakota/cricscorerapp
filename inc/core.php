@@ -88,6 +88,8 @@ function ensure_schema(): void {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (team_id, user_id), INDEX (user_id),
             FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
+    if (!val("SHOW TABLES LIKE 'game_profiles'")) db()->exec("CREATE TABLE IF NOT EXISTS game_profiles (user_id INT PRIMARY KEY, coins INT NOT NULL DEFAULT 100, wins INT NOT NULL DEFAULT 0, losses INT NOT NULL DEFAULT 0,
+        chars TEXT NULL, squad TEXT NULL, stadium VARCHAR(20) NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");

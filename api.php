@@ -54,6 +54,7 @@ function handle(string $action, array $in, ?array $u) {
         return help_action($action, $u, $in);
     case 'game_create': case 'game_join': case 'game_get': case 'game_bowl': case 'game_bat': case 'game_nudge':
     case 'game_leave': case 'game_rematch': case 'game_record':
+    case 'game_timeout': case 'game_set_bowler': case 'game_profile': case 'game_unlock': case 'game_squad':
         return game_action($action, $u, $in);
 
     case 'register': {
