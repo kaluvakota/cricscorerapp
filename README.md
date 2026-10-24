@@ -38,6 +38,26 @@ Made for Aarush & Aayush.
 - **Privacy Policy & Terms** (`/privacy`, `/terms`) written for India's DPDP Act, a required consent tick box at sign-up
   (also for new Google sign-ups), and *Delete my account* in My Profile.
 
+- **Gully Duel** - a bat-vs-bowl game: the bowler picks pace and a spot on the pitch and releases on an accuracy
+  meter; the batter picks a shot and times it as the ball arrives. Two phones online (4-digit code), two players on
+  one phone held sideways, or vs the computer. Rules: `assets/game-engine.js` (phones) and `inc/game.php` (server) -
+  check they still match with `node tools/test_game_parity.js | php tools/test_game_parity.php`.
+- **Admin portal** (More → Admin portal, admin account only) - totals and charts only, never names or emails:
+  players joined/active, devices, app versions, matches, games, Academy; **Roll-out** (switch features off, on for
+  selected usernames, or on for everyone); **Updates** (one-tap update from GitHub with backup and roll back, and "ask
+  everyone to update now"); **Help desk** (player messages by ticket number, reply in the app); **News** (Home-screen
+  announcements); **Errors** (error reports by reference code, personal details blanked out, kept one year).
+
+## Releasing a new version
+1. Change the code, bump `APP_VERSION` in `inc/version.php` and the cache name in `sw.js`.
+2. Add a `## <version> - <date>` section to `CHANGELOG.md` (the admin portal shows it as "what's new").
+3. Push to GitHub (`main`). Then in the app: **More → Admin portal → Updates → Check for updates → Install**.
+   The server downloads the zip from GitHub, saves a backup to `data/backups/` (newest 3 kept), and copies the new
+   files - never `config.php`, `config.local.php`, `install.php` or uploaded photos. Extra lines your host added to
+   `.htaccess` are kept. If anything looks wrong, tap **Roll back**.
+4. Optional: switch on **Ask everyone to update now** so phones reload to the new version straight away.
+The folders must be writable by PHP (normal on Hostinger). If not, the portal says so - upload the zip by hand instead.
+
 ## Requirements
 - PHP 7.4 or newer (8.x recommended) with `pdo_mysql`
 - MySQL 5.7+ or MariaDB 10.3+

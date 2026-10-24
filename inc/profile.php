@@ -133,7 +133,10 @@ function account_delete(array $u, array $in): array {
         }
         q('UPDATE teams SET owner_id=NULL WHERE owner_id=?', [$uid]);
         q('UPDATE match_types SET owner_id=NULL WHERE owner_id=?', [$uid]);
-        // The account itself; follows, Academy progress and sign-in tokens are removed with it
+        // Gully Duel games keep their scores for the totals but lose the link to this player
+        q('UPDATE games SET p0=NULL WHERE p0=?', [$uid]);
+        q('UPDATE games SET p1=NULL WHERE p1=?', [$uid]);
+        // The account itself; follows, Academy progress, help messages and sign-in tokens are removed with it
         q('DELETE FROM users WHERE id=?', [$uid]);
         $pdo->commit();
     } catch (Throwable $e) { $pdo->rollBack(); throw $e; }

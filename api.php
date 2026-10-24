@@ -9,10 +9,11 @@ $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'CricScorer') fail('Bad request', 400);
-    $public = ['login', 'register', 'me', 'match_get', 'google_login'];
+    $public = ['login', 'register', 'me', 'match_get', 'google_login', 'client_error'];
     ensure_schema();
     $u = current_user();
     if (!in_array($action, $public, true) && !$u) fail('Please log in', 401);
+    if (strpos($action, 'admin_') === 0 && empty($u['is_admin'])) fail('Only the administrator can do that', 403);
     out(handle($action, $in, $u));
 } catch (ApiError $e) {
     rollback_if_needed();
@@ -23,6 +24,7 @@ try {
     // Always record the real reason in the server's PHP error log (hPanel → Advanced → PHP error logs)
     $ref = strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
     error_log("Cric-Scorer API error [$ref] action=$action: " . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
+    if (function_exists('log_error_report')) log_error_report($ref, 'server', $action, $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
     $showReal = DEBUG;
     try { $cu = current_user(); $showReal = $showReal || ($cu && !empty($cu['is_admin'])); } catch (Throwable $x) { /* no database */ }
     http_response_code(500);
@@ -34,7 +36,23 @@ function handle(string $action, array $in, ?array $u) {
 
     /* ===== Auth ===== */
     case 'me':
-        return ['user' => $u ? public_user($u) : null, 'version' => APP_VERSION, 'auth' => auth_public_config()];
+        return ['user' => $u ? public_user($u) : null, 'version' => APP_VERSION, 'auth' => auth_public_config()] + ($u ? client_extras($u) : ['force_version' => setting('force_version')]);
+
+    case 'client_error': {                          // a crash on a phone, so the admin can see it in Error reports
+        start_session();
+        $_SESSION['client_errs'] = ($_SESSION['client_errs'] ?? 0) + 1;
+        if ($_SESSION['client_errs'] > 10) return ['ok' => true];
+        $ref = strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+        log_error_report($ref, 'app', str_in($in, 'where', 40) ?: 'app', str_in($in, 'message', 600));
+        return ['ok' => true, 'ref' => $ref];
+    }
+
+    /* ===== Help desk, admin portal, Gully Duel ===== */
+    case 'help_send': case 'help_list':
+        return help_action($action, $u, $in);
+    case 'game_create': case 'game_join': case 'game_get': case 'game_bowl': case 'game_bat': case 'game_nudge':
+    case 'game_leave': case 'game_rematch': case 'game_record':
+        return game_action($action, $u, $in);
 
     case 'register': {
         $un = strtolower(str_in($in, 'username', 50));
@@ -123,7 +141,7 @@ function handle(string $action, array $in, ?array $u) {
             'tournaments' => (int)val("SELECT COUNT(*) FROM tournaments WHERE owner_id=?", [$u['id']]),
         ];
         $counts += follow_counts((int)$u['id'], $u);
-        return ['live' => $live, 'upcoming' => $mine, 'recent' => $recent, 'following' => $followFeed, 'counts' => $counts];
+        return ['live' => $live, 'upcoming' => $mine, 'recent' => $recent, 'following' => $followFeed, 'counts' => $counts, 'announcements' => client_extras($u)['announcements']];
     }
 
     /* ===== Teams & players ===== */
@@ -451,6 +469,7 @@ function handle(string $action, array $in, ?array $u) {
     case 'leaderboards':
         return leaderboards(nint($in['tournament_id'] ?? null), 15, $u);
     }
+    if (strpos($action, 'admin_') === 0) return admin_action($action, $u, $in);
     fail('Unknown action', 404);
 }
 

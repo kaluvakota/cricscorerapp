@@ -5,6 +5,9 @@ require_once __DIR__ . '/version.php';
 require_once __DIR__ . '/google.php';
 require_once __DIR__ . '/social.php';
 require_once __DIR__ . '/profile.php';
+require_once __DIR__ . '/admin.php';
+require_once __DIR__ . '/updater.php';
+require_once __DIR__ . '/game.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 
@@ -77,6 +80,7 @@ function ensure_schema(): void {
             PRIMARY KEY (user_id, lesson_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
     if (!val("SHOW COLUMNS FROM matches LIKE 'visibility'")) db()->exec("ALTER TABLE matches ADD COLUMN visibility ENUM('public','private') NOT NULL DEFAULT 'public' AFTER status, ADD INDEX idx_visibility (visibility)");
+    if (!val("SHOW COLUMNS FROM users LIKE 'last_seen_at'")) schema_v19();
     if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
@@ -88,6 +92,32 @@ function ensure_schema(): void {
         wickets INT NOT NULL, overs_before INT NOT NULL, overs_after INT NOT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (match_id),
         FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/** v1.9: admin portal, feature roll-out, help desk, announcements, error reports, Gully Duel games */
+function schema_v19(): void {
+    $t = 'ENGINE=InnoDB DEFAULT CHARSET=utf8mb4';
+    db()->exec("CREATE TABLE IF NOT EXISTS app_settings (k VARCHAR(60) PRIMARY KEY, v TEXT NULL) $t");
+    db()->exec("CREATE TABLE IF NOT EXISTS feature_users (feature VARCHAR(30) NOT NULL, user_id INT NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (feature, user_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) $t");
+    db()->exec("CREATE TABLE IF NOT EXISTS games (id INT AUTO_INCREMENT PRIMARY KEY, code VARCHAR(6) NOT NULL DEFAULT '', mode ENUM('online','local','cpu') NOT NULL DEFAULT 'online',
+        p0 INT NULL, p1 INT NULL, status ENUM('waiting','live','done','abandoned') NOT NULL DEFAULT 'waiting', overs INT NOT NULL DEFAULT 2, wickets INT NOT NULL DEFAULT 3,
+        state MEDIUMTEXT NULL, version INT NOT NULL DEFAULT 0, winner TINYINT NULL, balls INT NOT NULL DEFAULT 0, rematch_code VARCHAR(6) NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_code (code, status), INDEX idx_created (created_at), INDEX idx_p0 (p0), INDEX idx_p1 (p1)) $t");
+    db()->exec("CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, kind VARCHAR(10) NOT NULL DEFAULT 'help',
+        status ENUM('open','answered','closed') NOT NULL DEFAULT 'open', user_unread TINYINT(1) NOT NULL DEFAULT 0, admin_unread TINYINT(1) NOT NULL DEFAULT 1,
+        app_version VARCHAR(20) NULL, device VARCHAR(20) NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX (status), INDEX (user_id),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) $t");
+    db()->exec("CREATE TABLE IF NOT EXISTS ticket_msgs (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, from_admin TINYINT(1) NOT NULL DEFAULT 0, body TEXT NOT NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (ticket_id), FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE) $t");
+    db()->exec("CREATE TABLE IF NOT EXISTS announcements (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(120) NOT NULL, body VARCHAR(600) NULL,
+        kind VARCHAR(10) NOT NULL DEFAULT 'info', active TINYINT(1) NOT NULL DEFAULT 1, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) $t");
+    db()->exec("CREATE TABLE IF NOT EXISTS error_reports (id INT AUTO_INCREMENT PRIMARY KEY, ref VARCHAR(10) NOT NULL, source VARCHAR(10) NOT NULL DEFAULT 'server',
+        action VARCHAR(40) NULL, message VARCHAR(700) NULL, app_version VARCHAR(20) NULL, device VARCHAR(20) NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (ref), INDEX (created_at)) $t");
+    db()->exec("ALTER TABLE users ADD COLUMN last_seen_at DATETIME NULL, ADD COLUMN app_version VARCHAR(20) NULL, ADD COLUMN platform VARCHAR(20) NULL");
 }
 
 /* ---------- Sessions & auth ---------- */
@@ -105,7 +135,7 @@ function start_session(): void {
 function public_user(array $u): array {
     return ['id' => (int)$u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'], 'is_admin' => (bool)$u['is_admin'],
             'email' => $u['email'] ?? null, 'google' => !empty($u['google_sub']), 'avatar' => $u['avatar_url'] ?? null,
-            'has_password' => (string)($u['password_hash'] ?? '') !== '', 'is_private' => !empty($u['is_private'])] + cricket_profile($u);
+            'has_password' => (string)($u['password_hash'] ?? '') !== '', 'is_private' => !empty($u['is_private']), 'features' => user_features($u)] + cricket_profile($u);
 }
 
 function current_user(): ?array {
@@ -124,6 +154,7 @@ function current_user(): ?array {
             if ($u) { session_regenerate_id(true); $_SESSION['uid'] = (int)$u['id']; }
         }
     }
+    if ($u) { try { touch_presence($u); } catch (Throwable $e) { /* the totals are not worth an error */ } }
     $cache = $u;
     return $u;
 }

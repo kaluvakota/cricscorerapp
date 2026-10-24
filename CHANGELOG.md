@@ -1,0 +1,37 @@
+# Cric-Scorer changelog
+
+The admin portal (More → Admin portal → Updates) reads this file from GitHub to show "what's new"
+before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
+and bump `APP_VERSION` in `inc/version.php`.
+
+## 1.9.0 - 24 October 2026
+- New game: Gully Duel - one player bowls, the other bats, on two phones (4-digit code), one phone held sideways, or against the computer
+- Admin portal with usage stats: players joined and active, matches, games, Academy - totals only, no personal details
+- Roll out new features to selected players or everyone from the admin portal
+- One-tap updates from GitHub with automatic backup and roll back, plus "ask everyone to update now"
+- Help & feedback: players send messages and see replies in the app
+- Announcements on the Home screen
+- Error reports with reference codes (personal details blanked out)
+
+## 1.8.0 - 24 October 2026
+- Home page for visitors, free Learn cricket pages, sitemap and search-engine data
+- Shareable match pages with the score in WhatsApp previews
+- Privacy Policy and Terms of Use, consent at sign-up, Delete my account
+
+## 1.7.1 - 23 October 2026
+- Find players works on every MySQL version; clearer error references
+
+## 1.7.0 - 23 October 2026
+- Player profiles: photo or figure, bio, cricket profile and linked career stats
+
+## 1.6.0 - 22 October 2026
+- Follow players, private profiles and private matches
+
+## 1.5.0 - 22 October 2026
+- Sign in with Google and Google reCAPTCHA
+
+## 1.4.0 - 21 October 2026
+- Cricket Academy: lessons, quizzes, XP, ranks and certificate
+
+## 1.3.0 - 21 October 2026
+- DLS method for rain-affected matches

@@ -45,8 +45,11 @@ page_start([
   <tr><td><b>Cricket data you enter</b></td><td>Teams, player names, matches, tournaments and every ball you score, including venues and dates.</td><td>This is the main purpose of the app: scorecards, results and statistics.</td></tr>
   <tr><td><b>Learning progress</b></td><td>Lessons completed, quiz scores, stars, XP and rank in the Cricket Academy.</td><td>To unlock lessons, show your progress and the Academy leaderboard.</td></tr>
   <tr><td><b>Social</b></td><td>Who you follow and who follows you, and your privacy choices.</td><td>For the Players, Followers and Following features.</td></tr>
+  <tr><td><b>Gully Duel games</b></td><td>Scores and results of bat-vs-bowl games you play, and who played whom in two-phone games.</td><td>To run the game and show the result to both players.</td></tr>
+  <tr><td><b>Help messages</b></td><td>Messages you send from <i>Help &amp; feedback</i> and our replies, with the app version and type of device (such as "Android").</td><td>To answer your questions and fix problems.</td></tr>
+  <tr><td><b>Usage information</b></td><td>When you last used the app, which app version and which type of device (such as "iPhone"). We do not record your exact device, location or browsing.</td><td>Only to count, in totals, how many people use the app and which versions to support.</td></tr>
   <tr><td><b>Consent record</b></td><td>The date and time you accepted these terms (including a parent's permission for under-18s).</td><td>To show we have your consent.</td></tr>
-  <tr><td><b>Technical data</b></td><td>Our hosting provider's servers automatically record standard web logs (such as IP address, browser type and the pages requested), and we log errors to fix problems.</td><td>To keep the service running, secure and free of abuse.</td></tr>
+  <tr><td><b>Technical data</b></td><td>Our hosting provider's servers automatically record standard web logs (such as IP address, browser type and the pages requested), and we log errors to fix problems. Error reports have names, emails and typed text blanked out before they are saved.</td><td>To keep the service running, secure and free of abuse.</td></tr>
 </table>
 <p>We do <b>not</b> ask for your phone number, home address, school, payment details or exact location. Please don't type such details into names, bios or match titles.</p>
 
@@ -64,7 +67,8 @@ page_start([
   <li><b>Private profile</b>: turn it on in <i>My Profile → Privacy</i>. You then disappear from search, follower lists and the Academy leaderboard, and nobody new can follow you.</li>
   <li><b>Public matches</b> can be watched by anyone you share the link with, even without an account. <b>Private matches</b> can only be opened by the person who scored them.</li>
   <li>Shared match links show a summary (teams, score and result) when posted in apps like WhatsApp. These match pages are marked so that <b>search engines do not list them</b>, and our sitemap never includes players, profiles or matches.</li>
-  <li>The app administrator (the family member or person who set up this Cric-Scorer website) can see all accounts and matches in order to supervise and look after the service.</li>
+  <li>In <b>Gully Duel</b>, the player you play against sees your display name and photo or figure during the game.</li>
+  <li>The app administrator (the family member or person who set up this Cric-Scorer website) can see all accounts and matches in order to supervise and look after the service. The admin dashboard itself shows only totals and charts (such as how many players joined), and help messages without the sender's name.</li>
 </ul>
 
 <h2 id="children">5. Children and parents</h2>
@@ -116,7 +120,7 @@ page_start([
 <p>To use these rights, email <a href="mailto:<?= $mail ?>"><?= $mail ?></a>. We will reply within 7 days and aim to resolve your request within 30 days.</p>
 
 <h2 id="delete">10. Deleting your account</h2>
-<p>Open the app → <b>More → My Profile</b> → <b>Delete my account</b>. This permanently erases your account, profile, photo, follows, learning progress, and the matches, tournaments and teams you created. Teams that other people are using in their own matches are kept for them, but no longer linked to you. If you can't sign in, email us from the address linked to your account.</p>
+<p>Open the app → <b>More → My Profile</b> → <b>Delete my account</b>. This permanently erases your account, profile, photo, follows, learning progress, help messages, and the matches, tournaments and teams you created. Gully Duel scores stay in the totals but are no longer linked to you. Teams that other people are using in their own matches are kept for them, but no longer linked to you. If you can't sign in, email us from the address linked to your account.</p>
 
 <h2 id="changes">11. Changes to this policy</h2>
 <p>If we change this policy, we will update the date at the top. If a change is important, we will tell you in the app before it applies.</p>

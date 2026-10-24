@@ -1,0 +1,105 @@
+/* Cric-Scorer · Gully Duel */
+.duel-hero{text-align:center;background:linear-gradient(135deg,var(--pitch-3),var(--pitch) 55%,var(--pitch-2));color:#fff;border-radius:22px;padding:20px 18px;margin-bottom:14px}
+.duel-hero .big{font-size:42px}
+.duel-hero h2{font-family:var(--display);font-size:32px;margin:4px 0}
+.duel-hero p{margin:0;opacity:.9;font-weight:600}
+.duel-seg{margin:0;max-width:220px}
+.duel-modes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0}
+.duel-mode{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:14px;font:inherit;color:var(--ink);cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.duel-mode:active{transform:scale(.98)}
+.duel-mode .ic{font-size:28px}
+.duel-mode b{font-size:16px;line-height:1.2}
+.duel-mode span:last-child{font-size:12.5px;color:var(--muted);font-weight:600;line-height:1.3}
+.duel-wait{text-align:center;padding:22px 16px}
+.duel-code{font-family:var(--display);font-size:72px;letter-spacing:10px;font-weight:800;color:var(--pitch);margin:4px 0}
+.duel-code-in{text-align:center;font-size:34px!important;letter-spacing:12px;font-weight:900}
+.duel-dots{display:inline-flex;gap:5px;margin:14px 6px 6px 0;vertical-align:middle}
+.duel-dots i{width:8px;height:8px;border-radius:50%;background:var(--pitch-3);animation:dd 1s infinite ease-in-out}
+.duel-dots i:nth-child(2){animation-delay:.15s}.duel-dots i:nth-child(3){animation-delay:.3s}
+@keyframes dd{0%,100%{opacity:.25;transform:scale(.8)}50%{opacity:1;transform:scale(1.15)}}
+
+/* ----- the game screen ----- */
+body.duel-open{overflow:hidden}
+body.duel-open #tabbar,body.duel-open .update-bar{display:none!important}
+.duel{position:fixed;inset:0;z-index:60;background:#123d24;color:#fff;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none;touch-action:manipulation;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+.d-top{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(0,0,0,.28);min-height:40px}
+.d-x{width:34px;height:34px;border-radius:50%;border:0;background:rgba(255,255,255,.14);color:#fff;font-size:16px;font-weight:900;flex:none;cursor:pointer}
+.d-hud{flex:1;display:flex;align-items:center;gap:12px;min-width:0;overflow:hidden;white-space:nowrap}
+.d-score{font-family:var(--display);font-size:22px;font-weight:800}
+.d-score small{font-size:14px;opacity:.8}
+.d-need{background:var(--lime);color:#13241b;border-radius:10px;padding:2px 8px;font-weight:900;font-size:13px}
+.d-vs{font-size:13px;opacity:.85;font-weight:700;overflow:hidden;text-overflow:ellipsis}
+.d-chips{display:flex;gap:4px;margin-left:auto}
+.d-chips .c{font-style:normal;min-width:22px;height:22px;border-radius:11px;background:rgba(255,255,255,.18);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;padding:0 4px}
+.d-chips .c4{background:#1c7ed6}.d-chips .c6{background:#7048e8}.d-chips .cw{background:var(--red)}.d-chips .cx{background:#e8590c}
+.d-main{flex:1;display:grid;grid-template-columns:minmax(200px,30%) 1fr minmax(200px,30%);min-height:0}
+.d-panel{padding:8px;display:flex;flex-direction:column;justify-content:center;min-height:0;overflow:hidden}
+.d-field{position:relative;min-height:0}
+.d-field canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.d-flash{position:absolute;left:50%;top:18%;transform:translate(-50%,-50%) scale(.6);opacity:0;font-family:var(--display);font-size:30px;font-weight:800;padding:4px 14px;border-radius:12px;pointer-events:none;transition:.18s;white-space:nowrap}
+.d-flash.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+.d-flash.good{background:var(--lime);color:#13241b}.d-flash.bad{background:#fff3bf;color:#7a4b00}
+.d-msg{position:absolute;left:8px;right:8px;bottom:8px;text-align:center;font-weight:800;font-size:14px;background:rgba(0,0,0,.45);border-radius:12px;padding:6px 10px;opacity:0;transition:.2s;pointer-events:none}
+.d-msg.show{opacity:1}
+.d-role{font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--lime);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.d-side{text-align:center;opacity:.95}
+.d-side .d-name{font-family:var(--display);font-size:26px;font-weight:800}
+.d-side .d-bot{font-size:40px}
+.d-wait{font-size:13px;font-weight:700;opacity:.85;margin-top:6px}
+.d-side .btn{margin-top:10px}
+
+/* bowler controls */
+.d-bowl.off{opacity:.45;pointer-events:none}
+.d-bowl.off .cell.on{background:rgba(255,255,255,.08);box-shadow:none}
+.d-pace{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:6px}
+.d-pace button{border:0;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-size:17px;padding:4px 0;font-weight:900;cursor:pointer;line-height:1.1}
+.d-pace button span{display:block;font-size:10.5px;letter-spacing:.3px}
+.d-pace button.on{background:var(--lime);color:#13241b}
+.d-map{position:relative;background:#d8c690;border-radius:8px;padding:12px 6px 4px 6px;margin-right:42px}
+.d-map .stumps{position:absolute;top:3px;left:50%;width:22%;margin-left:-3%;height:5px;background:repeating-linear-gradient(90deg,#7a4a1d 0 3px,transparent 3px 9px)}
+.d-map .grid{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:minmax(16px,4.2vh);gap:3px}
+.d-map .cell{border:0;border-radius:5px;background:rgba(0,0,0,.08);cursor:pointer;padding:0}
+.d-map .cell:nth-child(4n+1){background:rgba(214,40,57,.1)}
+.d-map .cell.on{background:var(--red);box-shadow:0 0 0 2px #fff}
+.d-map .lens{position:absolute;right:-42px;top:12px;bottom:4px;display:grid;grid-template-rows:repeat(5,1fr);gap:3px;font-size:9.5px;font-weight:800;color:rgba(255,255,255,.8);width:40px;align-items:center}
+.d-aim{font-size:12px;font-weight:800;text-align:center;margin:4px 0;opacity:.9}
+.d-meter{position:relative;height:16px;border-radius:8px;background:linear-gradient(90deg,#d62839 0 7.5%,#f2b134 7.5% 37.5%,#b6e94a 37.5% 62.5%,#f2b134 62.5% 92.5%,#d62839 92.5%);margin:2px 0 6px}
+.d-meter .needle{position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;background:#fff;border-radius:2px;box-shadow:0 0 0 1px rgba(0,0,0,.4);left:50%}
+.d-bowlbtn{width:100%;border:0;border-radius:14px;background:var(--lime);color:#13241b;font-family:var(--display);font-size:24px;font-weight:800;letter-spacing:2px;padding:8px 0;cursor:pointer;box-shadow:0 4px 0 #6c9a1f}
+.d-bowlbtn:active{transform:translateY(3px);box-shadow:0 1px 0 #6c9a1f}
+.d-bowlbtn:disabled{opacity:.5}
+
+/* batter controls */
+.d-bat.off .d-shots{opacity:.5}
+.d-shots{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.d-shots .shot{border:0;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;font-size:24px;padding:8px 0;cursor:pointer;line-height:1.1;min-height:min(64px,16vh);touch-action:manipulation}
+.d-shots .shot span{display:block;font-size:12px;font-weight:900;letter-spacing:.3px;margin-top:2px}
+.d-bat.ready .shot{background:rgba(255,255,255,.22);box-shadow:inset 0 0 0 2px rgba(182,233,74,.6)}
+.d-shots .shot:active,.d-shots .shot.hit{background:var(--lime);color:#13241b}
+.d-tip{font-size:12px;font-weight:800;text-align:center;margin-top:7px;opacity:.85}
+
+/* one-phone mode: each player gets their own side */
+.duel.mode-local .d-left{border-right:2px dashed rgba(255,255,255,.12)}
+.duel.mode-local .d-right{border-left:2px dashed rgba(255,255,255,.12)}
+
+/* overlays */
+.d-over{position:absolute;inset:0;background:rgba(5,25,14,.72);display:flex;align-items:center;justify-content:center;z-index:5;padding:16px}
+.d-card{background:#fff;color:#13241b;border-radius:22px;padding:18px 22px;text-align:center;max-width:420px;width:100%;max-height:100%;overflow:auto}
+.d-card .big{font-size:44px}
+.d-card h3{margin:4px 0 8px;font-family:var(--display);font-size:28px}
+.d-card p{margin:4px 0}
+.d-rotate{display:none;position:absolute;inset:0;z-index:8;background:#123d24;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:24px}
+.d-rotate .phone{font-size:64px;animation:rot 2.2s infinite ease-in-out}
+.d-rotate b{font-family:var(--display);font-size:28px}
+.d-rotate span{opacity:.85;font-weight:600;max-width:300px}
+@keyframes rot{0%,20%{transform:rotate(0)}50%,80%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+@media (orientation:portrait){
+  .duel:not(.force-portrait) .d-rotate{display:flex}
+  .duel .d-main{grid-template-columns:1fr 1fr;grid-template-rows:minmax(200px,1fr) auto}
+  .duel .d-field{grid-column:1/-1;grid-row:1}
+  .duel .d-left{grid-row:2;grid-column:1}.duel .d-right{grid-row:2;grid-column:2}
+  .duel .d-map .grid{grid-auto-rows:22px}
+  .duel .d-hud .d-vs,.duel .d-hud .d-chips{display:none}
+}
+@media (max-height:340px){.d-pace button span,.d-shots .shot span{font-size:9.5px}.d-shots .shot{font-size:20px;padding:4px 0}.d-bowlbtn{font-size:20px;padding:5px 0}.d-map .grid{grid-auto-rows:13px}}

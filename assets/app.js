@@ -71,7 +71,7 @@ async function api(action, data = {}) {
   try {
     r = await fetch('api.php?action=' + action, {
       method: 'POST', credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'CricScorer' },
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'CricScorer', 'X-App-Version': window.CS_VERSION || '' },
       body: JSON.stringify(data),
     });
   } catch (e) { throw new Error('No internet connection. Please try again.'); }
@@ -152,6 +152,11 @@ const ROUTES = [
   [/^#\/people(?:\?t=(\w+))?$/, viewPeople],
   [/^#\/user\/(\d+)\/(followers|following)$/, viewFollowList],
   [/^#\/user\/(\d+)$/, viewUser],
+  [/^#\/play$/, () => duel('lobby')],
+  [/^#\/play\/room\/(\d+)$/, code => duel('room', code)],
+  [/^#\/play\/join\/(\d+)$/, code => duel('join', code)],
+  [/^#\/admin$/, () => withScript('Admin', 'assets/admin.js').then(() => Admin.show())],
+  [/^#\/help$/, viewHelp],
   [/^#\/learn$/, () => academy('home')],
   [/^#\/learn\/lesson\/(\w+)$/, id => academy('lesson', id)],
   [/^#\/learn\/quiz\/(\w+)$/, id => academy('quiz', id)],
@@ -172,9 +177,31 @@ async function academy(fn, ...args) {
   await loadAcademy();
   return Academy[fn](...args);
 }
+/* Gully Duel and the admin portal load only when first opened */
+function withScript(name, src, css) {
+  if (window[name]) return Promise.resolve();
+  if (css && !document.querySelector(`link[data-css="${css}"]`)) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = css + '?v=' + (window.CS_VERSION || ''); l.dataset.css = css; document.head.appendChild(l); }
+  return new Promise((ok, bad) => {
+    const s = document.createElement('script');
+    s.src = src + '?v=' + (window.CS_VERSION || '');
+    s.onload = ok; s.onerror = () => bad(new Error('Could not load this page. Check your connection.'));
+    document.head.appendChild(s);
+  });
+}
+async function duel(fn, ...args) {
+  if (!S.user.features || !S.user.features.game) {
+    mount(topbar('Gully Duel', { back: true }) + `<div class="content"><div class="card empty"><div class="big">🎮</div><b>Coming soon!</b><br>Gully Duel is being tried out by a few players first. It will appear here when it's switched on for you.</div></div>`, 'more');
+    return;
+  }
+  if (!window.Duel) mount(topbar('Gully Duel', { back: true, refresh: false }) + `<div class="content">${sk(3)}</div>`, 'more');
+  await withScript('GE', 'assets/game-engine.js', 'assets/game.css');
+  await withScript('Duel', 'assets/game.js');
+  return Duel[fn](...args);
+}
 function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; }
 async function render() {
   clearTimers(); closeSheet();
+  if (window.Duel) Duel.leave();
   const h = location.hash || '#/';
   const tok = S.routeTok = (S.routeTok || 0) + 1;
   // Visitors who are not signed in see the home page (#landing) instead of a login box
@@ -382,10 +409,12 @@ async function viewHome() {
     <div class="cta"><button class="btn lime" onclick="go('#/match/new')">${I.plus} New Match</button><button class="btn ghost" onclick="go('#/tournaments')">${I.trophy} Tournaments</button></div></div>`;
   mount(hero + `<div class="content">${sk(3)}</div>`, 'home');
   const d = await api('home');
+  if (d.announcements) { S.extras = S.extras || {}; S.extras.announcements = d.announcements; }
   const install = S.deferredInstall ? `<div class="install-banner"><span style="font-size:28px">📲</span><div class="grow"><b>Install Cric-Scorer</b><div class="small muted">Add it to your home screen like an app</div></div><button class="btn sm" onclick="App.install()">Install</button></div>` : '';
   const sec = (t, list, more, empty) => `<div class="section"><h2>${t}</h2>${more ? `<a href="${more}">See all</a>` : ''}</div>` + (list.length ? list.map(matchCard).join('') : (empty || ''));
   mount(hero + `<div class="stats-row"><div class="stat"><b>${d.counts.matches}</b><span>My matches</span></div><div class="stat"><b>${d.counts.teams}</b><span>My teams</span></div><div class="stat"><b>${d.counts.tournaments}</b><span>My cups</span></div></div>
-    <div class="content">${install}
+    <div class="content">${announcementsHtml()}${install}
+    ${S.user.features && S.user.features.game ? `<div class="duel-tile" onclick="go('#/play')"><span class="ic">🎮</span><div class="grow"><b>Gully Duel</b><span>Bat vs bowl with a friend - or the computer!</span></div><span class="go">Play</span></div>` : ''}
     ${d.live.length ? sec('🔴 Live now', d.live, '#/matches') : ''}
     ${d.upcoming.length ? sec('Up next', d.upcoming) : ''}
     ${d.following && d.following.length ? sec('👥 From players you follow', d.following, '#/matches') : ''}
@@ -399,6 +428,18 @@ async function viewHome() {
       <div class="tile" style="grid-column:1/-1;background:linear-gradient(135deg,#fff7df,#ffeec2);color:#5b3d00" onclick="go('#/learn')"><span class="ic" style="background:#fff">🎓</span><div class="grow">Cricket Academy<div class="small" style="font-weight:700;opacity:.8">Lessons, quizzes & your certificate</div></div></div>
     </div></div>`, 'home');
 }
+/* Announcements from the admin, shown on Home until closed */
+function announcementsHtml() {
+  const list = (S.extras && S.extras.announcements) || [];
+  let gone = [];
+  try { gone = JSON.parse(localStorage.getItem('cs_news_closed') || '[]'); } catch (e) { /* private mode */ }
+  return list.filter(a => !gone.includes(a.id)).map(a => `<div class="news news-${esc(a.kind)}"><div class="grow"><b>${esc(a.title)}</b>${a.body ? `<div>${esc(a.body)}</div>` : ''}</div>
+    <button class="icon-btn" aria-label="Close" onclick="App.closeNews(${a.id}, this)">✕</button></div>`).join('');
+}
+App.closeNews = (id, btn) => {
+  try { const g = JSON.parse(localStorage.getItem('cs_news_closed') || '[]'); g.push(id); localStorage.setItem('cs_news_closed', JSON.stringify(g.slice(-50))); } catch (e) { /* private mode */ }
+  const el = btn.closest('.news'); if (el) el.remove();
+};
 App.install = async () => {
   if (!S.deferredInstall) return App.installHelp();
   S.deferredInstall.prompt();
@@ -1417,6 +1458,8 @@ function viewMore() {
       <div class="grow"><b style="font-size:18px">${esc(u.display_name)}</b><div class="small muted">@${esc(u.username)}${u.is_admin ? ' · Admin' : ''}${u.google ? ' · Google ✓' : ''}</div></div>
       <button class="btn sm light" onclick="event.stopPropagation();go('#/profile')">Edit</button></div>
     <div class="card flush list">
+      ${u.is_admin ? item('🛠️', 'Admin portal', 'Stats, roll-out, updates, help desk', "go('#/admin')") : ''}
+      ${u.features && u.features.game ? item('🎮', 'Gully Duel', 'Bat vs bowl - two phones, one phone or the computer', "go('#/play')") : ''}
       ${item('👥', 'Find players', 'Search, follow, and see your followers', "go('#/people')")}
       ${item('📊', 'Leaderboard', 'Top run scorers & wicket takers', "go('#/stats')")}
       ${item('⚙️', 'Match types', 'T20, ODI, Gully cricket & your own', "go('#/types')")}
@@ -1425,6 +1468,7 @@ function viewMore() {
       ${item('📲', 'Install app', 'Add Cric-Scorer to your home screen', 'App.installHelp()')}
       ${item('🔄', 'Update app', 'Version ' + esc(window.CS_VERSION || '') + (S.newVersion ? ' · new version ' + esc(S.newVersion) + ' available!' : ' · reload the latest code'), 'App.updateApp()')}
       ${item('ℹ️', 'About Cric-Scorer', 'How scoring works', 'App.about()')}
+      ${item('💬', 'Help & feedback' + (S.extras && S.extras.help_unread ? ' <span class="dot-new"></span>' : ''), S.extras && S.extras.help_unread ? 'You have a new reply!' : 'Ask a question, report a problem or share an idea', "go('#/help')")}
       ${item('🔐', 'Privacy Policy', 'What we keep and your rights', "location.href='privacy'")}
       ${item('📜', 'Terms of Use', 'The rules for using Cric-Scorer', "location.href='terms'")}
     </div>
@@ -1621,6 +1665,45 @@ App.findMeSearch = q => {
 App.linkPlayer = id => run(async () => { await quickSave({ player_id: id }); closeSheet(); toast(id ? "Linked! Your stats will show on your profile 📊" : 'Unlinked'); refreshProfileKeepForm(); });
 App.saveProfile = e => { e.preventDefault(); run(async () => { const r = await api('profile_save', formData(e.target)); S.user = r.user; toast('Profile saved'); go('#/more'); }, e.submitter); };
 
+/* ---------- Help & feedback (players write to the admin; replies show here) ---------- */
+async function viewHelp() {
+  mount(topbar('Help & feedback', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
+  const d = await api('help_list');
+  if (S.extras) S.extras.help_unread = 0;
+  const kinds = Object.entries(d.kinds);
+  mount(topbar('Help & feedback', { back: true }) + `<div class="content">
+    <div class="card"><b>Send us a message</b><div class="small muted" style="margin:2px 0 10px">Stuck, found a bug or have an idea? We read every message and reply here.</div>
+      <form onsubmit="App.helpSend(event)"><input type="hidden" name="kind" value="help">
+      <div class="chips wrap" data-for="kind" style="margin-bottom:10px">${kinds.map(([k, l], i) => `<button type="button" class="chip ${i === 0 ? 'on' : ''}" data-v="${k}" onclick="App.pickChip(this)">${esc(l)}</button>`).join('')}</div>
+      <textarea class="input" name="message" rows="4" maxlength="2000" placeholder="Tell us what happened, or what you'd like…" required></textarea>
+      <div class="small muted" style="margin:6px 2px 10px">🔒 Please don't write phone numbers, addresses or passwords.</div>
+      <button class="btn block">Send message</button></form></div>
+    ${d.tickets.length ? `<div class="section"><h2>Your messages</h2></div>` + d.tickets.map(t => `<div class="card help-t"><div class="row"><b>#${t.id}</b><span class="role-tag">${esc(t.kind_label)}</span><span class="grow"></span>
+        <span class="small ${t.status === 'answered' ? '' : 'muted'}" style="${t.status === 'answered' ? 'color:var(--pitch-3);font-weight:800' : ''}">${t.status === 'answered' ? '✅ Replied' : t.status === 'closed' ? 'Closed' : '⏳ Waiting for a reply'}</span></div>
+        ${t.msgs.map(m => `<div class="adm-msg ${m.from === 'support' ? 'support' : 'player'}"><div>${esc(m.body).replace(/\n/g, '<br>')}</div><span>${m.from === 'support' ? '🏏 Cric-Scorer team' : 'You'} · ${fmtDate(m.at)}</span></div>`).join('')}
+        ${t.status !== 'closed' ? `<form class="row" onsubmit="App.helpSend(event,${t.id})"><input class="input grow" name="message" placeholder="Reply…" maxlength="2000" required><button class="btn sm">Send</button></form>` : ''}</div>`).join('') : ''}
+  </div>`, 'more');
+}
+App.helpSend = (e, ticket) => {
+  e.preventDefault();
+  const f = formData(e.target);
+  if (ticket) f.ticket_id = ticket;
+  run(async () => { await api('help_send', f); toast(ticket ? 'Sent ✓' : 'Thanks! We\'ll reply here soon 💬'); viewHelp(); }, e.submitter);
+};
+
+/* ---------- Crash reports: the admin sees them under Errors (no personal details) ---------- */
+function initErrorReports() {
+  let sent = 0;
+  const report = (where, message) => {
+    if (sent >= 5 || !message || /Script error|ResizeObserver|Load failed|NetworkError|Failed to fetch/i.test(message)) return;
+    sent++;
+    fetch('api.php?action=client_error', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'CricScorer', 'X-App-Version': window.CS_VERSION || '' },
+      body: JSON.stringify({ where: (where || location.hash.split('/').slice(0, 2).join('/') || 'app').slice(0, 40), message: String(message).slice(0, 500) }) }).catch(() => {});
+  };
+  window.addEventListener('error', e => report(location.hash.replace(/\d+/g, 'N').slice(0, 40), (e.message || '') + (e.filename ? ' @ ' + e.filename.split('/').pop().split('?')[0] + ':' + e.lineno : '')));
+  window.addEventListener('unhandledrejection', e => { const r = e.reason; if (r && (r.stale || /No internet/.test(r.message))) return; report(location.hash.replace(/\d+/g, 'N').slice(0, 40), r && r.message ? r.message : String(r)); });
+}
+
 /* ---------- Refresh, pull-to-refresh & app updates ---------- */
 App.refresh = async () => {
   if (S.refreshing) return;
@@ -1628,15 +1711,18 @@ App.refresh = async () => {
   document.querySelectorAll('.refresh-btn').forEach(b => b.classList.add('spin'));
   try {
     const me = await api('me');
-    checkVersion(me.version);
+    S.extras = me; if (me.user) S.user = me.user;
+    checkVersion(me.version, me.force_version);
     await render();
     if (!S.newVersion) toast('Updated ✓');
   } catch (e) { toast(e.message, true); }
   finally { S.refreshing = false; document.querySelectorAll('.refresh-btn').forEach(b => b.classList.remove('spin')); }
 };
-function checkVersion(v) {
+function checkVersion(v, force) {
   if (!v || !window.CS_VERSION || v === window.CS_VERSION || S.newVersion === v) return;
   S.newVersion = v;
+  // The admin asked everyone to move to this version: update straight away (but never in the middle of a game)
+  if (force && force === v && !document.getElementById('duel')) { toast(`Updating to version ${v}…`); setTimeout(() => App.updateApp(), 900); return; }
   const bar = document.createElement('div');
   bar.className = 'update-bar';
   bar.innerHTML = `<span>🎉 New version ${esc(v)} is ready</span><button onclick="App.updateApp()">Update now</button>`;
@@ -1655,7 +1741,7 @@ function initPullToRefresh() {
   let startY = null, pull = 0;
   const reset = () => { ptr.style.transform = ''; ptr.classList.remove('ready', 'show'); startY = null; pull = 0; };
   window.addEventListener('touchstart', e => {
-    if (window.scrollY > 0 || $('#sheet-root').children.length || e.touches.length !== 1) { startY = null; return; }
+    if (window.scrollY > 0 || $('#sheet-root').children.length || e.touches.length !== 1 || document.body.classList.contains('duel-open')) { startY = null; return; }
     startY = e.touches[0].clientY; pull = 0;
   }, { passive: true });
   window.addEventListener('touchmove', e => {
@@ -1805,9 +1891,10 @@ App.removeFollower = id => confirmSheet('Remove follower?', 'They will stop foll
 /* ---------- Boot ---------- */
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.deferredInstall = e; });
 (async function boot() {
-  try { const me = await api('me'); S.user = me.user; S.auth = me.auth || null; checkVersion(me.version); } catch (e) { /* offline */ }
+  try { const me = await api('me'); S.user = me.user; S.auth = me.auth || null; S.extras = me; checkVersion(me.version, me.force_version); } catch (e) { /* offline */ }
+  initErrorReports();
   initPullToRefresh();
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) api('me').then(r => checkVersion(r.version)).catch(() => {}); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) api('me').then(r => { S.extras = r; if (r.user) S.user = r.user; checkVersion(r.version, r.force_version); }).catch(() => {}); });
   window.addEventListener('hashchange', () => { navDepth++; render(); });
   await render();
   const sp = $('#splash');
