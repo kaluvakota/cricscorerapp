@@ -9,7 +9,7 @@ $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'CricScorer') fail('Bad request', 400);
-    $public = ['login', 'register', 'me', 'match_get'];
+    $public = ['login', 'register', 'me', 'match_get', 'google_login'];
     ensure_schema();
     $u = current_user();
     if (!in_array($action, $public, true) && !$u) fail('Please log in', 401);
@@ -29,7 +29,7 @@ function handle(string $action, array $in, ?array $u) {
 
     /* ===== Auth ===== */
     case 'me':
-        return ['user' => $u ? public_user($u) : null, 'version' => APP_VERSION];
+        return ['user' => $u ? public_user($u) : null, 'version' => APP_VERSION, 'auth' => auth_public_config()];
 
     case 'register': {
         $un = strtolower(str_in($in, 'username', 50));
@@ -38,6 +38,7 @@ function handle(string $action, array $in, ?array $u) {
         if (!preg_match('/^[a-z0-9_.]{3,30}$/', $un)) fail('Username: 3–30 letters, numbers, dot or underscore');
         if (strlen($pw) < 6) fail('Password must be at least 6 characters');
         if (val('SELECT 1 FROM users WHERE username=?', [$un])) fail('That username is taken');
+        recaptcha_check($in, 'register');
         $first = !val('SELECT 1 FROM users LIMIT 1');
         q('INSERT INTO users (username, password_hash, display_name, is_admin) VALUES (?,?,?,?)', [$un, password_hash($pw, PASSWORD_DEFAULT), $dn, $first ? 1 : 0]);
         $nu = row('SELECT * FROM users WHERE id=?', [lastId()]);
@@ -46,12 +47,21 @@ function handle(string $action, array $in, ?array $u) {
     }
 
     case 'login': {
+        recaptcha_check($in, 'login');
         $un = strtolower(str_in($in, 'username', 50));
         $nu = row('SELECT * FROM users WHERE username=?', [$un]);
+        if ($nu && (string)$nu['password_hash'] === '' && !empty($nu['google_sub'])) fail('This player signs in with Google — tap "Sign in with Google"');
         if (!$nu || !password_verify((string)($in['password'] ?? ''), $nu['password_hash'])) { usleep(600000); fail('Wrong username or password'); }
         login_user($nu, !isset($in['remember']) || $in['remember']);
         return ['user' => public_user($nu)];
     }
+
+    case 'google_login':
+        return google_login($in);
+    case 'google_link':
+        return google_link($u, $in);
+    case 'google_unlink':
+        return google_unlink($u);
 
     case 'logout':
         clear_remember_token();
@@ -64,7 +74,7 @@ function handle(string $action, array $in, ?array $u) {
         if ($dn === '') fail('Enter a name');
         q('UPDATE users SET display_name=? WHERE id=?', [$dn, $u['id']]);
         if (!empty($in['new_password'])) {
-            if (!password_verify((string)($in['current_password'] ?? ''), $u['password_hash'])) fail('Current password is wrong');
+            if ((string)$u['password_hash'] !== '' && !password_verify((string)($in['current_password'] ?? ''), $u['password_hash'])) fail('Current password is wrong');
             if (strlen($in['new_password']) < 6) fail('New password must be at least 6 characters');
             q('UPDATE users SET password_hash=? WHERE id=?', [password_hash($in['new_password'], PASSWORD_DEFAULT), $u['id']]);
         }

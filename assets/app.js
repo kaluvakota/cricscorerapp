@@ -180,39 +180,150 @@ async function render() {
   go('#/');
 }
 
-/* ---------- Auth ---------- */
+/* ---------- Auth: username/password, Sign in with Google, reCAPTCHA ---------- */
+const scriptCache = {};
+function loadScript(src) {
+  if (!scriptCache[src]) scriptCache[src] = new Promise((ok, bad) => {
+    const el = document.createElement('script');
+    el.src = src; el.async = true; el.defer = true;
+    el.onload = ok; el.onerror = () => { delete scriptCache[src]; bad(new Error('Could not load ' + new URL(src).hostname)); };
+    document.head.appendChild(el);
+  });
+  return scriptCache[src];
+}
+const darkMode = () => window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+const iosStandalone = () => window.navigator.standalone === true;
+
+/* Google Identity Services: one initialise, callback routed to login or link */
+let gisReady = null;
+function initGoogle() {
+  const cid = S.auth && S.auth.google_client_id;
+  if (!cid) return Promise.reject(new Error('Google sign-in is off'));
+  if (!gisReady) gisReady = loadScript('https://accounts.google.com/gsi/client').then(() => {
+    const opts = { client_id: cid, callback: r => App.onGoogle(r), auto_select: false, cancel_on_tap_outside: true, itp_support: true };
+    if (iosStandalone()) { opts.ux_mode = 'redirect'; opts.login_uri = location.origin + location.pathname.replace(/[^/]*$/, '') + 'google-callback.php'; }
+    google.accounts.id.initialize(opts);
+  }).catch(e => { gisReady = null; throw e; });
+  return gisReady;
+}
+async function renderGoogleButton(id, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  try {
+    await initGoogle();
+    if (!document.getElementById(id)) return;
+    el.innerHTML = '';
+    const w = Math.max(220, Math.min(400, Math.floor(el.getBoundingClientRect().width || 300)));
+    google.accounts.id.renderButton(el, { type: 'standard', theme: darkMode() ? 'filled_black' : 'outline', size: 'large', text, shape: 'pill', logo_alignment: 'left', width: w });
+  } catch (e) {
+    el.innerHTML = `<div class="small muted" style="text-align:center">Google sign-in could not load. Check your internet connection.</div>`;
+  }
+}
+App.onGoogle = resp => {
+  if (!resp || !resp.credential) return toast('Google sign-in was cancelled', true);
+  const linking = S.gMode === 'link';
+  run(async () => {
+    const r = await api(linking ? 'google_link' : 'google_login', { credential: resp.credential });
+    S.user = r.user;
+    if (linking) { toast('Google account linked ✓'); viewProfile(); return; }
+    toast(r.created ? `Welcome to Cric-Scorer, ${r.user.display_name}! 🎉` : `Welcome back, ${r.user.display_name}! 👋`);
+    const a = S.after; S.after = null; go(a && !/^#\/(login|register)/.test(a) ? a : '#/');
+  });
+};
+
+/* reCAPTCHA v2 (tick box) or v3 (invisible) */
+let capLoad = null;
+function loadCaptcha() {
+  const rc = S.auth && S.auth.recaptcha;
+  if (!rc) return Promise.resolve(null);
+  if (!capLoad) capLoad = (rc.version === 'v3'
+      ? loadScript('https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(rc.site_key))
+      : new Promise((ok, bad) => { window.__capReady = ok; loadScript('https://www.google.com/recaptcha/api.js?render=explicit&onload=__capReady').catch(bad); })
+    ).then(() => new Promise(ok => grecaptcha.ready(ok))).catch(e => { capLoad = null; throw e; });
+  return capLoad;
+}
+async function renderCaptcha() {
+  const rc = S.auth && S.auth.recaptcha, el = document.getElementById('cap');
+  S.capId = null;
+  if (!rc || !el) return;
+  if (rc.version === 'v3') { el.innerHTML = '<div class="cap-note">Protected by reCAPTCHA · Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> & <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a></div>'; loadCaptcha().catch(() => {}); return; }
+  el.innerHTML = '<div class="small muted">Loading security check…</div>';
+  try {
+    await loadCaptcha();
+    const box = document.getElementById('cap');
+    if (!box) return;
+    box.innerHTML = '';
+    const holder = document.createElement('div'); box.appendChild(holder);
+    S.capId = grecaptcha.render(holder, { sitekey: rc.site_key, theme: darkMode() ? 'dark' : 'light', size: box.getBoundingClientRect().width < 304 ? 'compact' : 'normal' });
+  } catch (e) {
+    el.innerHTML = '<div class="small" style="color:var(--red)">Security check could not load. Check your internet and refresh.</div>';
+  }
+}
+async function captchaToken(action) {
+  const rc = S.auth && S.auth.recaptcha;
+  if (!rc) return '';
+  if (rc.version === 'v3') { await loadCaptcha(); return await grecaptcha.execute(rc.site_key, { action }); }
+  const t = S.capId !== null && window.grecaptcha ? grecaptcha.getResponse(S.capId) : '';
+  if (!t) throw new Error('Please tick "I\'m not a robot"');
+  return t;
+}
+function resetCaptcha() { try { if (S.capId !== null && window.grecaptcha) grecaptcha.reset(S.capId); } catch (e) { /* ignore */ } }
+
 function authPage(inner) {
   return `<div class="auth">${LOGO}<h1>Cric-Scorer</h1><div class="tag">by Aaryush</div>${inner}<span class="seam">● ● ● LIVE CRICKET SCORING ● ● ●</span></div>`;
 }
+function googleBlock(id, signup) {
+  if (!S.auth || !S.auth.google_client_id || (signup && !S.auth.google_signup)) return '';
+  return `<div id="${id}" class="gbtn"></div><div class="or"><span>or ${signup ? 'make a username' : 'use your username'}</span></div>`;
+}
 function viewLogin() {
   if (S.user) return go('#/');
+  S.gMode = 'login';
   mount(authPage(`<form class="panel" onsubmit="App.login(event)"><h2>Welcome back! 👋</h2>
+    ${googleBlock('gbtn', false)}
     <div class="field"><label>Username</label><input class="input" name="username" autocapitalize="none" autocomplete="username" required></div>
     <div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="current-password" required></div>
+    <div id="cap" class="cap"></div>
     <button class="btn block">Let's play 🏏</button></form>
     <div class="switch-link">New player? <a href="#/register">Create an account</a></div>`), null);
+  renderGoogleButton('gbtn', 'signin_with'); renderCaptcha();
 }
 function viewRegister() {
   if (S.user) return go('#/');
+  S.gMode = 'login';
   mount(authPage(`<form class="panel" onsubmit="App.register(event)"><h2>Join the team 🏆</h2>
+    ${googleBlock('gbtn', true)}
     <div class="field"><label>Your name</label><input class="input" name="display_name" placeholder="e.g. Aarush" required></div>
     <div class="field"><label>Username</label><input class="input" name="username" autocapitalize="none" autocomplete="username" placeholder="letters & numbers" required></div>
     <div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="new-password" minlength="6" required></div>
     <div class="field"><label>Confirm password</label><input class="input" type="password" name="password2" autocomplete="new-password" required></div>
+    <div id="cap" class="cap"></div>
     <button class="btn block">Create account</button></form>
     <div class="switch-link">Already have an account? <a href="#/login">Log in</a></div>`), null);
+  renderGoogleButton('gbtn', 'signup_with'); renderCaptcha();
 }
 App.login = e => {
   e.preventDefault();
-  run(async () => { const r = await api('login', formData(e.target)); S.user = r.user; const a = S.after; S.after = null; go(a && a !== '#/login' ? a : '#/'); }, e.submitter);
+  const f = formData(e.target);
+  run(async () => {
+    try {
+      f.captcha = await captchaToken('login');
+      const r = await api('login', f); S.user = r.user; const a = S.after; S.after = null; go(a && a !== '#/login' ? a : '#/');
+    } catch (err) { resetCaptcha(); throw err; }
+  }, e.submitter);
 };
 App.register = e => {
   e.preventDefault();
   const f = formData(e.target);
   if (f.password !== f.password2) return toast('Passwords do not match', true);
-  run(async () => { const r = await api('register', f); S.user = r.user; toast('Welcome, ' + r.user.display_name + '! 🎉'); go('#/'); }, e.submitter);
+  run(async () => {
+    try {
+      f.captcha = await captchaToken('register');
+      const r = await api('register', f); S.user = r.user; toast('Welcome, ' + r.user.display_name + '! 🎉'); go('#/');
+    } catch (err) { resetCaptcha(); throw err; }
+  }, e.submitter);
 };
-App.logout = () => run(async () => { await api('logout'); S.user = null; go('#/login'); });
+App.logout = () => run(async () => { await api('logout'); S.user = null; try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) { /* ignore */ } go('#/login'); });
 
 /* ---------- Match card ---------- */
 function matchCard(m) {
@@ -1243,8 +1354,8 @@ function viewMore() {
   const u = S.user;
   const item = (ic, t, s, fn) => `<div class="item" onclick="${fn}"><span class="tile ic" style="box-shadow:none;padding:0;width:38px;height:38px;justify-content:center">${ic}</span><div class="grow"><div class="t">${t}</div>${s ? `<div class="s">${s}</div>` : ''}</div><span class="chev">${I.chev}</span></div>`;
   mount(topbar('More') + `<div class="content">
-    <div class="card row"><span class="avatar" style="width:52px;height:52px;font-size:20px;background:var(--pitch);color:#fff">${esc(u.display_name.slice(0, 1).toUpperCase())}</span>
-      <div class="grow"><b style="font-size:18px">${esc(u.display_name)}</b><div class="small muted">@${esc(u.username)}${u.is_admin ? ' · Admin' : ''}</div></div>
+    <div class="card row">${u.avatar ? `<img src="${esc(u.avatar)}" alt="" class="gavatar" style="width:52px;height:52px" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : `<span class="avatar" style="width:52px;height:52px;font-size:20px;background:var(--pitch);color:#fff">${esc(u.display_name.slice(0, 1).toUpperCase())}</span>`}
+      <div class="grow"><b style="font-size:18px">${esc(u.display_name)}</b><div class="small muted">@${esc(u.username)}${u.is_admin ? ' · Admin' : ''}${u.google ? ' · Google ✓' : ''}</div></div>
       <button class="btn sm light" onclick="go('#/profile')">Edit</button></div>
     <div class="card flush list">
       ${item('📊', 'Leaderboard', 'Top run scorers & wicket takers', "go('#/stats')")}
@@ -1283,15 +1394,26 @@ App.typeForm = id => {
 App.saveType = (e, id) => { e.preventDefault(); run(async () => { const f = formData(e.target); f.id = id; await api('type_save', f); closeSheet(); toast('Saved'); render(); }, e.submitter); };
 App.deleteType = id => run(async () => { await api('type_delete', { id }); closeSheet(); render(); });
 function viewProfile() {
-  const u = S.user;
+  const u = S.user, gOn = S.auth && S.auth.google_client_id;
+  const gCard = !gOn && !u.google ? '' : `<div class="section"><h2>Google account</h2></div><div class="card">
+      ${u.google ? `<div class="row">${u.avatar ? `<img src="${esc(u.avatar)}" alt="" class="gavatar" referrerpolicy="no-referrer" onerror="this.style.visibility='hidden'">` : '<span class="avatar">G</span>'}
+          <div class="grow"><b>Linked ✓</b><div class="small muted ellipsis">${esc(u.email || '')}</div></div>
+          ${u.has_password ? `<button type="button" class="btn sm light" onclick="App.unlinkGoogle()">Unlink</button>` : ''}</div>
+          <div class="small muted" style="margin-top:8px">You can sign in with one tap using "Sign in with Google".${u.has_password ? '' : ' Set a password below if you also want to log in with your username.'}</div>`
+        : `<div class="small muted" style="margin-bottom:10px">Link your Gmail so you can sign in with one tap — no password to remember.</div><div id="glink" class="gbtn"></div>`}
+    </div>`;
   mount(topbar('My Profile', { back: true }) + `<form class="content" onsubmit="App.saveProfile(event)"><div class="card">
     <div class="field"><label>Display name</label><input class="input" name="display_name" value="${esc(u.display_name)}" required></div>
     <div class="field"><label>Username</label><input class="input" value="${esc(u.username)}" disabled></div></div>
-    <div class="section"><h2>Change password</h2></div><div class="card">
-    <div class="field"><label>Current password</label><input class="input" type="password" name="current_password" autocomplete="current-password"></div>
+    ${gCard}
+    <div class="section"><h2>${u.has_password ? 'Change password' : 'Set a password (optional)'}</h2></div><div class="card">
+    ${u.has_password ? `<div class="field"><label>Current password</label><input class="input" type="password" name="current_password" autocomplete="current-password"></div>` : ''}
     <div class="field"><label>New password</label><input class="input" type="password" name="new_password" minlength="6" autocomplete="new-password"></div></div>
     <button class="btn block">Save</button></form>`, 'more');
+  if (gOn && !u.google) { S.gMode = 'link'; renderGoogleButton('glink', 'continue_with'); }
 }
+App.unlinkGoogle = () => confirmSheet('Unlink Google?', 'You will log in with your username and password instead.', 'Unlink', () =>
+  run(async () => { const r = await api('google_unlink'); S.user = r.user; closeSheet(); toast('Google account unlinked'); viewProfile(); }));
 App.saveProfile = e => { e.preventDefault(); run(async () => { const r = await api('profile_save', formData(e.target)); S.user = r.user; toast('Profile saved'); go('#/more'); }, e.submitter); };
 
 /* ---------- Refresh, pull-to-refresh & app updates ---------- */
@@ -1352,7 +1474,7 @@ function initPullToRefresh() {
 /* ---------- Boot ---------- */
 window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); S.deferredInstall = e; });
 (async function boot() {
-  try { const me = await api('me'); S.user = me.user; checkVersion(me.version); } catch (e) { /* offline */ }
+  try { const me = await api('me'); S.user = me.user; S.auth = me.auth || null; checkVersion(me.version); } catch (e) { /* offline */ }
   initPullToRefresh();
   document.addEventListener('visibilitychange', () => { if (!document.hidden) api('me').then(r => checkVersion(r.version)).catch(() => {}); });
   window.addEventListener('hashchange', () => { navDepth++; render(); });

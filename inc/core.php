@@ -2,6 +2,7 @@
 /* Cric-Scorer — core helpers: database, JSON output, authentication */
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/version.php';
+require_once __DIR__ . '/google.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 
@@ -50,6 +51,10 @@ function ensure_schema(): void {
     static $done = false;
     if ($done) return;
     $done = true;
+    if (!val("SHOW COLUMNS FROM users LIKE 'google_sub'")) {
+        db()->exec("ALTER TABLE users ADD COLUMN email VARCHAR(190) NULL AFTER display_name, ADD COLUMN google_sub VARCHAR(64) NULL AFTER email,
+                    ADD COLUMN avatar_url VARCHAR(255) NULL AFTER google_sub, ADD UNIQUE KEY uniq_google_sub (google_sub), ADD INDEX idx_email (email)");
+    }
     if (!val("SHOW TABLES LIKE 'academy_progress'")) {
         db()->exec("CREATE TABLE IF NOT EXISTS academy_progress (
             user_id INT NOT NULL, lesson_id VARCHAR(20) NOT NULL, best_correct INT NOT NULL DEFAULT 0, total INT NOT NULL DEFAULT 0,
@@ -82,7 +87,9 @@ function start_session(): void {
 }
 
 function public_user(array $u): array {
-    return ['id' => (int)$u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'], 'is_admin' => (bool)$u['is_admin']];
+    return ['id' => (int)$u['id'], 'username' => $u['username'], 'display_name' => $u['display_name'], 'is_admin' => (bool)$u['is_admin'],
+            'email' => $u['email'] ?? null, 'google' => !empty($u['google_sub']), 'avatar' => $u['avatar_url'] ?? null,
+            'has_password' => (string)($u['password_hash'] ?? '') !== ''];
 }
 
 function current_user(): ?array {

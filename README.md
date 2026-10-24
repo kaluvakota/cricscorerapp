@@ -62,6 +62,15 @@ config.php       database config  inc/          scoring engine  assets/       ap
 manifest.json    PWA manifest     sw.js         offline cache   sql/          schema + seed data
 ```
 
+## Sign in with Google & reCAPTCHA (optional)
+All keys go in `config.local.php` (see `config.local.sample.php`). Leave a key empty to keep that feature off.
+- **Google:** Google Cloud Console → APIs & Services → Credentials → *OAuth client ID* → *Web application* →
+  Authorised JavaScript origins `https://cricscorerapp.com` (plus any other domain you use) → put the Client ID in
+  `GOOGLE_CLIENT_ID`. No client secret is needed. Players can also link Google later in *More → My Profile*.
+- **reCAPTCHA:** https://www.google.com/recaptcha/admin/create → v2 "I'm not a robot" Checkbox (or v3) → add your
+  domains → put the keys in `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` and set `RECAPTCHA_VERSION` to match.
+- The server checks every Google sign-in and every captcha with Google, so it needs outbound HTTPS (normal on Hostinger).
+
 ## Keeping your password out of Git
 Real database settings live in `config.local.php`, which is listed in `.gitignore` and blocked from the web
 by `.htaccess`. `config.php` (in Git) only has placeholders and loads `config.local.php` when it exists, so a

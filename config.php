@@ -21,6 +21,17 @@ defined('DB_PASS')     || define('DB_PASS', 'change_me');
 defined('APP_NAME')    || define('APP_NAME', 'Cric-Scorer');
 defined('APP_TAGLINE') || define('APP_TAGLINE', 'by Aaryush');
 
+// Sign in with Google — paste your OAuth "Web application" Client ID in config.local.php ('' = off)
+defined('GOOGLE_CLIENT_ID')     || define('GOOGLE_CLIENT_ID', '');
+// true = anyone with a Google account can create a new player; false = Google only for players who linked it
+defined('GOOGLE_ALLOW_SIGNUP')  || define('GOOGLE_ALLOW_SIGNUP', true);
+
+// Google reCAPTCHA on login and registration ('' = off). Version 'v2' = "I'm not a robot" tick box, 'v3' = invisible.
+defined('RECAPTCHA_SITE_KEY')   || define('RECAPTCHA_SITE_KEY', '');
+defined('RECAPTCHA_SECRET_KEY') || define('RECAPTCHA_SECRET_KEY', '');
+defined('RECAPTCHA_VERSION')    || define('RECAPTCHA_VERSION', 'v2');
+defined('RECAPTCHA_MIN_SCORE')  || define('RECAPTCHA_MIN_SCORE', 0.5);   // v3 only: 0.0 (bot) … 1.0 (human)
+
 // Set to true only while troubleshooting — shows database error details.
 defined('DEBUG')       || define('DEBUG', false);
 

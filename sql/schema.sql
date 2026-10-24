@@ -24,8 +24,13 @@ CREATE TABLE users (
   username VARCHAR(50) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   display_name VARCHAR(100) NOT NULL,
+  email VARCHAR(190) NULL,
+  google_sub VARCHAR(64) NULL,
+  avatar_url VARCHAR(255) NULL,
   is_admin TINYINT(1) NOT NULL DEFAULT 0,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_google_sub (google_sub),
+  INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE user_tokens (
