@@ -38,9 +38,11 @@ Made for Aarush & Aayush.
 - **Privacy Policy & Terms** (`/privacy`, `/terms`) written for India's DPDP Act, a required consent tick box at sign-up
   (also for new Google sign-ups), and *Delete my account* in My Profile.
 
-- **Gully Duel** - a bat-vs-bowl game: the bowler picks pace and a spot on the pitch and releases on an accuracy
-  meter; the batter picks a shot and times it as the ball arrives. Two phones online (4-digit code), two players on
-  one phone held sideways, or vs the computer. Rules: `assets/game-engine.js` (phones) and `inc/game.php` (server) -
+- **Gully Duel** - a bat-vs-bowl game in the style of Cricket League, played in landscape from behind the batter.
+  Bowler: Fast / Swing / Spin (In, Straight, Out), drag the landing circle, stop the power bar in the blue (red =
+  no-ball and a free hit). Batter: swipe the direction to hit as the ball arrives (short = ground, long = air, tap =
+  block), graded by a timing bar; fielders, catches and gaps decide the runs. Practice nets, vs the computer, two
+  players on one phone, or two phones online (4-digit code). Rules: `assets/game-engine.js` (phones) and `inc/game.php` (server) -
   check they still match with `node tools/test_game_parity.js | php tools/test_game_parity.php`.
 - **Admin portal** (More → Admin portal, admin account only) - totals and charts only, never names or emails:
   players joined/active, devices, app versions, matches, games, Academy; **Roll-out** (switch features off, on for

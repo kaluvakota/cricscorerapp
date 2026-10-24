@@ -1,30 +1,15 @@
 <?php
-/* Cric-Scorer · Gully Duel - bat vs bowl on two phones.
+/* Cric-Scorer · Gully Duel - bat vs bowl on two phones (Cricket League style: swipe to bat, marker + power bar to bowl).
    The rules are a line-by-line copy of assets/game-engine.js (tools/test_game_parity.php keeps them identical). */
 
-const GE_PACES = ['fast', 'medium', 'spin'];
-const GE_SHOTS = ['defend', 'drive', 'cut', 'pull', 'sweep', 'loft'];
-const GE_TRAVEL = ['fast' => 950, 'medium' => 1150, 'spin' => 1400];
-const GE_FIT = [
-    'defend' => [0.75, 0.8, 0.9, 0.6, 0.45, 0.8],
-    'drive' => [0.3, 0.95, 0.6, 0.2, 0.05, 1],
-    'cut' => [0.05, 0.3, 0.6, 0.95, 0.5, 0.5],
-    'pull' => [0.05, 0.15, 0.45, 0.95, 0.8, 0.6],
-    'sweep' => [0.2, 0.8, 0.65, 0.15, 0, 0.6],
-    'loft' => [0.15, 0.9, 0.5, 0.3, 0.4, 1],
+const GE_TRAVEL = [880, 1000, 1200];
+const GE_FIELDS = [
+    [[150, 0.24, 'Slip'], [125, 0.3, 'Gully'], [98, 0.52, 'Point'], [55, 0.55, 'Cover'], [16, 0.48, 'Mid-off'], [-16, 0.48, 'Mid-on'], [-60, 0.55, 'Mid-wicket'], [-98, 0.52, 'Square leg'], [-155, 0.92, 'Fine leg']],
+    [[150, 0.24, 'Slip'], [98, 0.52, 'Point'], [55, 0.55, 'Cover'], [16, 0.48, 'Mid-off'], [-16, 0.48, 'Mid-on'], [-60, 0.55, 'Mid-wicket'], [-98, 0.52, 'Square leg'], [155, 0.92, 'Third man'], [-25, 0.93, 'Long-on']],
+    [[150, 0.2, 'Slip'], [95, 0.5, 'Point'], [50, 0.55, 'Cover'], [15, 0.5, 'Mid-off'], [-15, 0.5, 'Mid-on'], [-55, 0.55, 'Mid-wicket'], [-95, 0.92, 'Deep square leg'], [25, 0.93, 'Long-off'], [-28, 0.93, 'Long-on']],
 ];
-const GE_LINE_FIT = [
-    'defend' => [0.9, 1, 1, 1], 'drive' => [0.8, 1, 0.9, 0.75], 'cut' => [1, 0.9, 0.5, 0.2],
-    'pull' => [0.35, 0.6, 0.9, 1], 'sweep' => [0.4, 0.7, 0.9, 1], 'loft' => [0.7, 0.9, 1, 0.9],
-];
-const GE_PACE_FIT = [
-    'defend' => [1, 1, 1], 'drive' => [0.95, 1, 0.95], 'cut' => [1, 1, 0.9], 'pull' => [1, 0.95, 0.85], 'sweep' => [0.5, 0.8, 1.15], 'loft' => [0.85, 1, 1.05],
-];
-const GE_POWER = ['defend' => 0.3, 'drive' => 0.82, 'cut' => 0.78, 'pull' => 0.88, 'sweep' => 0.74, 'loft' => 1.15];
-const GE_RISK = ['defend' => 0.01, 'drive' => 0.05, 'cut' => 0.06, 'pull' => 0.07, 'sweep' => 0.07, 'loft' => 0.13];
-const GE_DIR = ['defend' => 5, 'drive' => 25, 'cut' => 80, 'pull' => -70, 'sweep' => -95, 'loft' => 10];
-const GE_ZONE = ['defend' => 'back down the pitch', 'drive' => 'through the covers', 'cut' => 'past point', 'pull' => 'over midwicket', 'sweep' => 'to fine leg', 'loft' => 'over long-on'];
-const GE_T_FACTOR = ['perfect' => 1, 'good' => 0.8, 'early' => 0.45, 'late' => 0.45, 'miss' => 0.1];
+const GE_RAD = 0.0174533;
+const GE_CONTACT = ['perfect' => 1, 'good' => 0.86, 'ok' => 0.68, 'early' => 0.45, 'late' => 0.45, 'miss' => 0];
 
 function ge_imul(int $a, int $b): int {      // 32-bit multiply, like JavaScript's Math.imul
     return (((($a >> 16) * $b) & 0xFFFF) << 16) + ($a & 0xFFFF) * $b & 0xFFFFFFFF;
@@ -40,101 +25,157 @@ function ge_rng(int $seed): Closure {        // mulberry32
     };
 }
 function ge_clamp($v, $lo, $hi) { return $v < $lo ? $lo : ($v > $hi ? $hi : $v); }
+function ge_r3(float $v): float { return floor($v * 1000 + 0.5) / 1000; }
+function ge_quality(float $v): string { $e = abs($v - 0.5) * 2; return $e <= 0.12 ? 'perfect' : ($e <= 0.4 ? 'good' : ($e <= 0.85 ? 'ok' : 'noball')); }
 
-function ge_deliver(int $pace, int $line, int $length, float $e): array {
-    $d = ['pace' => isset(GE_PACES[$pace]) ? $pace : 1, 'line' => ge_clamp($line, 0, 3), 'length' => ge_clamp($length, 0, 4), 'wide' => false, 'acc' => 'perfect'];
-    $a = abs($e);
-    if ($a > 0.85) {
-        if ($e > 0) { $d['wide'] = true; $d['acc'] = 'wide'; $d['line'] = 0; }
-        else { $d['length'] = 5; $d['acc'] = 'fulltoss'; }
-    } elseif ($a > 0.25) {
-        $d['acc'] = 'off';
-        $d['length'] = ge_clamp($d['length'] + ($e > 0 ? 1 : -1), 0, 4);
-    } elseif ($a > 0.1) $d['acc'] = 'good';
-    $d['travel'] = GE_TRAVEL[GE_PACES[$d['pace']]];
-    return $d;
+function ge_deliver(int $type, int $varn, float $x, float $l, float $v, int $seed): array {
+    $type = ge_clamp($type, 0, 2); $varn = $type === 0 ? 0 : ge_clamp($varn, -1, 1);
+    $r = ge_rng($seed); $q = ge_quality(ge_clamp($v, 0, 1));
+    $sc = ['perfect' => 0.03, 'good' => 0.08, 'ok' => 0.16, 'noball' => 0.1][$q];
+    $lx = ge_r3(ge_clamp($x + ($r() - 0.5) * 2 * $sc, -1.6, 1.6));
+    $ll = ge_r3(ge_clamp($l + ($r() - 0.5) * 1.6 * $sc, 0, 1));
+    $amt = $varn * ($type === 1 ? 0.35 : 0.45) * ($q === 'perfect' ? 1.25 : ($q === 'good' ? 1 : 0.7));
+    $fx = ge_r3($lx + ($type === 2 ? $amt : $amt * 0.4));
+    $travel = (int)floor(GE_TRAVEL[$type] * ($q === 'perfect' ? 0.94 : ($q === 'good' ? 1 : 1.05)) + 0.5);
+    return ['type' => $type, 'varn' => $varn, 'x' => $lx, 'l' => $ll, 'fx' => $fx, 'swing' => ge_r3($amt), 'q' => $q, 'travel' => $travel, 'wide' => abs($lx) > 1.3, 'noball' => $q === 'noball'];
 }
 
-function ge_timing(?string $shot, float $delta): string {
-    if (!$shot || $shot === 'leave') return 'leave';
-    $a = abs($delta);
-    if ($a <= 70) return 'perfect';
-    if ($a <= 150) return 'good';
-    if ($a <= 280) return $delta < 0 ? 'early' : 'late';
+function ge_timing(array $d, array $shot): string {
+    if (($shot['k'] ?? 'none') === 'none') return 'leave';
+    $w = 1;
+    if ($d['l'] < 0.16) $w *= 0.75;
+    if ($d['l'] > 0.84) $w *= 0.9;
+    if ($d['q'] === 'perfect') $w *= 0.85;
+    $dt = (float)($shot['dt'] ?? 0);
+    $a = abs($dt) / $w;
+    if ($a <= 60) return 'perfect';
+    if ($a <= 125) return 'good';
+    if ($a <= 210) return 'ok';
+    if ($a <= 380) return $dt < 0 ? 'early' : 'late';
     return 'miss';
 }
+function ge_zone(float $a): string {
+    $A = abs($a);
+    if ($A < 12) return 'straight down the ground';
+    if ($a > 0) return $A < 35 ? 'past mid-off' : ($A < 75 ? 'through the covers' : ($A < 115 ? 'past point' : 'down to third man'));
+    return $A < 35 ? 'past mid-on' : ($A < 75 ? 'through mid-wicket' : ($A < 115 ? 'past square leg' : 'down to fine leg'));
+}
 
-function ge_resolve(array $d, ?string $shot, float $delta, int $seed): array {
-    $r = ge_rng($seed); $r1 = $r(); $r2 = $r(); $r3 = $r(); $r4 = $r();
-    if (!empty($d['wide'])) return ['kind' => 'wide', 'runs' => 1, 'extra' => 1, 'legal' => false, 'wicket' => null, 'timing' => 'leave', 'shot' => 'leave', 'text' => 'Wide ball!', 'dir' => 0, 'dist' => 0];
-    if ($shot !== null && $shot !== 'leave' && !isset(GE_FIT[$shot])) $shot = 'leave';
-    $timing = ge_timing($shot, $delta);
-    $onStumps = $d['line'] >= 1;
-    $res = ['kind' => 'dot', 'runs' => 0, 'extra' => 0, 'legal' => true, 'wicket' => null, 'timing' => $timing, 'shot' => $timing === 'leave' ? 'leave' : $shot, 'text' => '', 'dir' => 0, 'dist' => 0];
+function ge_resolve(array $d, array $shot, int $seed, bool $freeHit): array {
+    $r = ge_rng($seed);
+    $R = [$r(), $r(), $r(), $r(), $r(), $r()];
+    $base = ['kind' => 'dot', 'runs' => 0, 'extra' => 0, 'legal' => true, 'wicket' => null, 'timing' => 'leave', 'shot' => 'leave', 'text' => '', 'a' => 0, 'dist' => 0, 'loft' => false, 'fielder' => -1, 'free' => $freeHit];
+    if (!empty($d['wide'])) return array_merge($base, ['kind' => 'wide', 'runs' => 0, 'extra' => 1, 'legal' => false, 'text' => 'Wide ball! One extra run.']);
+    $safe = $freeHit || !empty($d['noball']);
+    if (!empty($d['noball'])) $base = array_merge($base, ['extra' => 1, 'legal' => false]);
+    $timing = ge_timing($d, $shot);
+    $onStumps = abs($d['fx']) <= 0.42 && $d['l'] < 0.78;
+    $base['timing'] = $timing;
+    $base['shot'] = $timing === 'leave' ? 'leave' : $shot['k'];
+    $out = function (string $w, string $text) use (&$base, $safe, $d): array {
+        if ($safe) { $base['text'] = (!empty($d['noball']) ? 'No-ball - ' : 'Free hit - ') . 'saved! ' . explode('!', $text)[0] . '… but not out!'; return $base; }
+        return array_merge($base, ['kind' => 'out', 'wicket' => $w, 'text' => $text]);
+    };
     if ($timing === 'leave') {
-        $danger = $d['length'] === 0 ? 0.7 : ($d['length'] <= 2 ? 0.5 : 0);
-        if ($onStumps && $r2 < $danger) { $res['kind'] = 'out'; $res['wicket'] = $r4 < 0.6 ? 'bowled' : 'lbw'; $res['text'] = $res['wicket'] === 'bowled' ? 'Left it… and it hit the stumps!' : 'Left it alone, hit on the pad - LBW!'; }
-        else $res['text'] = 'Left alone. Good judgement.';
-        return $res;
+        if ($onStumps && $R[0] < 0.6) return $out($R[1] < 0.6 ? 'bowled' : 'lbw', $R[1] < 0.6 ? 'Left it… and it crashed into the stumps!' : 'No shot, hit on the pad - LBW!');
+        return array_merge($base, ['text' => 'Left alone.']);
     }
-    $fit = GE_FIT[$shot][$d['length']] * GE_LINE_FIT[$shot][$d['line']] * GE_PACE_FIT[$shot][$d['pace']];
-    $q = ge_clamp($fit * GE_T_FACTOR[$timing] + ($r1 - 0.5) * 0.25, 0, 1.2);
-    $res['dir'] = GE_DIR[$shot] + ($r3 - 0.5) * 30;
     if ($timing === 'miss') {
-        if ($onStumps && $d['length'] <= 2 && $r2 < 0.5) { $res['kind'] = 'out'; $res['wicket'] = $r4 < 0.6 ? 'bowled' : 'lbw'; $res['text'] = $res['wicket'] === 'bowled' ? 'Swing and a miss - clean bowled!' : 'Missed it, struck in front - LBW!'; }
-        elseif ($r2 > 0.82) { $res['kind'] = 'out'; $res['wicket'] = 'caught'; $res['text'] = 'Thin edge… caught behind by the keeper!'; }
-        else $res['text'] = 'Swing and a miss!';
-        return $res;
+        if ($onStumps && $R[0] < 0.45) return $out($R[1] < 0.6 ? 'bowled' : 'lbw', $R[1] < 0.6 ? 'Missed it - clean bowled!' : 'Missed it, struck in front - LBW!');
+        if ($R[0] > 0.86) return $out('caught', 'Thin edge… caught by the keeper!');
+        return array_merge($base, ['text' => 'Swing and a miss!']);
     }
-    $catch = GE_RISK[$shot] * (1.6 - $q) * ($timing === 'early' || $timing === 'late' ? 1.8 : 1);
-    if ($r2 < $catch) {
-        $res['kind'] = 'out'; $res['wicket'] = 'caught'; $res['dist'] = 0.7;
-        $res['text'] = $shot === 'loft' ? 'Up in the air… and taken in the deep!' : ($shot === 'defend' ? 'Bat-pad… snapped up close in!' : 'Edged it… caught!');
-        return $res;
+    $c = GE_CONTACT[$timing];
+    if ($shot['k'] === 'tap') {
+        if (($timing === 'early' || $timing === 'late') && $R[0] < 0.05) return $out('caught', 'Bat-pad… snapped up close in!');
+        $one = $c >= 0.68 && $R[1] < 0.35;
+        return array_merge($base, ['kind' => $one ? 'runs' : 'dot', 'runs' => $one ? 1 : 0, 'a' => ($R[2] - 0.5) * 60, 'dist' => $one ? 0.3 : 0.12, 'text' => $one ? 'Pushed into the gap for a quick single.' : 'Solid block.']);
     }
-    if ($q < 0.22 && $onStumps && $d['length'] <= 2 && $r4 < 0.35) { $res['kind'] = 'out'; $res['wicket'] = 'bowled'; $res['text'] = 'Wrong shot - through the gate, bowled!'; return $res; }
-    $v = $q * GE_POWER[$shot] + ($r3 - 0.5) * 0.1;
-    $runs = 0;
-    if (($shot === 'loft' || $shot === 'pull') && $v > 0.86) $runs = 6;
-    elseif ($v > 0.64) $runs = 4;
-    elseif ($v > 0.6) $runs = 3;
-    elseif ($v > 0.48) $runs = 2;
-    elseif ($v > 0.3) $runs = 1;
-    $res['runs'] = $runs; $res['kind'] = $runs ? 'runs' : 'dot';
-    $res['dist'] = $runs === 6 ? 1.25 : ($runs === 4 ? 1.02 : ge_clamp(0.25 + $v * 0.7, 0.2, 0.9));
-    $where = GE_ZONE[$shot];
-    $res['text'] = $runs === 6 ? "SIX! Smashed $where!" : ($runs === 4 ? "FOUR! Timed beautifully $where." : ($runs ? "$runs run" . ($runs > 1 ? 's' : '') . ", pushed $where." : ($shot === 'defend' ? 'Solid defence.' : 'Straight to the fielder. No run.')));
-    return $res;
+    $p = ge_clamp((float)($shot['p'] ?? 0), 0, 1);
+    $a = ge_clamp((float)($shot['a'] ?? 0), -170, 170);
+    $loft = $p >= 0.6;
+    $edge = 0;
+    if ($timing === 'early') $a -= 22 + $R[1] * 18;
+    elseif ($timing === 'late') $a += 22 + $R[1] * 18;
+    else $a += ($R[1] - 0.5) * ($timing === 'ok' ? 24 : ($timing === 'good' ? 12 : 5));
+    if ($d['fx'] > 0.6 && $a < -45) { $c *= 0.75; $edge += 0.08; }
+    if ($d['fx'] < -0.5 && $a > 60) { $c *= 0.8; $edge += 0.06; }
+    if (abs($d['swing']) > 0.2 && $timing !== 'perfect') $edge += 0.05;
+    if ($d['l'] > 0.84 && !$loft) $c *= 0.8;
+    if ($d['l'] < 0.16 && $loft) $c *= 0.8;
+    $a = ge_clamp($a, -175, 175);
+    $edgeChance = ($timing === 'early' || $timing === 'late') ? 0.18 + $edge : ($timing === 'ok' ? 0.06 + $edge : ($timing === 'good' ? 0.02 + $edge * 0.5 : 0));
+    if ($R[0] < $edgeChance) {
+        if ($R[2] < 0.4) return $out('caught', 'Edged… and caught behind!');
+        $four = $p > 0.6 && $R[3] < 0.3;
+        return array_merge($base, ['kind' => 'runs', 'runs' => $four ? 4 : 1, 'a' => $d['fx'] >= 0 ? 150 : -150, 'dist' => $four ? 1.05 : 0.5, 'text' => $four ? 'Edged… past the slips for FOUR!' : 'Thick edge, they run one.']);
+    }
+    $field = GE_FIELDS[$d['type']];
+    $dist = ($loft ? $c * (0.42 + 0.66 * $p) : $c * (0.34 + 0.72 * $p)) + ($R[3] - 0.5) * 0.12;
+    $dist = ge_clamp($dist, 0.05, 1.3);
+    $base['a'] = ge_r3($a); $base['loft'] = $loft;
+    if (!$loft) {
+        $hit = -1; $best = 9;
+        foreach ($field as $i => $f) {
+            $lat = abs($a - $f[0]) * GE_RAD * $f[1];
+            if ($f[1] <= $dist + 0.05 && $lat < 0.075 && $f[1] < $best) { $hit = $i; $best = $f[1]; }
+        }
+        if ($hit >= 0) {
+            $f = $field[$hit];
+            $runs = $f[1] < 0.62 ? ($p > 0.7 && $c > 0.8 && $R[4] < 0.3 ? 1 : 0) : ($R[4] < 0.35 ? 2 : 1);
+            return array_merge($base, ['kind' => $runs ? 'runs' : 'dot', 'runs' => $runs, 'dist' => ge_r3($f[1]), 'fielder' => $hit,
+                'text' => $runs ? ($runs === 2 ? 'Two runs' : 'A single') . ' - fielded at ' . strtolower($f[2]) . '.' : 'Straight to ' . strtolower($f[2]) . '. No run.']);
+        }
+        if ($dist >= 0.98) return array_merge($base, ['kind' => 'runs', 'runs' => 4, 'dist' => 1.05, 'text' => 'FOUR! Raced away ' . ge_zone($a) . '.']);
+        $runs = $dist < 0.3 ? 0 : ($dist < 0.56 ? 1 : ($dist < 0.9 ? 2 : 3));
+        return array_merge($base, ['kind' => $runs ? 'runs' : 'dot', 'runs' => $runs, 'dist' => ge_r3($dist), 'text' => $runs ? "$runs run" . ($runs > 1 ? 's' : '') . ', ' . ge_zone($a) . '.' : 'Played softly. No run.']);
+    }
+    if ($dist >= 1) {
+        foreach ($field as $i => $f) {
+            if ($f[1] >= 0.85 && abs($a - $f[0]) * GE_RAD * $f[1] < 0.11 && $dist < 1.08 && $R[4] < 0.6)
+                return array_merge($out('caught', 'Caught right on the boundary at ' . strtolower($f[2]) . '!'), ['a' => ge_r3($a), 'loft' => true, 'dist' => ge_r3($f[1]), 'fielder' => $i]);
+        }
+        return array_merge($base, ['kind' => 'runs', 'runs' => 6, 'dist' => ge_r3(min($dist, 1.25)), 'text' => 'SIX! Smashed ' . ge_zone($a) . '!']);
+    }
+    foreach ($field as $i => $f) {
+        if (abs($a - $f[0]) * GE_RAD * $f[1] < 0.13 && abs($f[1] - $dist) < 0.2) {
+            if ($R[4] < ($timing === 'perfect' ? 0.5 : 0.66)) return array_merge($out('caught', 'Up in the air… caught at ' . strtolower($f[2]) . '!'), ['a' => ge_r3($a), 'loft' => true, 'dist' => ge_r3($f[1]), 'fielder' => $i]);
+            return array_merge($base, ['kind' => 'runs', 'runs' => 1, 'dist' => ge_r3($f[1]), 'fielder' => $i, 'text' => 'Dropped at ' . strtolower($f[2]) . '! They scamper a single.']);
+        }
+    }
+    $runs = $dist >= 0.85 ? 4 : ($dist < 0.5 ? 1 : 2);
+    return array_merge($base, ['kind' => 'runs', 'runs' => $runs, 'dist' => ge_r3($dist), 'text' => $runs === 4 ? 'FOUR! Lofted ' . ge_zone($a) . ', one bounce over the rope.' : "Lofted into the gap, $runs run" . ($runs > 1 ? 's' : '') . '.']);
 }
 
 function ge_new_inn(int $bat): array { return ['bat' => $bat, 'runs' => 0, 'wk' => 0, 'balls' => 0, 'fours' => 0, 'sixes' => 0, 'extras' => 0, 'log' => []]; }
 function ge_new_game(int $overs, int $wickets, int $firstBat): array {
-    return ['overs' => ge_clamp($overs, 1, 10), 'wickets' => ge_clamp($wickets, 1, 10), 'inn' => [ge_new_inn($firstBat), ge_new_inn(1 - $firstBat)],
-        'cur' => 0, 'phase' => 'bowl', 'ball' => null, 'last' => null, 'result' => null, 'winner' => null, 'n' => 0];
+    return ['overs' => ge_clamp($overs, 1, 20), 'wickets' => ge_clamp($wickets, 1, 10), 'inn' => [ge_new_inn($firstBat), ge_new_inn(1 - $firstBat)],
+        'cur' => 0, 'phase' => 'bowl', 'ball' => null, 'last' => null, 'result' => null, 'winner' => null, 'n' => 0, 'free' => false];
 }
-function ge_bowl(array &$g, int $pace, int $line, int $length, float $e, int $seed): array {
-    $d = ge_deliver($pace, $line, $length, $e);
-    $d['seed'] = $seed & 0xFFFFFFFF; $d['id'] = ++$g['n']; $d['at'] = time();
+function ge_bowl(array &$g, int $type, int $varn, float $x, float $l, float $v, int $seed): array {
+    $d = ge_deliver($type, $varn, $x, $l, $v, $seed);
+    $d['seed'] = $seed & 0xFFFFFFFF; $d['id'] = ++$g['n']; $d['free'] = !empty($g['free']); $d['at'] = time();
     $g['ball'] = $d; $g['phase'] = 'bat';
     return $d;
 }
-function ge_bat(array &$g, ?string $shot, float $delta): array {
+function ge_bat(array &$g, array $shot): array {
     $d = $g['ball'];
-    $res = ge_resolve($d, $shot, $delta, (int)$d['seed']);
+    $res = ge_resolve($d, $shot, ((int)$d['seed'] ^ 0x5bd1e995) & 0xFFFFFFFF, !empty($d['free']));
     $i = $g['cur'];
-    $g['inn'][$i]['runs'] += $res['runs']; $g['inn'][$i]['extras'] += $res['extra'];
+    $g['inn'][$i]['runs'] += $res['runs'] + $res['extra']; $g['inn'][$i]['extras'] += $res['extra'];
     if ($res['legal']) $g['inn'][$i]['balls']++;
     if ($res['kind'] === 'out') $g['inn'][$i]['wk']++;
-    if ($res['runs'] === 4 && $res['legal']) $g['inn'][$i]['fours']++;
+    if ($res['runs'] === 4) $g['inn'][$i]['fours']++;
     if ($res['runs'] === 6) $g['inn'][$i]['sixes']++;
-    $g['inn'][$i]['log'][] = $res['kind'] === 'out' ? 'W' : ($res['kind'] === 'wide' ? 'wd' : (string)$res['runs']);
+    $g['inn'][$i]['log'][] = $res['kind'] === 'out' ? 'W' : ($res['kind'] === 'wide' ? 'wd' : (!empty($d['noball']) ? 'nb' : (string)$res['runs']));
     if (count($g['inn'][$i]['log']) > 12) array_shift($g['inn'][$i]['log']);
-    $res['id'] = $d['id']; $res['delivery'] = $d; $res['inn'] = $i;
+    $g['free'] = !empty($d['noball']) || (!empty($g['free']) && !$res['legal']);
+    $res['id'] = $d['id']; $res['delivery'] = $d; $res['inn'] = $i; $res['noball'] = !empty($d['noball']);
     $g['last'] = $res; $g['ball'] = null; $g['phase'] = 'bowl';
     $inn = $g['inn'][$i];
     $over = $inn['balls'] >= $g['overs'] * 6 || $inn['wk'] >= $g['wickets'];
-    if ($i === 1 && $inn['runs'] >= $g['inn'][0]['runs'] + 1) ge_finish($g);
-    elseif ($over) { if ($i === 0) { $g['cur'] = 1; $g['last']['inningsOver'] = true; } else ge_finish($g); }
+    if ($i === 1 && $inn['runs'] > $g['inn'][0]['runs']) ge_finish($g);
+    elseif ($over) { if ($i === 0) { $g['cur'] = 1; $g['free'] = false; $g['last']['inningsOver'] = true; } else ge_finish($g); }
     return $g['last'];
 }
 function ge_finish(array &$g): void {
@@ -143,6 +184,11 @@ function ge_finish(array &$g): void {
     if ($b['runs'] > $a['runs']) { $g['winner'] = $b['bat']; $g['result'] = ['by' => 'wickets', 'n' => $g['wickets'] - $b['wk']]; }
     elseif ($a['runs'] > $b['runs']) { $g['winner'] = $a['bat']; $g['result'] = ['by' => 'runs', 'n' => $a['runs'] - $b['runs']]; }
     else { $g['winner'] = -1; $g['result'] = ['by' => 'tie', 'n' => 0]; }
+}
+/** A shot sent by a phone, made safe */
+function ge_shot_in(array $in): array {
+    $k = in_array($in['k'] ?? '', ['none', 'tap', 'swipe'], true) ? $in['k'] : 'none';
+    return ['k' => $k, 'a' => (float)ge_clamp((float)($in['a'] ?? 0), -180, 180), 'p' => (float)ge_clamp((float)($in['p'] ?? 0), 0, 1), 'dt' => (float)ge_clamp((float)($in['dt'] ?? 0), -5000, 5000)];
 }
 
 /* ---------- Online rooms ---------- */
@@ -178,7 +224,7 @@ function game_action(string $action, array $u, array $in) {
     game_require($u);
     switch ($action) {
     case 'game_create': {
-        $overs = ge_clamp((int)($in['overs'] ?? 2), 1, 10); $wk = ge_clamp((int)($in['wickets'] ?? 3), 1, 10);
+        $overs = ge_clamp((int)($in['overs'] ?? 2), 1, 10); $wk = ge_clamp((int)($in['wickets'] ?? 2), 1, 10);
         q("UPDATE games SET status='abandoned' WHERE p0=? AND status='waiting'", [$u['id']]);
         $code = game_new_code();
         q("INSERT INTO games (code, mode, p0, status, overs, wickets) VALUES (?, 'online', ?, 'waiting', ?, ?)", [$code, $u['id'], $overs, $wk]);
@@ -210,7 +256,7 @@ function game_action(string $action, array $u, array $in) {
         if ($g['status'] !== 'live' || $st['phase'] !== 'bowl') { db()->rollBack(); fail('Not your turn to bowl', 409); }
         if (1 - $st['inn'][$st['cur']]['bat'] !== $g['me']) { db()->rollBack(); fail("You're batting - wait for the ball!", 409); }
         if ((int)($in['n'] ?? -1) !== (int)$st['n']) { db()->rollBack(); return game_view($g); }     // a double tap
-        ge_bowl($st, (int)($in['pace'] ?? 1), (int)($in['line'] ?? 2), (int)($in['length'] ?? 2), (float)ge_clamp((float)($in['e'] ?? 0), -1, 1), random_int(1, 0x7FFFFFFF));
+        ge_bowl($st, (int)($in['type'] ?? 0), (int)($in['varn'] ?? 0), (float)ge_clamp((float)($in['x'] ?? 0), -1.6, 1.6), (float)ge_clamp((float)($in['l'] ?? 0.5), 0, 1), (float)ge_clamp((float)($in['v'] ?? 0.5), 0, 1), random_int(1, 0x7FFFFFFF));
         unset($st);
         game_save($g);
         db()->commit();
@@ -225,11 +271,10 @@ function game_action(string $action, array $u, array $in) {
         $batter = $st['inn'][$st['cur']]['bat'];
         if ($action === 'game_bat') {
             if ($batter !== $g['me']) { db()->rollBack(); fail("You're bowling!", 409); }
-            $shot = in_array($in['shot'] ?? '', GE_SHOTS, true) ? $in['shot'] : 'leave';
-            ge_bat($st, $shot, (float)ge_clamp((float)($in['delta'] ?? 0), -5000, 5000));
+            ge_bat($st, ge_shot_in($in));
         } else {                                          // the batter's phone went quiet: count it as a leave
             if ($batter === $g['me'] || time() - (int)$st['ball']['at'] < 20) { db()->rollBack(); return game_view($g); }
-            ge_bat($st, 'leave', 0);
+            ge_bat($st, ['k' => 'none', 'a' => 0, 'p' => 0, 'dt' => 0]);
         }
         $done = $st['phase'] === 'done';
         $winner = $st['winner'];

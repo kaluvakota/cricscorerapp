@@ -4,6 +4,14 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.10.0 - 24 October 2026
+- Gully Duel rebuilt in the style of Cricket League: the camera is behind the batter and the ball comes towards you
+- Batting: swipe the way you want to hit as the ball arrives - short swipe along the ground, long swipe in the air, tap to block
+- Timing bar shows perfect (blue), good, ok, early and late - wider timing window, so runs are much easier to score
+- Bowling: choose Fast, Swing or Spin (In / Straight / Out), drag the circle to where the ball should land, stop the power bar in the blue
+- Real fielders with a mini-map of the gaps, catches, boundary catches, no-balls and free hits
+- New Practice nets mode to learn batting
+
 ## 1.9.0 - 24 October 2026
 - New game: Gully Duel - one player bowls, the other bats, on two phones (4-digit code), one phone held sideways, or against the computer
 - Admin portal with usage stats: players joined and active, matches, games, Academy - totals only, no personal details
