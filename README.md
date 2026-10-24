@@ -38,6 +38,8 @@ Made for Aarush & Aayush.
 - **Privacy Policy & Terms** (`/privacy`, `/terms`) written for India's DPDP Act, a required consent tick box at sign-up
   (also for new Google sign-ups), and *Delete my account* in My Profile.
 
+- **Scoring permissions** - only the player who created a match (and the admin) can score it; everyone else
+  watches. *Match options → Scorer* lets the creator hand scoring to one other player by username and take it back.
 - **Team permissions** - a custom team can only be picked for matches and tournaments (or have its players copied)
   by its owner, the admin and players the owner allows. Others tap *Ask to use this team*; the owner allows or declines
   on the team page, can add players by username, or switch the team to *Everyone*. IPL and international teams are open.

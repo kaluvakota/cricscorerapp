@@ -134,7 +134,7 @@ function handle(string $action, array $in, ?array $u) {
     case 'home': {
         [$vs, $vp] = vis_sql($u);
         $live = match_summaries(rows("SELECT * FROM matches WHERE status='live' AND $vs ORDER BY updated_at DESC LIMIT 10", $vp));
-        $mine = match_summaries(rows("SELECT * FROM matches WHERE owner_id=? AND status='scheduled' ORDER BY COALESCE(match_date, created_at) ASC LIMIT 5", [$u['id']]));
+        $mine = match_summaries(rows("SELECT * FROM matches WHERE (owner_id=? OR scorer_id=?) AND status='scheduled' ORDER BY COALESCE(match_date, created_at) ASC LIMIT 5", [$u['id'], $u['id']]));
         $recent = match_summaries(rows("SELECT * FROM matches WHERE status IN ('completed','abandoned') AND $vs ORDER BY updated_at DESC LIMIT 6", $vp));
         $followFeed = match_summaries(rows("SELECT m.* FROM matches m JOIN follows f ON f.followee_id=m.owner_id AND f.follower_id=? JOIN users o ON o.id=m.owner_id
                                             WHERE m.visibility='public' AND o.is_private=0 AND m.status IN ('live','completed') ORDER BY m.updated_at DESC LIMIT 5", [$u['id']]));
@@ -311,7 +311,7 @@ function handle(string $action, array $in, ?array $u) {
         $where = []; $p = [];
         if (in_array($st, ['scheduled', 'live', 'completed'], true)) { $where[] = $st === 'completed' ? "status IN ('completed','abandoned')" : 'status=?'; if ($st !== 'completed') $p[] = $st; }
         $scope = $in['scope'] ?? (!empty($in['mine']) ? 'mine' : 'all');
-        if ($scope === 'mine') { $where[] = 'owner_id=?'; $p[] = $u['id']; }
+        if ($scope === 'mine') { $where[] = '(owner_id=? OR scorer_id=?)'; $p[] = $u['id']; $p[] = $u['id']; }
         elseif ($scope === 'following') { $where[] = "owner_id IN (SELECT f.followee_id FROM follows f JOIN users o ON o.id=f.followee_id WHERE f.follower_id=? AND o.is_private=0)"; $p[] = $u['id']; }
         [$vs, $vp] = vis_sql($u); $where[] = $vs; $p = array_merge($p, $vp);
         $sql = 'SELECT * FROM matches' . ($where ? ' WHERE ' . implode(' AND ', $where) : '') . ' ORDER BY ' . ($st === 'scheduled' ? 'COALESCE(match_date, created_at) ASC' : 'updated_at DESC') . ' LIMIT 100';
@@ -347,6 +347,18 @@ function handle(string $action, array $in, ?array $u) {
         return dls_preview($m, max(1, int_in($in, 'overs', 1)));
     }
 
+    case 'match_scorer': {                            // the creator names who scores (by username), or takes it back
+        $m = load_match(int_in($in, 'id'));
+        if (!can_edit_owned($m, $u)) fail('Only the player who created this match can choose the scorer', 403);
+        $un = strtolower(trim((string)($in['username'] ?? '')));
+        if ($un === '') { q('UPDATE matches SET scorer_id=NULL WHERE id=?', [$m['id']]); return ['scorer' => null]; }
+        $p = row('SELECT id, username, display_name FROM users WHERE username=?', [$un]);
+        if (!$p) fail('No player with that exact username');
+        if ((int)$p['id'] === (int)$m['owner_id']) fail("That's you - you can always score your own match");
+        q('UPDATE matches SET scorer_id=? WHERE id=?', [$p['id'], $m['id']]);
+        return ['scorer' => ['id' => (int)$p['id'], 'username' => $p['username'], 'display_name' => $p['display_name']]];
+    }
+
     case 'match_delete': {
         $m = load_match(int_in($in, 'id'));
         if (!can_edit_owned($m, $u)) fail('Not allowed', 403);
@@ -359,7 +371,7 @@ function handle(string $action, array $in, ?array $u) {
     case 'match_rain': case 'match_rain_end': case 'match_rain_undo': case 'match_dls_level': {
         db()->beginTransaction();
         $m = load_match(int_in($in, 'id'), true);
-        if (!can_edit_owned($m, $u)) fail('Only the scorer of this match can do that', 403);
+        if (!can_score_match($m, $u)) fail('Only the scorer of this match can do that', 403);
         if (!in_array($action, ['match_undo', 'match_rain_undo'], true) && in_array($m['status'], ['completed', 'abandoned'], true)) fail('This match is finished');
         switch ($action) {
             case 'match_xi': set_playing_xi($m, $in); break;

@@ -529,12 +529,14 @@ function match_state(int $matchId, ?array $u): array {
             'winner_team_id' => $m['winner_team_id'] ? (int)$m['winner_team_id'] : null, 'result_text' => $m['result_text'],
             'player_of_match' => $m['player_of_match_id'] ? ['id' => (int)$m['player_of_match_id'], 'name' => $names[(int)$m['player_of_match_id']] ?? val('SELECT name FROM players WHERE id=?', [$m['player_of_match_id']])] : null,
             'tournament' => $tour, 'owner' => $owner,
+            'scorer' => $m['scorer_id'] ? row('SELECT id, username, display_name FROM users WHERE id=?', [$m['scorer_id']]) : null,
         ],
         'team1' => $t1, 'team2' => $t2, 'xi' => $xi, 'innings' => $inns,
         'needs' => $needs, 'available_batters' => $avail, 'prev_over_bowler' => $prevBowler, 'bowler_balls' => $bowlerBalls,
         'next' => $next,
         'dls' => $inns ? dls_info($m) : null,
-        'can_edit' => can_edit_owned($m, $u),
+        'can_edit' => can_score_match($m, $u),
+        'is_owner' => can_edit_owned($m, $u),
     ];
 }
 

@@ -121,6 +121,7 @@ CREATE TABLE tournament_teams (
 CREATE TABLE matches (
   id INT AUTO_INCREMENT PRIMARY KEY,
   owner_id INT NOT NULL,
+  scorer_id INT NULL,
   tournament_id INT NULL,
   match_type_id INT NULL,
   title VARCHAR(100) NULL,

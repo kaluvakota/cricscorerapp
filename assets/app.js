@@ -579,7 +579,7 @@ function drawMatch(first) {
   const actions = `<button class="icon-btn" id="spk" aria-label="Sound and commentary" onclick="App.soundSheet()">${spkIcon()}</button><button class="icon-btn" aria-label="Share" onclick="App.shareMatch()">${I.share}</button>` +
     (st.can_edit ? `<button class="icon-btn" aria-label="Match options" onclick="App.matchMenu()">${I.dots}</button>` :
       '');
-  const sub = [m.visibility === 'private' ? '🔒 Private' : '', m.title, m.tournament?.name].filter(Boolean).join(' · ');
+  const sub = [m.visibility === 'private' ? '🔒 Private' : '', m.scorer && st.can_edit && !st.is_owner ? '✍️ You are the scorer' : m.scorer ? '✍️ Scorer: ' + m.scorer.display_name : '', m.title, m.tournament?.name].filter(Boolean).join(' · ');
   let html = topbar(`${t1.short_name} vs ${t2.short_name}`, { back: true, actions, sub });
   const inn = st.innings.length ? curInn() : null;
   html += inn ? scoreBoard(st, inn) : preBoard(st);
@@ -924,12 +924,25 @@ App.matchMenu = () => {
     ${live ? '<button class="pbtn" onclick="App.endInnings()">⏹️ End this innings now</button>' : ''}
     ${['live', 'scheduled'].includes(m.status) || m.result_method === 'rain' ? '<button class="pbtn" onclick="App.rainSheet()">🌧️ Rain / DLS - reduce overs, revised target</button>' : ''}
     ${['live', 'scheduled'].includes(m.status) ? '<button class="pbtn" onclick="App.abandon()">⛔ Abandon match (no result)</button>' : ''}
-    ${m.visibility === 'private'
+    ${st.is_owner ? `<button class="pbtn" onclick="App.scorerSheet()">✍️ Scorer <span class="s">${m.scorer ? esc(m.scorer.display_name) + ' (@' + esc(m.scorer.username) + ')' : 'only you'}</span></button>` : ''}
+    ${st.is_owner ? (m.visibility === 'private'
       ? '<button class="pbtn" onclick="App.setVis(\'public\')">🌍 Make match public <span class="s">everyone can watch</span></button>'
-      : '<button class="pbtn" onclick="App.setVis(\'private\')">🔒 Make match private <span class="s">only you can see it</span></button>'}
+      : '<button class="pbtn" onclick="App.setVis(\'private\')">🔒 Make match private <span class="s">only you can see it</span></button>') : ''}
     ${m.visibility === 'private' ? '' : '<button class="pbtn" onclick="App.shareMatch()">🔗 Share live score link</button>'}
-    <button class="pbtn" style="color:var(--red)" onclick="App.deleteMatch()">🗑️ Delete match</button></div>`);
+    ${st.is_owner ? '<button class="pbtn" style="color:var(--red)" onclick="App.deleteMatch()">🗑️ Delete match</button>' : ''}</div>`);
 };
+/* ----- Who scores this match ----- */
+App.scorerSheet = () => {
+  const m = S.m.match;
+  sheet(`<h3>✍️ Who scores this match?</h3><div class="sub">Only you can score your match. You can also hand scoring to one other player by their username - for example a friend at the ground. You can take it back any time.</div>
+    ${m.scorer ? `<div class="card" style="box-shadow:none;border:1px solid var(--line)"><div class="row"><div class="grow"><b>${esc(m.scorer.display_name)}</b><div class="small muted">@${esc(m.scorer.username)} can score this match</div></div>
+      <button class="btn sm light" onclick="App.setScorer('')">Take back</button></div></div>` : '<div class="small muted" style="margin-bottom:10px">Nobody else can score it right now.</div>'}
+    <form class="row" onsubmit="event.preventDefault();App.setScorer(this.u.value)"><input class="input grow" name="u" placeholder="Username, e.g. aayush" autocapitalize="none" autocomplete="off" required><button class="btn sm">${m.scorer ? 'Change' : 'Allow'}</button></form>`);
+};
+App.setScorer = u => run(async () => {
+  const r = await api('match_scorer', { id: S.m.match.id, username: String(u || '').trim() });
+  S.m.match.scorer = r.scorer; closeSheet(); toast(r.scorer ? `${r.scorer.display_name} can now score this match ✓` : 'Only you can score this match now'); render();
+});
 /* ----- Rain / DLS (Duckworth-Lewis-Stern, ICC Standard Edition) ----- */
 App.rainSheet = () => {
   const st = S.m, m = st.match, d = st.dls || {};

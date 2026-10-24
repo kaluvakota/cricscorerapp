@@ -4,6 +4,11 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.13.0 - 24 October 2026
+- Only the player who created a match (and the admin) can score it - everyone else just watches
+- The creator can name one other player as scorer by username (Match options → Scorer) and take it back any time
+- The named scorer sees the match under My matches; only the creator can delete it, make it private or change the scorer
+
 ## 1.12.0 - 24 October 2026
 - Gully Duel plays like Cricket League: quick 2-over 1v1 matches in six stadiums (Mumbai, Dubai, Melbourne, London, Johannesburg, Dhaka)
 - Batting: touch and hold to lift the bat as the bowler runs in, let go and flick to hit; timing bar on the left

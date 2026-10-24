@@ -90,6 +90,7 @@ function ensure_schema(): void {
     }
     if (!val("SHOW TABLES LIKE 'game_profiles'")) db()->exec("CREATE TABLE IF NOT EXISTS game_profiles (user_id INT PRIMARY KEY, coins INT NOT NULL DEFAULT 100, wins INT NOT NULL DEFAULT 0, losses INT NOT NULL DEFAULT 0,
         chars TEXT NULL, squad TEXT NULL, stadium VARCHAR(20) NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    if (!val("SHOW COLUMNS FROM matches LIKE 'scorer_id'")) db()->exec("ALTER TABLE matches ADD COLUMN scorer_id INT NULL AFTER owner_id, ADD INDEX idx_scorer (scorer_id)");
     if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
@@ -204,6 +205,11 @@ function can_edit_team(?array $team, array $u): bool {
     if (!$team) return false;
     if ($u['is_admin']) return true;
     return $team['category'] === 'custom' && (int)$team['owner_id'] === (int)$u['id'];
+}
+/** Who may score a match: the player who created it, the admin, or the scorer they named */
+function can_score_match(?array $m, ?array $u): bool {
+    if (!$m || !$u) return false;
+    return can_edit_owned($m, $u) || (!empty($m['scorer_id']) && (int)$m['scorer_id'] === (int)$u['id']);
 }
 function can_edit_owned(?array $obj, ?array $u): bool {
     if (!$obj || !$u) return false;
