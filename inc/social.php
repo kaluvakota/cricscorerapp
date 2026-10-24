@@ -32,14 +32,23 @@ function follow_counts(int $uid, array $viewer): array {
 }
 
 function users_search(array $u, array $in): array {
+    // Kept deliberately simple so it works the same on every MySQL / MariaDB version and setting
     $q = trim(str_in($in, 'q', 60));
-    [$pv, $pp] = people_vis($u);
-    $like = '%' . str_replace(['%', '_'], ['\%', '\_'], $q) . '%';
-    $list = rows("SELECT u.*, (SELECT 1 FROM follows f WHERE f.follower_id=? AND f.followee_id=u.id) is_following,
-                    (SELECT COUNT(*) FROM follows f JOIN users fu ON fu.id=f.follower_id WHERE f.followee_id=u.id AND fu.is_private=0) followers
-                  FROM users u WHERE u.id<>? AND $pv AND (? = '' OR u.username LIKE ? OR u.display_name LIKE ?)
-                  ORDER BY followers DESC, u.display_name LIMIT 40", array_merge([$u['id'], $u['id']], $pp, [$q, $like, $like]));
-    return ['users' => array_map(fn($r) => person($r) + ['following' => (bool)$r['is_following'], 'followers' => (int)$r['followers']], $list)];
+    $where = ['u.id <> ?']; $params = [(int)$u['id']];
+    if (empty($u['is_admin'])) $where[] = 'u.is_private = 0';
+    if ($q !== '') { $where[] = '(LOCATE(?, u.username) > 0 OR LOCATE(?, u.display_name) > 0)'; $params[] = $q; $params[] = $q; }
+    $list = rows('SELECT u.* FROM users u WHERE ' . implode(' AND ', $where) . ' ORDER BY u.display_name LIMIT 300', $params);
+    if (!$list) return ['users' => []];
+    $ids = array_map(fn($r) => (int)$r['id'], $list);
+    $ph = implode(',', array_fill(0, count($ids), '?'));
+    $counts = [];
+    foreach (rows("SELECT f.followee_id AS uid, COUNT(*) AS n FROM follows f JOIN users fu ON fu.id = f.follower_id
+                   WHERE fu.is_private = 0 AND f.followee_id IN ($ph) GROUP BY f.followee_id", $ids) as $c) $counts[(int)$c['uid']] = (int)$c['n'];
+    $mine = [];
+    foreach (rows("SELECT followee_id FROM follows WHERE follower_id = ? AND followee_id IN ($ph)", array_merge([(int)$u['id']], $ids)) as $f) $mine[(int)$f['followee_id']] = true;
+    $out = array_map(fn($r) => person($r) + ['following' => isset($mine[(int)$r['id']]), 'followers' => $counts[(int)$r['id']] ?? 0], $list);
+    usort($out, fn($a, $b) => [$b['followers'], strtolower($a['display_name'])] <=> [$a['followers'], strtolower($b['display_name'])]);
+    return ['users' => array_slice($out, 0, 40)];
 }
 
 function user_profile(array $u, array $in): array {

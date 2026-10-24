@@ -20,8 +20,13 @@ try {
     out(['error' => $e->getMessage()]);
 } catch (Throwable $e) {
     rollback_if_needed();
+    // Always record the real reason in the server's PHP error log (hPanel → Advanced → PHP error logs)
+    $ref = strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+    error_log("Cric-Scorer API error [$ref] action=$action: " . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
+    $showReal = DEBUG;
+    try { $cu = current_user(); $showReal = $showReal || ($cu && !empty($cu['is_admin'])); } catch (Throwable $x) { /* no database */ }
     http_response_code(500);
-    out(['error' => DEBUG ? $e->getMessage() : 'Something went wrong. Please try again.']);
+    out(['error' => $showReal ? "Server error [$ref]: " . $e->getMessage() : "Something went wrong. Please try again. (ref $ref)"]);
 }
 
 function handle(string $action, array $in, ?array $u) {
