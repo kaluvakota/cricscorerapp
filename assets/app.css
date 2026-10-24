@@ -541,3 +541,11 @@ body:not(.app-mode) #tabbar{display:none!important}
 .adm-cl{margin:10px 0}.adm-cl ul{margin:4px 0 0;padding-left:20px;font-size:14px}
 .adm-news.off{opacity:.6}
 .adm-ticket .role-tag{margin-left:6px}
+/* ----- custom team permissions ----- */
+.pbtn.locked{opacity:.6}
+.lock-pill,.req-pill{font-size:12px;font-weight:900;border-radius:10px;padding:2px 7px;margin-right:4px;background:var(--soft);color:var(--muted)}
+.req-pill{background:#fff4e0;color:#8a5300}
+.access-card .flush.list{margin:0 -16px}
+.access-card .item .btn.sm{margin-left:4px}
+.access-card.ok{background:#ebfbee;color:#1b5e20}
+@media (prefers-color-scheme:dark){.req-pill{background:#2e2410;color:#ffe0a3}.access-card.ok{background:#173326;color:#b2f2bb}}

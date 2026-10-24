@@ -4,6 +4,12 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.11.0 - 24 October 2026
+- Custom teams are now protected: only the owner (and players they allow) can pick a team for matches and tournaments, or copy its players
+- Other players tap "Ask to use this team"; the owner sees the request on the team page and taps Allow or Decline
+- Owners can add players by username, remove them again, or open the team to everyone
+- Locked teams show a 🔒 in the match and tournament pickers; IPL and international teams stay open to all
+
 ## 1.10.0 - 24 October 2026
 - Gully Duel rebuilt in the style of Cricket League: the camera is behind the batter and the ball comes towards you
 - Batting: swipe the way you want to hit as the ball arrives - short swipe along the ground, long swipe in the air, tap to block

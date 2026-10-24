@@ -471,7 +471,7 @@ function teamOptions(teams, selected, only = null) {
   let html = '<option value="">- Choose team -</option>';
   for (const [label, f] of groups) {
     const g = list.filter(f);
-    if (g.length) html += `<optgroup label="${label}">${g.map(t => `<option value="${t.id}" ${+selected === t.id ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</optgroup>`;
+    if (g.length) html += `<optgroup label="${label}">${g.map(t => `<option value="${t.id}" ${+selected === t.id ? 'selected' : ''} ${t.can_use === false ? 'disabled' : ''}>${t.can_use === false ? '🔒 ' : ''}${esc(t.name)}${t.can_use === false ? (t.my_access === 'pending' ? ' (asked)' : ' (ask owner)') : ''}</option>`).join('')}</optgroup>`;
   }
   return html;
 }
@@ -488,7 +488,8 @@ async function viewMatchNew(tid) {
     <div class="card"><div class="vs" id="vs"></div>
       <div class="field"><label>Team A</label><select class="input" name="team1_id" onchange="App.vsPreview()" required>${teamOptions(tm.teams, null, S.nm.only)}</select></div>
       <div class="field" style="margin-bottom:4px"><label>Team B</label><select class="input" name="team2_id" onchange="App.vsPreview()" required>${teamOptions(tm.teams, null, S.nm.only)}</select></div>
-      ${tour ? '' : `<div class="small muted" style="margin-top:6px">Want your own team? <a class="link" href="#/team/new">Create a team</a></div>`}</div>
+      ${tour ? '' : `<div class="small muted" style="margin-top:6px">Want your own team? <a class="link" href="#/team/new">Create a team</a></div>`}
+      ${tm.teams.some(x => x.can_use === false) ? `<div class="small muted" style="margin-top:6px">🔒 Locked teams belong to other players. Open the team and tap <b>Ask to use this team</b> - you can pick it once the owner says yes. <a class="link" href="#/teams?c=custom">See teams</a></div>` : ''}</div>
     <div class="section"><h2>Match type</h2></div>
     <div class="chips" id="typechips">${ty.types.map(x => `<button type="button" class="chip ${x.id === t.id ? 'on' : ''}" data-id="${x.id}" onclick="App.pickType(${x.id})">${esc(x.name)} <small>${x.overs}ov</small></button>`).join('')}</div>
     <div class="card" style="margin-top:10px">
@@ -1214,9 +1215,10 @@ async function viewTeams(cat) {
     <div class="search">${I.search}<input class="input" placeholder="Search teams" oninput="App.filterList(this.value)"></div>
     <div id="tl">${sk(4)}</div></div><button class="fab" aria-label="Create team" onclick="go('#/team/new')">${I.plus}</button>`, 'teams');
   const d = await api('teams_list', { category: c });
-  $('#tl').innerHTML = d.teams.length ? `<div class="card flush list">${d.teams.map(t => `<div class="item" data-q="${esc((t.name + ' ' + t.short_name).toLowerCase())}" onclick="go('#/team/${t.id}')">${badge(t)}
-      <div class="grow"><div class="t ellipsis">${esc(t.name)}</div><div class="s">${plural(+t.players, 'player')}${t.captain && t.captain !== 'TBA' ? ' · C: ' + esc(t.captain) : ''}${c === 'custom' ? ' · by ' + esc(t.mine ? 'you' : t.owner_name || '-') : ''}</div></div><span class="chev">${I.chev}</span></div>`).join('')}</div>`
-    : `<div class="card empty"><div class="big">🧢</div>No teams here yet.<br><button class="btn" style="margin-top:12px" onclick="go('#/team/new')">Create your team</button></div>`;
+  if (S.extras) S.extras.team_requests = d.requests;
+  $('#tl').innerHTML = (d.requests && c === 'custom' ? `<div class="news news-new"><div class="grow"><b>🔔 ${plural(d.requests, 'player')} want${d.requests === 1 ? 's' : ''} to play with your teams</b><div>Open a team with 🔔 to allow or decline.</div></div></div>` : '') + (d.teams.length ? `<div class="card flush list">${d.teams.map(t => `<div class="item" data-q="${esc((t.name + ' ' + t.short_name).toLowerCase())}" onclick="go('#/team/${t.id}')">${badge(t)}
+      <div class="grow"><div class="t ellipsis">${esc(t.name)}</div><div class="s">${plural(+t.players, 'player')}${t.captain && t.captain !== 'TBA' ? ' · C: ' + esc(t.captain) : ''}${c === 'custom' ? ' · by ' + esc(t.mine ? 'you' : t.owner_name || '-') : ''}</div></div>${t.requests ? `<span class="req-pill">🔔 ${t.requests}</span>` : ''}${t.can_use === false ? `<span class="lock-pill">${t.my_access === 'pending' ? '⏳' : '🔒'}</span>` : ''}<span class="chev">${I.chev}</span></div>`).join('')}</div>`
+    : `<div class="card empty"><div class="big">🧢</div>No teams here yet.<br><button class="btn" style="margin-top:12px" onclick="go('#/team/new')">Create your team</button></div>`);
 }
 App.filterList = q => {
   q = q.toLowerCase().trim();
@@ -1243,13 +1245,41 @@ async function viewTeam(id) {
       <div><h2>${esc(t.name)}</h2><p>${{ ipl: 'IPL franchise', international: 'International team', custom: 'Custom team' }[t.category]} · ${plural(d.players.length, 'player')}</p>
       ${t.captain ? `<p>Captain: ${esc(t.captain)}</p>` : ''}${t.home_ground ? `<p>🏟️ ${esc(t.home_ground)}</p>` : ''}</div></div>
     <div class="content">
+      ${teamAccessCard(t)}
       ${t.can_edit ? `<div class="grid2" style="margin-bottom:6px"><button class="btn" onclick="App.playerForm(null)">${I.plus} Add player</button><button class="btn light" onclick="App.pickPlayers()">📋 Pick from teams</button></div>` : ''}
       ${squad || `<div class="card empty"><div class="big">🧢</div>No players yet.</div>`}
       ${d.recent.length ? `<div class="section"><h2>Recent matches</h2></div>${d.recent.map(matchCard).join('')}` : ''}
-      <button class="btn light block" style="margin-top:10px" onclick="App.startWith(${t.id})">🏏 Start a match with ${esc(t.short_name)}</button>
+      ${t.can_use !== false ? `<button class="btn light block" style="margin-top:10px" onclick="App.startWith(${t.id})">🏏 Start a match with ${esc(t.short_name)}</button>` : ''}
     </div>`, 'teams');
 }
 App.startWith = () => go('#/match/new');  // team pickers list every team
+
+/* ---------- Who can play with a custom team ---------- */
+function teamAccessCard(t) {
+  if (t.category !== 'custom') return '';
+  if (t.can_edit && (t.mine || t.owner_id == S.user.id || t.access)) {
+    const acc = t.access || [], pending = acc.filter(a => a.status === 'pending'), allowed = acc.filter(a => a.status === 'allowed');
+    const person = (a, btns) => `<div class="item">${personAvatar({ avatar: a.avatar, avatar_preset: a.avatar_preset, display_name: a.display_name }, 36)}<div class="grow"><div class="t ellipsis">${esc(a.display_name)}</div><div class="s">@${esc(a.username)}</div></div>${btns}</div>`;
+    return `<div class="card access-card"><b>🔐 Who can play with this team?</b>
+      <div class="seg" style="margin:10px 0 6px">${[['approved', 'Only people I allow'], ['everyone', 'Everyone']].map(([k, l]) => `<button class="${t.share_mode === k ? 'on' : ''}" onclick="App.shareMode(${t.id},'${k}')">${l}</button>`).join('')}</div>
+      <div class="small muted">${t.share_mode === 'everyone' ? 'Any player can pick this team for their matches and tournaments.' : 'Other players can see your team, but only you and the players below can pick it for matches and tournaments.'}</div>
+      ${pending.length ? `<div class="section" style="margin-top:12px"><h2>🔔 Asking to play</h2></div><div class="flush list">${pending.map(a => person(a, `<button class="btn sm" onclick="App.teamAllow(${t.id},${a.user_id},1)">Allow</button><button class="btn sm light" onclick="App.teamAllow(${t.id},${a.user_id},0)">Decline</button>`)).join('')}</div>` : ''}
+      ${t.share_mode !== 'everyone' ? `<div class="section" style="margin-top:12px"><h2>Allowed players</h2><span class="small muted">${allowed.length}</span></div>
+        ${allowed.length ? `<div class="flush list">${allowed.map(a => person(a, `<button class="btn sm light" onclick="App.teamAllow(${t.id},${a.user_id},0)">Remove</button>`)).join('')}</div>` : '<div class="small muted">Nobody yet - only you can use this team.</div>'}
+        <form class="row" style="margin-top:10px" onsubmit="App.teamAdd(event,${t.id})"><input class="input grow" name="u" placeholder="Add by username, e.g. aayush" autocapitalize="none" autocomplete="off" required><button class="btn sm">Add</button></form>` : ''}
+    </div>`;
+  }
+  if (t.can_use) return t.my_access === 'allowed' ? `<div class="card access-card ok">✅ <b>${esc(t.owner_name || 'The owner')}</b> lets you play with this team.</div>` : '';
+  if (t.my_access === 'pending') return `<div class="card access-card">⏳ <b>Request sent.</b> <span class="small muted">You can pick this team once ${esc(t.owner_name || 'the owner')} says yes.</span>
+      <button class="btn sm light block" style="margin-top:8px" onclick="App.teamAsk(${t.id},0)">Cancel request</button></div>`;
+  return `<div class="card access-card">🔒 <b>This is ${esc(t.owner_name || 'another player')}'s team.</b><div class="small muted" style="margin:4px 0 10px">You can look, but you need their OK to use it in your matches.</div>
+      <button class="btn block" onclick="App.teamAsk(${t.id},1)">🙋 Ask to use this team</button></div>`;
+}
+const teamAccessDo = (action, data, msg) => run(async () => { await api(action, data); if (msg) toast(msg); render(); });
+App.teamAsk = (id, on) => teamAccessDo(on ? 'team_access_request' : 'team_access_cancel', { team_id: id }, on ? 'Asked ✓ - you\'ll be able to use it once they say yes' : 'Request cancelled');
+App.teamAllow = (id, uid, allow) => teamAccessDo('team_access_set', { team_id: id, user_id: uid, allow }, allow ? 'Allowed ✓' : 'Done');
+App.shareMode = (id, mode) => teamAccessDo('team_share_mode', { team_id: id, mode }, 'Saved ✓');
+App.teamAdd = (e, id) => { e.preventDefault(); const u = formData(e.target).u.trim(); teamAccessDo('team_access_add', { team_id: id, username: u }, 'Added ✓'); };
 
 const BAT_STYLES = ['Right-hand bat', 'Left-hand bat'];
 const BOWL_STYLES = ['', 'Right-arm fast', 'Right-arm fast-medium', 'Right-arm medium', 'Left-arm fast', 'Left-arm fast-medium', 'Left-arm medium', 'Right-arm offbreak', 'Right-arm legbreak', 'Slow left-arm orthodox', 'Left-arm wrist-spin'];
@@ -1295,7 +1325,8 @@ App.searchPlayers = q => {
   }, 250);
 };
 function drawPick() {
-  $('#pres').innerHTML = S.pickList.length ? S.pickList.map(p => `<button class="pbtn ${S.pickSel.has(p.id) ? 'on' : ''}" onclick="App.togglePick(${p.id})"><span class="chk">${S.pickSel.has(p.id) ? '✓' : ''}</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.team)}</span></button>`).join('') : '<div class="muted small">No players found.</div>';
+  $('#pres').innerHTML = S.pickList.length ? S.pickList.map(p => +p.can_use === 0 ? `<button class="pbtn locked" onclick="toast('🔒 ${esc(p.team_name).replace(/'/g, '')} is another player\\'s team - ask them first', true)"><span class="chk">🔒</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.team)}</span></button>`
+    : `<button class="pbtn ${S.pickSel.has(p.id) ? 'on' : ''}" onclick="App.togglePick(${p.id})"><span class="chk">${S.pickSel.has(p.id) ? '✓' : ''}</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.team)}</span></button>`).join('') : '<div class="muted small">No players found.</div>';
   const b = $('#padd'); b.disabled = !S.pickSel.size; b.textContent = S.pickSel.size ? `Add ${plural(S.pickSel.size, 'player')}` : 'Add players';
 }
 App.togglePick = id => { S.pickSel.has(id) ? S.pickSel.delete(id) : S.pickSel.add(id); drawPick(); };
@@ -1382,9 +1413,17 @@ async function viewTournamentForm(id) {
     </div>
     <div class="section"><h2>Teams</h2><span class="small muted" id="tcount">${S.tsel.size} selected</span></div>
     <div class="search">${I.search}<input class="input" placeholder="Search teams" oninput="App.filterList(this.value)"></div>
-    <div class="plist">${tm.teams.map(x => `<button type="button" class="pbtn ${S.tsel.has(x.id) ? 'on' : ''}" data-q="${esc((x.name + ' ' + x.short_name + ' ' + x.category).toLowerCase())}" data-tid="${x.id}" onclick="App.tToggle(${x.id},this)"><span class="chk">${S.tsel.has(x.id) ? '✓' : ''}</span>${badge(x, 'sm')} ${esc(x.name)}<span class="s">${{ ipl: 'IPL', international: 'Intl', custom: 'Custom' }[x.category]}</span></button>`).join('')}</div>
+    <div class="plist">${tm.teams.map(x => { const locked = x.can_use === false && !S.tsel.has(x.id); return `<button type="button" class="pbtn ${S.tsel.has(x.id) ? 'on' : ''} ${locked ? 'locked' : ''}" data-q="${esc((x.name + ' ' + x.short_name + ' ' + x.category).toLowerCase())}" data-tid="${x.id}" onclick="${locked ? `App.lockedTeam(${x.id})` : `App.tToggle(${x.id},this)`}"><span class="chk">${locked ? '🔒' : S.tsel.has(x.id) ? '✓' : ''}</span>${badge(x, 'sm')} ${esc(x.name)}<span class="s">${locked ? (x.my_access === 'pending' ? 'Asked' : 'Ask owner') : { ipl: 'IPL', international: 'Intl', custom: 'Custom' }[x.category]}</span></button>`; }).join('')}</div>
     <button class="btn block" style="margin:8px 0 20px">${id ? 'Save tournament' : 'Create tournament →'}</button></form>`, 'tournaments');
 }
+App.lockedTeam = id => {
+  const t = (S.tteams || []).find(x => x.id === id) || {};
+  confirmSheet(`🔒 ${t.name || 'This team'} is locked`, `It belongs to ${t.owner_name || 'another player'}. Ask them, and you can use it once they say yes.`, t.my_access === 'pending' ? 'Open team' : 'Ask to use it', () => {
+    closeSheet();
+    if (t.my_access === 'pending') return go('#/team/' + id);
+    run(async () => { await api('team_access_request', { team_id: id }); t.my_access = 'pending'; toast(`Asked ${t.owner_name || 'the owner'} ✓`); });
+  }, false);
+};
 App.tToggle = (id, el) => {
   S.tsel.has(id) ? S.tsel.delete(id) : S.tsel.add(id);
   el.classList.toggle('on', S.tsel.has(id)); el.querySelector('.chk').textContent = S.tsel.has(id) ? '✓' : '';
@@ -1463,7 +1502,7 @@ function viewMore() {
       ${item('👥', 'Find players', 'Search, follow, and see your followers', "go('#/people')")}
       ${item('📊', 'Leaderboard', 'Top run scorers & wicket takers', "go('#/stats')")}
       ${item('⚙️', 'Match types', 'T20, ODI, Gully cricket & your own', "go('#/types')")}
-      ${item('🧢', 'Our teams', 'Teams you and your friends made', "go('#/teams?c=custom')")}
+      ${item('🧢', 'Our teams' + (S.extras && S.extras.team_requests ? ' <span class="dot-new"></span>' : ''), S.extras && S.extras.team_requests ? `${plural(S.extras.team_requests, 'player')} asking to use your teams` : 'Teams you and your friends made', "go('#/teams?c=custom')")}
       ${item('🔊', 'Sound & commentary', (Sound.sfx ? 'Sounds on' : 'Sounds off') + ' · ' + (Sound.voice ? 'voice on' : 'voice muted'), 'App.soundSheet()')}
       ${item('📲', 'Install app', 'Add Cric-Scorer to your home screen', 'App.installHelp()')}
       ${item('🔄', 'Update app', 'Version ' + esc(window.CS_VERSION || '') + (S.newVersion ? ' · new version ' + esc(S.newVersion) + ' available!' : ' · reload the latest code'), 'App.updateApp()')}

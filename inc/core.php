@@ -8,6 +8,7 @@ require_once __DIR__ . '/profile.php';
 require_once __DIR__ . '/admin.php';
 require_once __DIR__ . '/updater.php';
 require_once __DIR__ . '/game.php';
+require_once __DIR__ . '/teams.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 
@@ -81,6 +82,12 @@ function ensure_schema(): void {
     }
     if (!val("SHOW COLUMNS FROM matches LIKE 'visibility'")) db()->exec("ALTER TABLE matches ADD COLUMN visibility ENUM('public','private') NOT NULL DEFAULT 'public' AFTER status, ADD INDEX idx_visibility (visibility)");
     if (!val("SHOW COLUMNS FROM users LIKE 'last_seen_at'")) schema_v19();
+    if (!val("SHOW COLUMNS FROM teams LIKE 'share_mode'")) {   // v1.11: owners decide who may use their custom teams
+        db()->exec("ALTER TABLE teams ADD COLUMN share_mode ENUM('approved','everyone') NOT NULL DEFAULT 'approved' AFTER owner_id");
+        db()->exec("CREATE TABLE IF NOT EXISTS team_access (team_id INT NOT NULL, user_id INT NOT NULL, status ENUM('pending','allowed') NOT NULL DEFAULT 'pending',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (team_id, user_id), INDEX (user_id),
+            FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    }
     if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");

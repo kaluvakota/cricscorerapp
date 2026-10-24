@@ -38,6 +38,9 @@ Made for Aarush & Aayush.
 - **Privacy Policy & Terms** (`/privacy`, `/terms`) written for India's DPDP Act, a required consent tick box at sign-up
   (also for new Google sign-ups), and *Delete my account* in My Profile.
 
+- **Team permissions** - a custom team can only be picked for matches and tournaments (or have its players copied)
+  by its owner, the admin and players the owner allows. Others tap *Ask to use this team*; the owner allows or declines
+  on the team page, can add players by username, or switch the team to *Everyone*. IPL and international teams are open.
 - **Gully Duel** - a bat-vs-bowl game in the style of Cricket League, played in landscape from behind the batter.
   Bowler: Fast / Swing / Spin (In, Straight, Out), drag the landing circle, stop the power bar in the blue (red =
   no-ball and a free hit). Batter: swipe the direction to hit as the ball arrives (short = ground, long = air, tap =

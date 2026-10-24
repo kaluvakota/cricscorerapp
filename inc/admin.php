@@ -271,6 +271,7 @@ function client_extras(array $u): array {
     return [
         'announcements' => rows('SELECT id, title, body, kind FROM announcements WHERE active=1 ORDER BY id DESC LIMIT 3'),
         'help_unread' => (int)val('SELECT COUNT(*) FROM tickets WHERE user_id=? AND user_unread=1', [$u['id']]),
+        'team_requests' => team_requests_waiting($u),
         'force_version' => setting('force_version'),
     ];
 }

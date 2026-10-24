@@ -48,6 +48,8 @@ function handle(string $action, array $in, ?array $u) {
     }
 
     /* ===== Help desk, admin portal, Gully Duel ===== */
+    case 'team_access_request': case 'team_access_cancel': case 'team_access_set': case 'team_access_add': case 'team_share_mode':
+        return team_access_action($action, $u, $in);
     case 'help_send': case 'help_list':
         return help_action($action, $u, $in);
     case 'game_create': case 'game_join': case 'game_get': case 'game_bowl': case 'game_bat': case 'game_nudge':
@@ -152,8 +154,15 @@ function handle(string $action, array $in, ?array $u) {
         if (in_array($cat, ['ipl', 'international', 'custom'], true)) { $sql .= ' WHERE t.category=?'; $p[] = $cat; }
         $sql .= " ORDER BY FIELD(t.category,'custom','ipl','international'), t.name";
         $list = rows($sql, $p);
-        foreach ($list as &$t) { $t['id'] = (int)$t['id']; $t['mine'] = (int)$t['owner_id'] === (int)$u['id']; $t['can_edit'] = can_edit_team($t, $u); }
-        return ['teams' => $list];
+        $mineReq = []; foreach (rows("SELECT ta.team_id, COUNT(*) c FROM team_access ta JOIN teams t ON t.id=ta.team_id WHERE t.owner_id=? AND ta.status='pending' GROUP BY ta.team_id", [$u['id']]) as $r) $mineReq[(int)$r['team_id']] = (int)$r['c'];
+        $myAcc = []; foreach (rows('SELECT team_id, status FROM team_access WHERE user_id=?', [$u['id']]) as $r) $myAcc[(int)$r['team_id']] = $r['status'];
+        foreach ($list as &$t) {
+            $t['id'] = (int)$t['id']; $t['mine'] = (int)$t['owner_id'] === (int)$u['id']; $t['can_edit'] = can_edit_team($t, $u);
+            $t['can_use'] = $t['category'] !== 'custom' || !empty($u['is_admin']) || $t['owner_id'] === null || $t['mine'] || $t['share_mode'] === 'everyone' || ($myAcc[$t['id']] ?? '') === 'allowed';
+            $t['my_access'] = $myAcc[$t['id']] ?? null;
+            $t['requests'] = $mineReq[$t['id']] ?? 0;
+        }
+        return ['teams' => $list, 'requests' => array_sum($mineReq)];
     }
 
     case 'team_get': {
@@ -161,6 +170,7 @@ function handle(string $action, array $in, ?array $u) {
         if (!$t) fail('Team not found', 404);
         $t['id'] = (int)$t['id'];
         $t['can_edit'] = can_edit_team($t, $u);
+        $t += team_access_info($t, $u);
         $players = rows("SELECT * FROM players WHERE team_id=? ORDER BY FIELD(role,'Batter','Wicket-keeper','All-rounder','Bowler'), name", [$t['id']]);
         [$vs, $vp] = vis_sql($u);
         $recent = match_summaries(rows("SELECT * FROM matches WHERE (team1_id=? OR team2_id=?) AND status IN ('live','completed') AND $vs ORDER BY updated_at DESC LIMIT 5", array_merge([$t['id'], $t['id']], $vp)));
@@ -228,10 +238,11 @@ function handle(string $action, array $in, ?array $u) {
         $qs = '%' . str_in($in, 'q', 60) . '%';
         $exclude = int_in($in, 'exclude_team');
         $custom = !empty($in['custom_only']) ? " AND t.category='custom'" : '';
+        [$us, $up] = team_use_sql($u);
         return ['players' => rows("SELECT p.id, p.name, p.role, p.country, t.name team_name, t.short_name team, t.color,
-                                     (SELECT username FROM users WHERE player_id=p.id) linked_to
+                                     (SELECT username FROM users WHERE player_id=p.id) linked_to, IF($us, 1, 0) can_use
                                    FROM players p JOIN teams t ON t.id=p.team_id
-                                   WHERE p.name LIKE ? AND p.team_id<>?$custom ORDER BY t.category='custom' DESC, p.name LIMIT 60", [$qs, $exclude])];
+                                   WHERE p.name LIKE ? AND p.team_id<>?$custom ORDER BY t.category='custom' DESC, p.name LIMIT 60", array_merge($up, [$qs, $exclude]))];
     }
 
     case 'player_copy': {
@@ -240,7 +251,7 @@ function handle(string $action, array $in, ?array $u) {
         $n = 0;
         foreach ((array)($in['player_ids'] ?? []) as $pid) {
             $p = row('SELECT * FROM players WHERE id=?', [(int)$pid]);
-            if (!$p) continue;
+            if (!$p || !can_use_team(row('SELECT * FROM teams WHERE id=?', [$p['team_id']]), $u)) continue;
             if (val('SELECT 1 FROM players WHERE team_id=? AND name=?', [$t['id'], $p['name']])) continue;
             q('INSERT INTO players (team_id, name, role, batting_style, bowling_style, country, jersey_no, is_overseas) VALUES (?,?,?,?,?,?,?,?)',
               [$t['id'], $p['name'], $p['role'], $p['batting_style'], $p['bowling_style'], $p['country'], $p['jersey_no'], 0]);
@@ -311,6 +322,7 @@ function handle(string $action, array $in, ?array $u) {
         if (!$t1 || !$t2) fail('Choose both teams');
         if ($t1 === $t2) fail('Choose two different teams');
         if (!val('SELECT 1 FROM teams WHERE id=?', [$t1]) || !val('SELECT 1 FROM teams WHERE id=?', [$t2])) fail('Team not found');
+        require_team_use($t1, $u); require_team_use($t2, $u);
         $tour = nint($in['tournament_id'] ?? null);
         if ($tour && !can_edit_owned(row('SELECT * FROM tournaments WHERE id=?', [$tour]), $u)) fail('You cannot add matches to this tournament', 403);
         $date = str_in($in, 'match_date', 20);
@@ -406,6 +418,8 @@ function handle(string $action, array $in, ?array $u) {
         $fmt = in_array($in['format'] ?? '', ['league', 'knockout', 'league_final'], true) ? $in['format'] : 'league';
         $teams = array_values(array_unique(array_map('intval', (array)($in['team_ids'] ?? []))));
         if (count($teams) < 2) fail('Pick at least 2 teams');
+        $already = $id ? array_map('intval', array_column(rows('SELECT team_id FROM tournament_teams WHERE tournament_id=?', [$id]), 'team_id')) : [];
+        foreach ($teams as $tid) if (!in_array($tid, $already, true)) require_team_use($tid, $u);
         $vals = [$name, $fmt, nint($in['match_type_id'] ?? null), str_in($in, 'start_date', 10) ?: null, str_in($in, 'end_date', 10) ?: null, str_in($in, 'venue', 150) ?: null];
         if ($id) {
             $t = row('SELECT * FROM tournaments WHERE id=?', [$id]);

@@ -60,6 +60,7 @@ CREATE TABLE teams (
   color VARCHAR(10) NOT NULL DEFAULT '#0d4a36',
   category ENUM('ipl','international','custom') NOT NULL DEFAULT 'custom',
   owner_id INT NULL,
+  share_mode ENUM('approved','everyone') NOT NULL DEFAULT 'approved',
   captain VARCHAR(100) NULL,
   home_ground VARCHAR(150) NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
