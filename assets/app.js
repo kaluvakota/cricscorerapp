@@ -287,6 +287,8 @@ function loadCaptcha() {
     ).then(() => new Promise(ok => grecaptcha.ready(ok))).catch(e => { capLoad = null; throw e; });
   return capLoad;
 }
+const CAP_FAIL = 'The security check (Google reCAPTCHA) could not load. Check your internet connection, VPN or ad-blocker and try again.';
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error(CAP_FAIL)), ms))]);
 async function renderCaptcha() {
   const rc = S.auth && S.auth.recaptcha, el = document.getElementById('cap');
   S.capId = null;
@@ -294,21 +296,25 @@ async function renderCaptcha() {
   if (rc.version === 'v3') { el.innerHTML = '<div class="cap-note">Protected by reCAPTCHA · Google <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> & <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a></div>'; loadCaptcha().catch(() => {}); return; }
   el.innerHTML = '<div class="small muted">Loading security check…</div>';
   try {
-    await loadCaptcha();
+    await withTimeout(loadCaptcha(), 10000);
     const box = document.getElementById('cap');
     if (!box) return;
     box.innerHTML = '';
     const holder = document.createElement('div'); box.appendChild(holder);
     S.capId = grecaptcha.render(holder, { sitekey: rc.site_key, theme: darkMode() ? 'dark' : 'light', size: box.getBoundingClientRect().width < 304 ? 'compact' : 'normal' });
   } catch (e) {
-    el.innerHTML = '<div class="small" style="color:var(--red)">Security check could not load. Check your internet and refresh.</div>';
+    el.innerHTML = '<div class="small" style="color:var(--red)">' + CAP_FAIL + ' <a class="link" href="#" onclick="event.preventDefault();capLoad=null;renderCaptcha()">Retry</a></div>';
   }
 }
 async function captchaToken(action) {
   const rc = S.auth && S.auth.recaptcha;
   if (!rc) return '';
-  if (rc.version === 'v3') { await loadCaptcha(); return await grecaptcha.execute(rc.site_key, { action }); }
-  const t = S.capId !== null && window.grecaptcha ? grecaptcha.getResponse(S.capId) : '';
+  if (rc.version === 'v3') {
+    try { await withTimeout(loadCaptcha(), 10000); return await withTimeout(grecaptcha.execute(rc.site_key, { action }), 10000); }
+    catch (e) { capLoad = null; throw new Error(CAP_FAIL); }
+  }
+  if (S.capId === null || !window.grecaptcha) throw new Error(CAP_FAIL);
+  const t = grecaptcha.getResponse(S.capId);
   if (!t) throw new Error('Please tick "I\'m not a robot"');
   return t;
 }

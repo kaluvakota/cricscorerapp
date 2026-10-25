@@ -8,11 +8,17 @@ defined('RECAPTCHA_SITE_KEY')   || define('RECAPTCHA_SITE_KEY', '');
 defined('RECAPTCHA_SECRET_KEY') || define('RECAPTCHA_SECRET_KEY', '');
 defined('RECAPTCHA_VERSION')    || define('RECAPTCHA_VERSION', 'v2');
 defined('RECAPTCHA_MIN_SCORE')  || define('RECAPTCHA_MIN_SCORE', 0.5);
+defined('RECAPTCHA_BYPASS_IPS') || define('RECAPTCHA_BYPASS_IPS', '');   // comma-separated IPs or prefixes (e.g. '203.0.113.7, 10.0.') that skip reCAPTCHA - for automated testers
 defined('GOOGLE_TOKENINFO_URL') || define('GOOGLE_TOKENINFO_URL', 'https://oauth2.googleapis.com/tokeninfo');
 defined('RECAPTCHA_VERIFY_URL') || define('RECAPTCHA_VERIFY_URL', 'https://www.google.com/recaptcha/api/siteverify');
 
 function google_enabled(): bool { return trim((string)GOOGLE_CLIENT_ID) !== ''; }
-function recaptcha_enabled(): bool { return trim((string)RECAPTCHA_SITE_KEY) !== '' && trim((string)RECAPTCHA_SECRET_KEY) !== ''; }
+function recaptcha_enabled(): bool {
+    if (trim((string)RECAPTCHA_SITE_KEY) === '' || trim((string)RECAPTCHA_SECRET_KEY) === '') return false;
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    foreach (array_filter(array_map('trim', explode(',', (string)RECAPTCHA_BYPASS_IPS))) as $x) if ($x !== '' && ($ip === $x || strpos($ip, $x) === 0)) return false;   // test runners
+    return true;
+}
 function recaptcha_version(): string { return strtolower((string)RECAPTCHA_VERSION) === 'v3' ? 'v3' : 'v2'; }
 
 /** Settings the phone needs (public values only - never the secret key) */

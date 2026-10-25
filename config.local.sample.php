@@ -32,6 +32,7 @@ define('RECAPTCHA_VERSION', 'v2');             // 'v2' = tick box, 'v3' = invisi
 define('RECAPTCHA_SITE_KEY', '');
 define('RECAPTCHA_SECRET_KEY', '');
 define('RECAPTCHA_MIN_SCORE', 0.5);            // v3 only
+define('RECAPTCHA_BYPASS_IPS', '');            // optional: IPs (or prefixes) of automated testers that skip reCAPTCHA, e.g. '203.0.113.7, 10.0.'
 
 /* ===== 4. Website & legal details (SEO, share previews, Privacy Policy, Terms) ===== */
 define('SITE_URL', 'https://cricscorerapp.com');           // your main web address, no slash at the end

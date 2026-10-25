@@ -154,6 +154,9 @@ All keys go in `config.local.php` (see `config.local.sample.php`). Leave a key e
 - **reCAPTCHA:** https://www.google.com/recaptcha/admin/create → v2 "I'm not a robot" Checkbox (or v3) → add your
   domains → put the keys in `RECAPTCHA_SITE_KEY` / `RECAPTCHA_SECRET_KEY` and set `RECAPTCHA_VERSION` to match.
 - The server checks every Google sign-in and every captcha with Google, so it needs outbound HTTPS (normal on Hostinger).
+- **Automated testers** (TestPilot, Playwright runners…) that cannot reach Google: put the runner's IP (or prefix) in
+  `RECAPTCHA_BYPASS_IPS` and that IP skips reCAPTCHA; the login page then shows no captcha at all. If the captcha cannot
+  load for a real player, the form shows a clear error with a Retry link after 10 s instead of waiting forever.
 
 ## WhatsApp verification (Meta Cloud API) - optional
 Players can add a mobile number (one account per number) and verify it on WhatsApp; the same message signs them in
