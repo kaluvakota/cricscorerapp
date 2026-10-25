@@ -351,7 +351,7 @@ function viewLogin() {
     <div class="field"><label>Username</label><input class="input" name="username" autocapitalize="none" autocomplete="username" required></div>
     <div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="current-password" required></div>
     <div id="cap" class="cap"></div>
-    <button class="btn block">Let's play 🏏</button></form>
+    <button class="btn block">Log in</button></form>
     ${S.auth && S.auth.whatsapp ? `<a class="btn block" href="#/wa" onclick="S.waMode='login'" style="background:#25d366;margin-top:10px">📲 Sign in with WhatsApp</a>` : ''}
     <div class="switch-link">New player? <a href="#/register">Create an account</a></div>`), null);
   renderGoogleButton('gbtn', 'signin_with'); renderCaptcha();

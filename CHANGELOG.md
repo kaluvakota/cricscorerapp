@@ -4,6 +4,9 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.18.2 - 25 October 2026
+- Login button now says "Log in" (was "Let's play 🏏")
+
 ## 1.18.1 - 25 October 2026
 - Sign-up: one password field with a show/hide (👁) button instead of "confirm password" - easier on phones and works with automated testers that expect a single password input
 
