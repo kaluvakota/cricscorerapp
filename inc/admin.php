@@ -210,6 +210,21 @@ function admin_action(string $action, array $u, array $in) {
     case 'admin_features': return ['features' => admin_features()];
     case 'admin_feature_set': return admin_feature_action($in);
 
+    case 'admin_users': {                              // the player list: name, username and id, with search (no emails or numbers)
+        $q = trim(mb_substr((string)($in['q'] ?? ''), 0, 60));
+        $page = max(0, (int)($in['page'] ?? 0)); $per = 50;
+        $where = '1=1'; $p = [];
+        if ($q !== '') {
+            if (ctype_digit($q) && strlen($q) <= 9) { $where = 'u.id=?'; $p = [(int)$q]; }
+            else { $where = '(LOCATE(?, u.display_name) > 0 OR LOCATE(?, u.username) > 0)'; $p = [$q, $q]; }
+        }
+        $total = (int)val("SELECT COUNT(*) FROM users u WHERE $where", $p);
+        $list = rows("SELECT u.id, u.username, u.display_name, u.created_at, u.last_seen_at, u.is_admin, u.is_private, u.mobile_verified_at IS NOT NULL verified, u.google_sub IS NOT NULL google,
+                        (SELECT COUNT(*) FROM matches m WHERE m.owner_id=u.id) matches
+                      FROM users u WHERE $where ORDER BY u.id DESC LIMIT $per OFFSET " . ($page * $per), $p);
+        foreach ($list as &$r) { $r['id'] = (int)$r['id']; $r['matches'] = (int)$r['matches']; $r['verified'] = (bool)$r['verified']; $r['google'] = (bool)$r['google']; $r['is_admin'] = (bool)$r['is_admin']; $r['is_private'] = (bool)$r['is_private']; }
+        return ['users' => $list, 'total' => $total, 'page' => $page, 'per' => $per];
+    }
     case 'admin_tickets': {
         $st = in_array($in['status'] ?? '', ['open', 'answered', 'closed'], true) ? $in['status'] : 'open';
         $list = array_map(fn($t) => ticket_view($t, true), rows('SELECT * FROM tickets WHERE status=? ORDER BY updated_at DESC LIMIT 100', [$st]));

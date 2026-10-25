@@ -4,6 +4,9 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.14.5 - 25 October 2026
+- Admin portal: Players tab - every player's name, username and ID, joined/last-seen dates, verified tick, with search and paging
+
 ## 1.14.4 - 25 October 2026
 - Find players by their full WhatsApp number (exact number only; numbers are never shown in results; private profiles stay hidden)
 - Clearer message when a number is already linked to another account - one account per number

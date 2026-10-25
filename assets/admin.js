@@ -2,7 +2,8 @@
 'use strict';
 const Admin = (() => {
   const A = {};
-  const TABS = [['stats', '📊 Stats'], ['features', '🚦 Roll-out'], ['update', '⬆️ Updates'], ['help', '💬 Help desk'], ['news', '📣 News'], ['errors', '🐞 Errors']];
+  const TABS = [['stats', '📊 Stats'], ['users', '👥 Players'], ['features', '🚦 Roll-out'], ['update', '⬆️ Updates'], ['help', '💬 Help desk'], ['news', '📣 News'], ['errors', '🐞 Errors']];
+  let userQ = '', userPage = 0;
   let tab = 'stats', helpStatus = 'open';
   const num = n => Number(n || 0).toLocaleString('en-IN');
 
@@ -15,7 +16,7 @@ const Admin = (() => {
     if (k) tab = k;
     if (!S.user || !S.user.is_admin) { mount(topbar('Admin', { back: true }) + '<div class="content"><div class="empty">Only the administrator can open this page.</div></div>', 'more'); return; }
     mount(frame(sk(4)), 'more');
-    const fn = { stats, features, update, help, news, errors }[tab];
+    const fn = { stats, users, features, update, help, news, errors }[tab];
     await fn();
   };
 
@@ -50,6 +51,23 @@ const Admin = (() => {
       <div class="adm-grid">${tile(a.learners, 'Learners')}${tile(a.passed, 'Lessons passed')}${tile(a.three_star, '3-star lessons')}${tile(a.attempts, 'Quiz attempts')}${tile(a.certified, 'Certified experts')}</div>
       <p class="small muted" style="text-align:center">Updated ${esc(d.generated)} · These are totals only. No names, usernames, emails or photos are shown here.</p>`), 'more');
   }
+
+  /* ---------- Players: name, username, id and search ---------- */
+  async function users() {
+    const d = await api('admin_users', { q: userQ, page: userPage });
+    const pages = Math.max(1, Math.ceil(d.total / d.per));
+    mount(frame(`<form class="row" onsubmit="Admin.userSearch(event)"><input class="input grow" name="q" value="${esc(userQ)}" placeholder="Search name, username or ID" autocapitalize="none"><button class="btn sm">Search</button>${userQ ? `<button type="button" class="btn sm light" onclick="Admin.userSearchClear()">All</button>` : ''}</form>
+      <div class="small muted" style="margin:10px 2px">${num(d.total)} player${d.total === 1 ? '' : 's'}${userQ ? ' matching' : ''} · newest first</div>
+      ${d.users.length ? `<div class="card flush list">${d.users.map(u => `<div class="item" onclick="go('#/user/${u.id}')">
+          <div class="grow"><div class="t">${esc(u.display_name)}${u.is_admin ? ' <span class="role-tag">admin</span>' : ''}${u.verified ? ' ✅' : ''}${u.is_private ? ' 🔒' : ''}</div>
+            <div class="s">@${esc(u.username)} · ID ${u.id} · joined ${fmtDate(u.created_at, false)}${u.last_seen_at ? ' · seen ' + fmtDate(u.last_seen_at, false) : ''} · ${num(u.matches)} match${u.matches === 1 ? '' : 'es'}${u.google ? ' · Google' : ''}</div></div>
+          <span class="chev">${I.chev}</span></div>`).join('')}</div>` : '<div class="card empty"><div class="big">👥</div>No players found.</div>'}
+      ${pages > 1 ? `<div class="grid2" style="margin-top:10px"><button class="btn light" ${userPage === 0 ? 'disabled' : ''} onclick="Admin.userPage(-1)">← Newer</button><button class="btn light" ${userPage >= pages - 1 ? 'disabled' : ''} onclick="Admin.userPage(1)">Older →</button></div><div class="small muted" style="text-align:center;margin-top:6px">Page ${userPage + 1} of ${pages}</div>` : ''}`,
+      'Players list'), 'more');
+  }
+  A.userSearch = e => { e.preventDefault(); userQ = formData(e.target).q.trim(); userPage = 0; users(); };
+  A.userSearchClear = () => { userQ = ''; userPage = 0; users(); };
+  A.userPage = d => { userPage = Math.max(0, userPage + d); users(); };
 
   /* ---------- Feature roll-out ---------- */
   async function features(data) {
