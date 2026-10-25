@@ -22,6 +22,7 @@ function auth_public_config(): array {
         'google_signup' => (bool)GOOGLE_ALLOW_SIGNUP,
         'recaptcha' => recaptcha_enabled() ? ['site_key' => RECAPTCHA_SITE_KEY, 'version' => recaptcha_version()] : null,
         'whatsapp' => function_exists('wa_enabled') && wa_enabled(),
+        'whatsapp_link' => defined('WHATSAPP_TEMPLATE_KIND') && WHATSAPP_TEMPLATE_KIND !== 'code',
     ];
 }
 

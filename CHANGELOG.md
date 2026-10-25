@@ -4,6 +4,9 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.14.1 - 25 October 2026
+- WhatsApp: support Meta "Authentication" templates (Copy code / Autofill) with WHATSAPP_TEMPLATE_KIND = 'code'; Meta's full error reason is shown to the admin
+
 ## 1.14.0 - 24 October 2026
 - Mobile number on your profile (optional, one account per number) with WhatsApp verification through the Meta Cloud API
 - One-tap WhatsApp link: tapping it verifies the number and signs you in - no code to type (a 6-digit code works as a fallback)

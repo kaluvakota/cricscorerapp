@@ -8,6 +8,9 @@ defined('WHATSAPP_TOKEN')         || define('WHATSAPP_TOKEN', '');             /
 defined('WHATSAPP_PHONE_ID')      || define('WHATSAPP_PHONE_ID', '');          // the Phone number ID from WhatsApp → API Setup
 defined('WHATSAPP_TEMPLATE')      || define('WHATSAPP_TEMPLATE', 'cricscorer_verify');
 defined('WHATSAPP_TEMPLATE_LANG') || define('WHATSAPP_TEMPLATE_LANG', 'en');
+/* 'link' = our Utility template: body {{1}} = code, website button URL ending in {{1}} = one-tap link token.
+   'code' = a Meta "Authentication" template (Copy code / Autofill button): both slots get the code, no one-tap link. */
+defined('WHATSAPP_TEMPLATE_KIND') || define('WHATSAPP_TEMPLATE_KIND', 'link');
 defined('WHATSAPP_API_URL')       || define('WHATSAPP_API_URL', 'https://graph.facebook.com/v21.0/');
 defined('DEFAULT_COUNTRY_CODE')   || define('DEFAULT_COUNTRY_CODE', '91');     // numbers typed without a country code are Indian
 defined('OTP_MINUTES')            || define('OTP_MINUTES', 15);
@@ -33,12 +36,12 @@ function mask_mobile(?string $m): string { return $m ? '+' . substr($m, 0, 2) . 
 /** Send the template. Returns ['ok'=>bool, 'error'=>string] */
 function wa_send_verify(string $mobile, string $code, string $link): array {
     if (!wa_enabled()) return ['ok' => false, 'error' => 'WhatsApp is not set up on this website yet'];
-    $tokenPart = basename($link);
+    $buttonText = WHATSAPP_TEMPLATE_KIND === 'code' ? $code : basename($link);
     $payload = ['messaging_product' => 'whatsapp', 'to' => $mobile, 'type' => 'template', 'template' => [
         'name' => WHATSAPP_TEMPLATE, 'language' => ['code' => WHATSAPP_TEMPLATE_LANG],
         'components' => [
             ['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $code]]],
-            ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => $tokenPart]]],
+            ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => $buttonText]]],
         ]]];
     $url = rtrim(WHATSAPP_API_URL, '/') . '/' . WHATSAPP_PHONE_ID . '/messages';
     $body = json_encode($payload);
@@ -55,6 +58,8 @@ function wa_send_verify(string $mobile, string $code, string $link): array {
     $j = $res ? json_decode($res, true) : null;
     if ($http >= 200 && $http < 300 && !empty($j['messages'])) return ['ok' => true];
     $msg = $j['error']['message'] ?? ($err ?: "HTTP $http");
+    if (!empty($j['error']['error_data']['details'])) $msg .= ' - ' . $j['error']['error_data']['details'];
+    if (!empty($j['error']['error_user_msg'])) $msg .= ' - ' . $j['error']['error_user_msg'];
     error_log("Cric-Scorer WhatsApp send failed for " . mask_mobile($mobile) . ": $msg");
     return ['ok' => false, 'error' => 'WhatsApp message could not be sent (' . $msg . ')'];
 }
