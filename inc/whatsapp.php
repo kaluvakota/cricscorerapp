@@ -133,8 +133,23 @@ function otp_consume(?string $token, ?int $id = null, ?string $code = null): arr
             $u = row('SELECT * FROM users WHERE id=?', [lastId()]);
         }
     }
+    $found = link_player_by_mobile($mobile);
     $u = row('SELECT * FROM users WHERE id=?', [$u['id']]);
+    $u['found_player'] = $found;
     login_user($u, true);
     return $u;
+}
+/** A player entry (in some team) carries this WhatsApp number: link it to the account that verified the number,
+    so the matches already scored under that name become the player's own stats. Returns what was linked. */
+function link_player_by_mobile(string $mobile, ?int $playerId = null): ?array {
+    $u = row('SELECT id, player_id, display_name FROM users WHERE mobile=? AND mobile_verified_at IS NOT NULL', [$mobile]);
+    if (!$u || !empty($u['player_id'])) return null;                  // nobody verified it yet, or they already have a player
+    $p = $playerId
+        ? row('SELECT p.id, p.name, t.name team FROM players p JOIN teams t ON t.id=p.team_id WHERE p.id=?', [$playerId])
+        : row('SELECT p.id, p.name, t.name team, (SELECT COUNT(*) FROM match_players mp WHERE mp.player_id=p.id) n FROM players p JOIN teams t ON t.id=p.team_id
+               WHERE p.mobile=? AND NOT EXISTS (SELECT 1 FROM users x WHERE x.player_id=p.id) ORDER BY n DESC, p.id DESC LIMIT 1', [$mobile]);
+    if (!$p || val('SELECT 1 FROM users WHERE player_id=?', [$p['id']])) return null;
+    q('UPDATE users SET player_id=? WHERE id=?', [$p['id'], $u['id']]);
+    return ['player_id' => (int)$p['id'], 'name' => $p['name'], 'team' => $p['team'], 'user_id' => (int)$u['id'], 'matches' => (int)val('SELECT COUNT(DISTINCT match_id) FROM match_players WHERE player_id=?', [$p['id']])];
 }
 function otp_cleanup(): void { try { q('DELETE FROM otp_tokens WHERE expires_at < DATE_SUB(NOW(), INTERVAL 1 DAY)'); } catch (Throwable $e) { /* fine */ } }

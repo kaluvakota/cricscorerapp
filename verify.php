@@ -7,6 +7,7 @@ try {
     $u = otp_consume(preg_replace('/[^a-f0-9]/', '', (string)($_GET['t'] ?? '')) ?: null);
     $ok = true;
     $msg = 'Verified! Welcome, ' . $u['display_name'] . ' 🎉';
+    if (!empty($u['found_player'])) $msg .= ' We found your player "' . $u['found_player']['name'] . '" (' . $u['found_player']['team'] . ') with ' . $u['found_player']['matches'] . ' match' . ($u['found_player']['matches'] === 1 ? '' : 'es') . ' - your stats are now on your profile.';
 } catch (Throwable $e) {
     $msg = $e instanceof ApiError ? $e->getMessage() : 'Something went wrong. Please try again.';
 }

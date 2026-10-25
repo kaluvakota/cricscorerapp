@@ -59,7 +59,7 @@ function handle(string $action, array $in, ?array $u) {
     }
     case 'wa_verify_code': {                           // typed the 6-digit code instead of tapping the link
         $nu = otp_consume(null, (int)($in['id'] ?? 0), (string)($in['code'] ?? ''));
-        return ['user' => public_user($nu)];
+        return ['user' => public_user($nu), 'found_player' => $nu['found_player'] ?? null];
     }
     case 'mobile_remove':
         q('UPDATE users SET mobile=NULL, mobile_verified_at=NULL WHERE id=?', [$u['id']]);
@@ -231,15 +231,19 @@ function handle(string $action, array $in, ?array $u) {
         $name = str_in($in, 'name', 100);
         if ($name === '') fail('Enter the player name');
         $role = in_array($in['role'] ?? '', ['Batter', 'Bowler', 'All-rounder', 'Wicket-keeper'], true) ? $in['role'] : 'Batter';
+        $mobRaw = trim((string)($in['mobile'] ?? ''));
+        $mobile = $mobRaw === '' ? null : normalize_mobile($mobRaw);
+        if ($mobRaw !== '' && !$mobile) fail('That WhatsApp number does not look right, e.g. 98765 43210');
         $vals = [$name, $role, str_in($in, 'batting_style', 30) ?: 'Right-hand bat', str_in($in, 'bowling_style', 40) ?: null,
-                 str_in($in, 'country', 50) ?: null, str_in($in, 'jersey_no', 5) ?: null, !empty($in['is_overseas']) ? 1 : 0];
+                 str_in($in, 'country', 50) ?: null, str_in($in, 'jersey_no', 5) ?: null, !empty($in['is_overseas']) ? 1 : 0, $mobile];
         if ($id) {
-            q('UPDATE players SET name=?, role=?, batting_style=?, bowling_style=?, country=?, jersey_no=?, is_overseas=? WHERE id=?', array_merge($vals, [$id]));
+            q('UPDATE players SET name=?, role=?, batting_style=?, bowling_style=?, country=?, jersey_no=?, is_overseas=?, mobile=? WHERE id=?', array_merge($vals, [$id]));
         } else {
-            q('INSERT INTO players (name, role, batting_style, bowling_style, country, jersey_no, is_overseas, team_id) VALUES (?,?,?,?,?,?,?,?)', array_merge($vals, [$teamId]));
+            q('INSERT INTO players (name, role, batting_style, bowling_style, country, jersey_no, is_overseas, mobile, team_id) VALUES (?,?,?,?,?,?,?,?,?)', array_merge($vals, [$teamId]));
             $id = lastId();
         }
-        return ['id' => $id];
+        $linked = $mobile ? link_player_by_mobile($mobile, $id) : null;
+        return ['id' => $id, 'linked_to' => $linked];
     }
 
     case 'player_delete': {
@@ -256,16 +260,33 @@ function handle(string $action, array $in, ?array $u) {
         $exclude = int_in($in, 'exclude_team');
         $custom = !empty($in['custom_only']) ? " AND t.category='custom'" : '';
         [$us, $up] = team_use_sql($u);
-        return ['players' => rows("SELECT p.id, p.name, p.role, p.country, t.name team_name, t.short_name team, t.color,
+        $players = rows("SELECT p.id, p.name, p.role, p.country, t.name team_name, t.short_name team, t.color,
                                      (SELECT username FROM users WHERE player_id=p.id) linked_to, IF($us, 1, 0) can_use
                                    FROM players p JOIN teams t ON t.id=p.team_id
-                                   WHERE p.name LIKE ? AND p.team_id<>?$custom ORDER BY t.category='custom' DESC, p.name LIMIT 60", array_merge($up, [$qs, $exclude]))];
+                                   WHERE p.name LIKE ? AND p.team_id<>?$custom ORDER BY t.category='custom' DESC, p.name LIMIT 60", array_merge($up, [$qs, $exclude]));
+        // Players with an account - even brand-new ones who are in no team yet - so anyone can add them to a team
+        $q = trim(str_in($in, 'q', 60)); $mob = normalize_mobile($q);
+        [$pv, $pp] = people_vis($u, 'u');
+        $accounts = rows("SELECT u.id, u.username, u.display_name, u.role, u.batting_style, u.bowling_style, u.mobile_verified_at IS NOT NULL verified
+                          FROM users u WHERE $pv AND u.id<>? AND (" . ($mob ? 'u.mobile=?' : 'LOCATE(?, u.display_name) > 0 OR LOCATE(?, u.username) > 0') . ")
+                          AND NOT EXISTS (SELECT 1 FROM players px WHERE px.team_id=? AND px.name=u.display_name) ORDER BY u.display_name LIMIT 20",
+                          array_merge($pp, [$u['id']], $mob ? [$mob] : [$q, $q], [$exclude]));
+        foreach ($accounts as &$a) { $a['id'] = (int)$a['id']; $a['verified'] = (bool)$a['verified']; }
+        return ['players' => $players, 'accounts' => $accounts];
     }
 
     case 'player_copy': {
         $t = row('SELECT * FROM teams WHERE id=?', [int_in($in, 'team_id')]);
         if (!can_edit_team($t, $u)) fail('You cannot edit this team', 403);
         $n = 0;
+        foreach ((array)($in['user_ids'] ?? []) as $uid) {           // app accounts: make a player entry for them in this team
+            $a = row('SELECT * FROM users WHERE id=?', [(int)$uid]);
+            if (!$a || !can_view_user($a, $u) || val('SELECT 1 FROM players WHERE team_id=? AND name=?', [$t['id'], $a['display_name']])) continue;
+            q('INSERT INTO players (team_id, name, role, batting_style, bowling_style, country, mobile) VALUES (?,?,?,?,?,?,?)',
+              [$t['id'], $a['display_name'], $a['role'] ?: 'Batter', $a['batting_style'] ?: 'Right-hand bat', $a['bowling_style'] ?: null, 'India', $a['mobile_verified_at'] ? $a['mobile'] : null]);
+            if (empty($a['player_id'])) q('UPDATE users SET player_id=? WHERE id=?', [lastId(), $a['id']]);   // their stats will show on their profile
+            $n++;
+        }
         foreach ((array)($in['player_ids'] ?? []) as $pid) {
             $p = row('SELECT * FROM players WHERE id=?', [(int)$pid]);
             if (!$p || !can_use_team(row('SELECT * FROM teams WHERE id=?', [$p['team_id']]), $u)) continue;

@@ -77,6 +77,7 @@ CREATE TABLE players (
   bowling_style VARCHAR(40) NULL,
   country VARCHAR(50) NULL,
   jersey_no VARCHAR(5) NULL,
+  mobile VARCHAR(20) NULL,
   is_overseas TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX (team_id),

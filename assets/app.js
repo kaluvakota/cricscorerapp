@@ -1314,12 +1314,14 @@ App.playerForm = (pid, teamId) => {
     <div class="field"><label>Batting</label><select class="input" name="batting_style">${opt(BAT_STYLES, p?.batting_style || 'Right-hand bat')}</select></div>
     <div class="field"><label>Bowling</label><select class="input" name="bowling_style">${opt(BOWL_STYLES, p?.bowling_style)}</select></div>
     <div class="field"><label>Country</label><input class="input" name="country" value="${esc(p?.country || 'India')}"></div>
+    <div class="field"><label>WhatsApp number <span class="muted">(optional)</span></label><input class="input" name="mobile" inputmode="tel" value="${esc(p?.mobile || '')}" placeholder="98765 43210">
+      <div class="small muted" style="margin-top:4px">When this player joins Cric-Scorer with this number, all their matches here become their own stats.</div></div>
     <button class="btn block">${p ? 'Save changes' : 'Add player'}</button>
     ${p ? `<button type="button" class="btn light block" style="margin-top:8px;color:var(--red)" onclick="App.deletePlayer(${pid})">Delete player</button>` : ''}</form>`);
 };
 App.savePlayer = (e, pid, tid) => {
   e.preventDefault();
-  run(async () => { const f = formData(e.target); f.id = pid; f.team_id = tid; await api('player_save', f); closeSheet(); toast(pid ? 'Player updated' : 'Player added ✓'); render(); }, e.submitter);
+  run(async () => { const f = formData(e.target); f.id = pid; f.team_id = tid; const r = await api('player_save', f); closeSheet(); toast(r.linked_to ? `Linked to ${r.linked_to.name}'s account ✓` : pid ? 'Player updated' : 'Player added ✓'); render(); }, e.submitter);
 };
 App.deletePlayer = pid => confirmSheet('Delete player?', 'This removes the player from the team.', 'Delete', () => run(async () => {
   await api('player_delete', { id: pid }); closeSheet(); toast('Player deleted');
@@ -1327,8 +1329,8 @@ App.deletePlayer = pid => confirmSheet('Delete player?', 'This removes the playe
 }));
 App.pickPlayers = () => {
   S.pickSel = new Set();
-  sheet(`<h3>Pick from other teams</h3><div class="sub">Build your dream team with IPL & international stars - players are copied into your team.</div>
-    <div class="search">${I.search}<input class="input" id="pq" placeholder="Search e.g. Kohli, Bumrah" oninput="App.searchPlayers(this.value)"></div>
+  sheet(`<h3>Add players</h3><div class="sub">Search players who use the app (by name, username or WhatsApp number) or copy stars from IPL & international teams.</div>
+    <div class="search">${I.search}<input class="input" id="pq" placeholder="Name, username, number, or e.g. Kohli" oninput="App.searchPlayers(this.value)"></div>
     <div id="pres" class="plist"><div class="muted small">Type at least 2 letters…</div></div>
     <button class="btn block" id="padd" disabled onclick="App.copyPlayers(this)">Add players</button>`);
   setTimeout(() => $('#pq')?.focus(), 250);
@@ -1340,17 +1342,21 @@ App.searchPlayers = q => {
     if (q.trim().length < 2) return;
     try {
       const d = await api('players_search', { q, exclude_team: S.team.team.id });
-      S.pickList = d.players; drawPick();
+      S.pickList = d.players; S.pickAccounts = d.accounts || []; drawPick();
     } catch (e) { toast(e.message, true); }
   }, 250);
 };
 function drawPick() {
-  $('#pres').innerHTML = S.pickList.length ? S.pickList.map(p => +p.can_use === 0 ? `<button class="pbtn locked" onclick="toast('🔒 ${esc(p.team_name).replace(/'/g, '')} is another player\\'s team - ask them first', true)"><span class="chk">🔒</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.team)}</span></button>`
-    : `<button class="pbtn ${S.pickSel.has(p.id) ? 'on' : ''}" onclick="App.togglePick(${p.id})"><span class="chk">${S.pickSel.has(p.id) ? '✓' : ''}</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.team)}</span></button>`).join('') : '<div class="muted small">No players found.</div>';
+  const acc = (S.pickAccounts || []).map(a => `<button class="pbtn ${S.pickSel.has('u' + a.id) ? 'on' : ''}" onclick="App.togglePick('u${a.id}')"><span class="chk">${S.pickSel.has('u' + a.id) ? '✓' : ''}</span>👤 ${esc(a.display_name)}${a.verified ? ' ✅' : ''}<span class="s">@${esc(a.username)} · app player</span></button>`).join('');
+  $('#pres').innerHTML = acc + (S.pickList.length ? S.pickList.map(p => +p.can_use === 0 ? `<button class="pbtn locked" onclick="toast('🔒 ${esc(p.team_name).replace(/'/g, '')} is another player\\'s team - ask them first', true)"><span class="chk">🔒</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.team)}</span></button>`
+    : `<button class="pbtn ${S.pickSel.has(p.id) ? 'on' : ''}" onclick="App.togglePick(${p.id})"><span class="chk">${S.pickSel.has(p.id) ? '✓' : ''}</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.team)}</span></button>`).join('') : (acc ? '' : '<div class="muted small">No players found.</div>'));
   const b = $('#padd'); b.disabled = !S.pickSel.size; b.textContent = S.pickSel.size ? `Add ${plural(S.pickSel.size, 'player')}` : 'Add players';
 }
 App.togglePick = id => { S.pickSel.has(id) ? S.pickSel.delete(id) : S.pickSel.add(id); drawPick(); };
-App.copyPlayers = btn => run(async () => { const r = await api('player_copy', { team_id: S.team.team.id, player_ids: [...S.pickSel] }); closeSheet(); toast(`${plural(r.added, 'player')} added ✓`); render(); }, btn);
+App.copyPlayers = btn => run(async () => {
+  const sel = [...S.pickSel], user_ids = sel.filter(x => String(x).startsWith('u')).map(x => +String(x).slice(1)), player_ids = sel.filter(x => !String(x).startsWith('u'));
+  const r = await api('player_copy', { team_id: S.team.team.id, player_ids, user_ids }); closeSheet(); toast(`${plural(r.added, 'player')} added ✓`); render();
+}, btn);
 
 const COLORS = ['#0d4a36', '#15803d', '#1d4ed8', '#0ea5e9', '#7c3aed', '#db2777', '#d62839', '#ea580c', '#f2b134', '#475569', '#111827', '#0f766e'];
 async function viewTeamForm(id) {
@@ -1729,7 +1735,7 @@ App.waCode = e => {
   const code = formData(e.target).code.trim();
   run(async () => {
     const r = await api('wa_verify_code', { id: S.wa.id, code });
-    S.user = r.user; closeSheet(); toast('Mobile verified ✓');
+    S.user = r.user; closeSheet(); toast(r.found_player ? `Mobile verified ✓ Found ${r.found_player.matches} of your matches as ${r.found_player.name} (${r.found_player.team})` : 'Mobile verified ✓');
     if (S.wa.purpose === 'link') viewProfile(); else { const a = S.after; S.after = null; go(a && !/^#\/(login|register|wa)/.test(a) ? a : '#/'); }
   }, e.submitter);
 };
