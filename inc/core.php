@@ -105,7 +105,6 @@ function ensure_schema(): void {
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (academy_id), INDEX (user_id),
             FOREIGN KEY (academy_id) REFERENCES academies(id) ON DELETE CASCADE, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
-    if (!val("SHOW COLUMNS FROM otp_tokens LIKE 'done'")) db()->exec("ALTER TABLE otp_tokens ADD COLUMN done TINYINT(1) NOT NULL DEFAULT 0 AFTER used_at");
     if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");

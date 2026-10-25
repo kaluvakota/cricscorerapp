@@ -1702,7 +1702,7 @@ function mobileCard(u) {
   return `<div class="section"><h2>Mobile number</h2></div><div class="card">
     ${u.mobile ? `<div class="row"><span class="avatar" style="background:#25d366;color:#fff">📱</span><div class="grow"><b>${esc(u.mobile)}</b><div class="small muted">${u.mobile_verified ? '✅ Verified on WhatsApp' : 'Not verified yet'}</div></div>
         <button type="button" class="btn sm light" onclick="App.mobileRemove()">Remove</button></div>`
-      : `<div class="small muted" style="margin-bottom:10px">Optional. Add your WhatsApp number so academies can find you, and sign in with one tap on WhatsApp - no password needed.</div>`}
+      : `<div class="small muted" style="margin-bottom:10px">Optional. Add your WhatsApp number so academies can find you, and sign in with one tap - no password needed.</div>`}
     <div class="row" style="margin-top:10px"><input class="input grow" id="mobIn" inputmode="tel" autocomplete="tel" placeholder="${u.mobile ? 'Change number' : 'e.g. 98765 43210'}" maxlength="20" onkeydown="if(event.key==='Enter'){event.preventDefault();App.mobileVerify(this.nextElementSibling)}">
       <button type="button" class="btn sm" style="background:#25d366" onclick="App.mobileVerify(this)">${u.mobile_verified ? 'Change' : 'Verify on WhatsApp'}</button></div>
     ${wa ? '' : '<div class="small muted" style="margin-top:8px">WhatsApp messages are not switched on for this website yet' + (S.user.is_admin ? ' - add the Meta keys to config.local.php (see README). As admin you can still test: the link is shown to you.' : '.') + '</div>'}
@@ -1714,40 +1714,24 @@ App.mobileVerify = btn => {
   run(async () => { const r = await api('wa_request', { purpose: 'link', mobile }); waSheet(r, 'link'); }, btn);
 };
 App.mobileRemove = () => confirmSheet('Remove your mobile number?', 'You will no longer be able to sign in with WhatsApp.', 'Remove', () => run(async () => { const r = await api('mobile_remove'); S.user = r.user; closeSheet(); viewProfile(); }));
-/* the "check WhatsApp" sheet: tap Verify in WhatsApp (we wait for it), tap the link, or type the code */
+/* the "check WhatsApp" sheet: tap the link, or type the code */
 function waSheet(r, purpose) {
-  S.wa = { id: r.id, poll: r.poll, purpose, kind: r.kind || (S.auth && S.auth.whatsapp_kind) || 'button' };
-  clearInterval(S.waTimer);
-  const k = S.wa.kind;
-  const how = k === 'button' ? `We sent a WhatsApp message to <b>${esc(r.mobile)}</b>. Tap the <b>Verify</b> button in it - this screen will update by itself.`
-    : k === 'link' ? `We sent a message to <b>${esc(r.mobile)}</b>. Tap the <b>Verify</b> button in it and you're done - or type the 6-digit code here.`
-    : `We sent a code to <b>${esc(r.mobile)}</b>. Copy it from WhatsApp and type it here.`;
-  sheet(`<h3>📲 Check WhatsApp</h3><div class="sub">${r.sent ? how : `<span style="color:var(--red)">${esc(r.error_hint || 'Message not sent')}</span>`}</div>
-    ${r.sent && k === 'button' ? `<div class="wa-wait"><span class="duel-dots"><i></i><i></i><i></i></span>Waiting for you to tap Verify in WhatsApp…</div>` : ''}
-    ${r.dev_link ? `<div class="card" style="box-shadow:none;border:1px dashed var(--line)"><b>Test mode (admin only)</b><div class="small muted">WhatsApp is not set up, so here is what would have been sent:</div><a class="link" href="${esc(r.dev_link)}" style="word-break:break-all">${esc(r.dev_link)}</a><div class="small muted">Code: <b>${esc(r.dev_code)}</b></div></div>` : ''}
-    <details class="wa-alt" ${k === 'code' || !r.sent ? 'open' : ''}><summary>${k === 'code' ? 'Enter the code' : 'Can\'t tap the button? Type the code instead'}</summary>
+  S.wa = { id: r.id, purpose };
+  const oneTap = !(S.auth && S.auth.whatsapp_link === false);
+  sheet(`<h3>📲 Check WhatsApp</h3><div class="sub">${r.sent ? (oneTap ? `We sent a message to <b>${esc(r.mobile)}</b>. Tap the <b>Verify</b> button in it and you're done - or type the 6-digit code here.` : `We sent a code to <b>${esc(r.mobile)}</b>. Copy it from WhatsApp and type it here.`) : `<span style="color:var(--red)">${esc(r.error_hint || 'Message not sent')}</span>`}</div>
+    ${r.dev_link ? `<div class="card" style="box-shadow:none;border:1px dashed var(--line)"><b>Test mode (admin only)</b><div class="small muted">WhatsApp is not set up, so here is the link that would have been sent:</div><a class="link" href="${esc(r.dev_link)}" style="word-break:break-all">${esc(r.dev_link)}</a><div class="small muted">Code: <b>${esc(r.dev_code)}</b></div></div>` : ''}
     <form onsubmit="App.waCode(event)"><input class="input duel-code-in" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="one-time-code" required>
-    <button class="btn block" style="margin-top:12px">Verify code</button></form></details>
-    <div class="small muted" style="text-align:center;margin-top:10px">Valid for ${r.minutes} minutes.</div>`);
-  if (r.sent && k === 'button' && r.poll) {
-    S.waTimer = setInterval(async () => {
-      if (!document.querySelector('.wa-wait')) return clearInterval(S.waTimer);
-      try {
-        const st = await api('wa_poll', { id: r.id, poll: r.poll });
-        if (st.status === 'done') { clearInterval(S.waTimer); waDone(st.user); }
-        else if (st.status === 'expired') { clearInterval(S.waTimer); const w = document.querySelector('.wa-wait'); if (w) w.innerHTML = '⏰ That message has expired - ask for a new one.'; }
-      } catch (e) { if (!e.stale) clearInterval(S.waTimer); }
-    }, 2500);
-  }
-}
-function waDone(user) {
-  S.user = user; closeSheet(); Sound.fx('cheer'); toast('✅ Mobile verified' + (S.wa.purpose === 'link' ? '' : ' - welcome!'));
-  if (S.wa.purpose === 'link') viewProfile(); else { const a = S.after; S.after = null; go(a && !/^#\/(login|register|wa)/.test(a) ? a : '#/'); }
+    <button class="btn block" style="margin-top:12px">Verify code</button></form>
+    <div class="small muted" style="text-align:center;margin-top:10px">${oneTap ? `The link works for ${r.minutes} minutes. Opening it signs you in on that phone.` : `The code works for ${r.minutes} minutes.`}</div>`);
 }
 App.waCode = e => {
   e.preventDefault();
   const code = formData(e.target).code.trim();
-  run(async () => { const r = await api('wa_verify_code', { id: S.wa.id, code }); clearInterval(S.waTimer); waDone(r.user); }, e.submitter);
+  run(async () => {
+    const r = await api('wa_verify_code', { id: S.wa.id, code });
+    S.user = r.user; closeSheet(); toast('Mobile verified ✓');
+    if (S.wa.purpose === 'link') viewProfile(); else { const a = S.after; S.after = null; go(a && !/^#\/(login|register|wa)/.test(a) ? a : '#/'); }
+  }, e.submitter);
 };
 /* Sign in or sign up with WhatsApp - no password */
 function viewWaLogin() {
@@ -1755,7 +1739,7 @@ function viewWaLogin() {
   S.gMode = 'login';
   const signup = S.waMode === 'signup';
   mount(authPage(`<form class="panel" onsubmit="App.waGo(event)"><h2>${signup ? 'Join with WhatsApp 📲' : 'Sign in with WhatsApp 📲'}</h2>
-    <p class="small muted" style="margin-top:0">${signup ? 'We\'ll send a WhatsApp message. Tap the button in it and your account is ready - no password.' : 'We\'ll send you a WhatsApp message - tap Verify in it and you\'re in. No password needed.'}</p>
+    <p class="small muted" style="margin-top:0">${signup ? 'We\'ll send a WhatsApp message. Tap the button in it and your account is ready - no password.' : 'We\'ll send a one-tap sign-in link to your WhatsApp. No password needed.'}</p>
     ${signup ? '<div class="field"><label>Your name</label><input class="input" name="display_name" placeholder="e.g. Aarush" required></div>' : ''}
     <div class="field"><label>Mobile number</label><input class="input" name="mobile" inputmode="tel" autocomplete="tel" placeholder="98765 43210" required></div>
     ${signup ? consentBox() : ''}

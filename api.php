@@ -9,7 +9,7 @@ $in = json_decode(file_get_contents('php://input') ?: '[]', true) ?: [];
 
 try {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST' || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') !== 'CricScorer') fail('Bad request', 400);
-    $public = ['login', 'register', 'me', 'match_get', 'google_login', 'client_error', 'wa_request', 'wa_verify_code', 'wa_poll'];
+    $public = ['login', 'register', 'me', 'match_get', 'google_login', 'client_error', 'wa_request', 'wa_verify_code'];
     ensure_schema();
     $u = current_user();
     if (!in_array($action, $public, true) && !$u) fail('Please log in', 401);
@@ -61,8 +61,6 @@ function handle(string $action, array $in, ?array $u) {
         $nu = otp_consume(null, (int)($in['id'] ?? 0), (string)($in['code'] ?? ''));
         return ['user' => public_user($nu)];
     }
-    case 'wa_poll':                                    // the app waits for the Verify tap in WhatsApp
-        return otp_poll((int)($in['id'] ?? 0), (string)($in['poll'] ?? ''));
     case 'mobile_remove':
         q('UPDATE users SET mobile=NULL, mobile_verified_at=NULL WHERE id=?', [$u['id']]);
         return ['user' => public_user(row('SELECT * FROM users WHERE id=?', [$u['id']]))];

@@ -51,11 +51,10 @@ define('CONTACT_EMAIL', 'privacy@cricscorerapp.com');      // shown on the Priva
    template (see README "WhatsApp verification") and put its name below. Leave the token '' to keep this off. */
 define('WHATSAPP_TOKEN', '');
 define('WHATSAPP_PHONE_ID', '');
-define('WHATSAPP_TEMPLATE', 'otp');
+define('WHATSAPP_TEMPLATE', 'cricscorer_verify');
 define('WHATSAPP_TEMPLATE_LANG', 'en');
-define('WHATSAPP_TEMPLATE_KIND', 'code');  // 'code' = Meta Authentication template (Copy code / Autofill): players type the code;
-                                           // 'button' = Utility template with a Verify quick-reply button + webhook (see README);
-                                           // 'link' = Utility template with a website button (one-tap sign-in link)
+define('WHATSAPP_TEMPLATE_KIND', 'link');  // 'link' = Utility template with a website button (one-tap sign-in);
+                                           // 'code' = Meta "Authentication" template (Copy code / Autofill) - players type the code
 // define('DEFAULT_COUNTRY_CODE', '91');       // numbers typed without a country code
 
 /* ===== 7. App options ===== */
