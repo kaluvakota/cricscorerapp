@@ -71,7 +71,7 @@ function otp_request(string $mobileRaw, string $purpose, ?array $u, array $extra
     $owner = row('SELECT id, username, display_name FROM users WHERE mobile=?', [$mobile]);
     if ($purpose === 'link') {
         if (!$u) fail('Please log in', 401);
-        if ($owner && (int)$owner['id'] !== (int)$u['id']) fail('That number is already used by another player');
+        if ($owner && (int)$owner['id'] !== (int)$u['id']) fail("This WhatsApp number is already linked to another account (@{$owner['username']}). A number can be used for one account only.");
     } elseif ($purpose === 'login') {
         if (!$owner) return ['ok' => true, 'new' => true, 'mobile' => mask_mobile($mobile)];   // no account yet: the app offers sign-up
     } elseif ($purpose === 'signup') {
@@ -114,7 +114,7 @@ function otp_consume(?string $token, ?int $id = null, ?string $code = null): arr
     if ($t['purpose'] === 'link') {
         $u = row('SELECT * FROM users WHERE id=?', [$t['user_id']]);
         if (!$u) fail('Account not found');
-        if (val('SELECT 1 FROM users WHERE mobile=? AND id<>?', [$mobile, $u['id']])) fail('That number is now used by another player');
+        if (val('SELECT 1 FROM users WHERE mobile=? AND id<>?', [$mobile, $u['id']])) fail('This WhatsApp number is already linked to another account. A number can be used for one account only.');
         q('UPDATE users SET mobile=?, mobile_verified_at=NOW() WHERE id=?', [$mobile, $u['id']]);
     } elseif ($t['purpose'] === 'login') {
         $u = row('SELECT * FROM users WHERE mobile=?', [$mobile]);

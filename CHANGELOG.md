@@ -4,6 +4,10 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.14.4 - 25 October 2026
+- Find players by their full WhatsApp number (exact number only; numbers are never shown in results; private profiles stay hidden)
+- Clearer message when a number is already linked to another account - one account per number
+
 ## 1.14.3 - 25 October 2026
 - WhatsApp: support Meta "Authentication" templates (Copy code / Autofill) with WHATSAPP_TEMPLATE_KIND = 'code'; Meta's full error reason is shown to the admin
 

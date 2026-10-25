@@ -36,7 +36,10 @@ function users_search(array $u, array $in): array {
     $q = trim(str_in($in, 'q', 60));
     $where = ['u.id <> ?']; $params = [(int)$u['id']];
     if (empty($u['is_admin'])) $where[] = 'u.is_private = 0';
-    if ($q !== '') { $where[] = '(LOCATE(?, u.username) > 0 OR LOCATE(?, u.display_name) > 0)'; $params[] = $q; $params[] = $q; }
+    // a full mobile number finds the player who verified it (exact match only - no browsing by partial numbers)
+    $mob = preg_match('/^[+\d][\d\s\-()]{8,}$/', $q) ? normalize_mobile($q) : null;
+    if ($mob) { $where[] = 'u.mobile = ?'; $params[] = $mob; }
+    elseif ($q !== '') { $where[] = '(LOCATE(?, u.username) > 0 OR LOCATE(?, u.display_name) > 0)'; $params[] = $q; $params[] = $q; }
     $list = rows('SELECT u.* FROM users u WHERE ' . implode(' AND ', $where) . ' ORDER BY u.display_name LIMIT 300', $params);
     if (!$list) return ['users' => []];
     $ids = array_map(fn($r) => (int)$r['id'], $list);

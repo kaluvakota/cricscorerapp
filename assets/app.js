@@ -1990,7 +1990,7 @@ async function viewPeople(tab) {
   const t = S.pTab || 'find';
   const tabs = [['find', '🔍 Find'], ['followers', 'Followers'], ['following', 'Following']];
   mount(topbar('Players') + `<div class="content"><div class="seg">${tabs.map(([k, l]) => `<button class="${t === k ? 'on' : ''}" onclick="go('#/people?t=${k}')">${l}</button>`).join('')}</div>
-    ${t === 'find' ? `<div class="search">${I.search}<input class="input" id="pq" placeholder="Search by name or username" autocapitalize="none" value="${esc(S.pq || '')}" oninput="App.peopleSearch(this.value)"></div>` : ''}
+    ${t === 'find' ? `<div class="search">${I.search}<input class="input" id="pq" placeholder="Name, username or mobile number" autocapitalize="none" inputmode="search" value="${esc(S.pq || '')}" oninput="App.peopleSearch(this.value)"></div>` : ''}
     ${S.user.is_private ? `<div class="notice">🔒 Your profile is private - others can't find or follow you. Change this in <a class="link" href="#/profile">My Profile</a>.</div>` : ''}
     <div id="plist">${sk(3)}</div></div>`, 'more');
   if (t === 'find') return App.peopleSearch(S.pq || '', true);
