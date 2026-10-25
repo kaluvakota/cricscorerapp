@@ -1717,12 +1717,11 @@ App.mobileRemove = () => confirmSheet('Remove your mobile number?', 'You will no
 /* the "check WhatsApp" sheet: tap the link, or type the code */
 function waSheet(r, purpose) {
   S.wa = { id: r.id, purpose };
-  const oneTap = !(S.auth && S.auth.whatsapp_link === false);
-  sheet(`<h3>📲 Check WhatsApp</h3><div class="sub">${r.sent ? (oneTap ? `We sent a message to <b>${esc(r.mobile)}</b>. Tap the <b>Verify</b> button in it and you're done - or type the 6-digit code here.` : `We sent a code to <b>${esc(r.mobile)}</b>. Copy it from WhatsApp and type it here.`) : `<span style="color:var(--red)">${esc(r.error_hint || 'Message not sent')}</span>`}</div>
+  sheet(`<h3>📲 Check WhatsApp</h3><div class="sub">${r.sent ? `We sent a message to <b>${esc(r.mobile)}</b>. Tap the <b>Verify</b> button in it and you're done - or type the 6-digit code here.` : `<span style="color:var(--red)">${esc(r.error_hint || 'Message not sent')}</span>`}</div>
     ${r.dev_link ? `<div class="card" style="box-shadow:none;border:1px dashed var(--line)"><b>Test mode (admin only)</b><div class="small muted">WhatsApp is not set up, so here is the link that would have been sent:</div><a class="link" href="${esc(r.dev_link)}" style="word-break:break-all">${esc(r.dev_link)}</a><div class="small muted">Code: <b>${esc(r.dev_code)}</b></div></div>` : ''}
     <form onsubmit="App.waCode(event)"><input class="input duel-code-in" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" autocomplete="one-time-code" required>
     <button class="btn block" style="margin-top:12px">Verify code</button></form>
-    <div class="small muted" style="text-align:center;margin-top:10px">${oneTap ? `The link works for ${r.minutes} minutes. Opening it signs you in on that phone.` : `The code works for ${r.minutes} minutes.`}</div>`);
+    <div class="small muted" style="text-align:center;margin-top:10px">The link works for ${r.minutes} minutes. Opening it signs you in on that phone.</div>`);
 }
 App.waCode = e => {
   e.preventDefault();

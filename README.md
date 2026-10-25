@@ -147,10 +147,6 @@ still use everything. Set-up, all in `config.local.php`:
    code in the app. The link works for 15 minutes.` Add a **Call to action → Visit website** button with a
    **dynamic** URL: `https://cricscorerapp.com/v/{{1}}` (button text "Verify"). Submit it for approval (usually
    minutes to a few hours). The name goes in `WHATSAPP_TEMPLATE`; use `WHATSAPP_TEMPLATE_LANG` if not `en`.
-   **Already have an Authentication template** (Meta's OTP type with a *Copy code* or *Autofill* button)? Set
-   `WHATSAPP_TEMPLATE` to its name and `WHATSAPP_TEMPLATE_KIND` to `'code'`. Players then copy the code from WhatsApp
-   and type it in the app - the one-tap link needs the Utility template above, because Authentication templates don't
-   allow a website button.
 4. While the app is in development mode on Meta, only numbers added under *API Setup → To* receive messages; go
    live (business verification) to message anyone. Numbers without a country code are treated as Indian
    (`DEFAULT_COUNTRY_CODE`).
