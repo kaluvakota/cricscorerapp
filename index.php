@@ -40,7 +40,7 @@ $jsonld = [ld_app(), ld_organization(),
 <body>
 <div id="splash">
   <img class="logo" src="assets/icons/icon-192.png" alt="">
-  <h1>Cric-Scorer</h1>
+  <div class="brand" data-testid="splash-title">Cric-Scorer</div>
   <p>by Aaryush</p>
 </div>
 <?php /* Visitor home page: real text for Google and for people who are not signed in. The app hides it after sign-in. */ ?>

@@ -4,6 +4,10 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.18.4 - 25 October 2026
+- Exactly one <h1> on every screen (splash title is no longer a heading; the visitor home page is taken out of the page while the app runs) - better for accessibility and automated tests
+- data-testid hooks: app-title (login/sign-up), page-title (every app screen), splash-title
+
 ## 1.18.3 - 25 October 2026
 - Login / sign-up no longer wait forever when Google reCAPTCHA cannot load (blocked network, VPN, ad-blocker): after 10 s a clear message appears with a Retry link
 - New `RECAPTCHA_BYPASS_IPS` setting: IPs of automated testers skip the captcha entirely

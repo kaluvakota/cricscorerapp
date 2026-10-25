@@ -98,7 +98,7 @@ async function run(fn, btn) {
 /* ---------- Shell ---------- */
 function topbar(title, { back = false, actions = '', sub = '', refresh = true } = {}) {
   return `<header class="topbar">${back ? `<button class="icon-btn" aria-label="Back" onclick="App.back()">${I.back}</button>` : ''}
-    <h1>${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</h1>${refresh ? `<button class="icon-btn refresh-btn" aria-label="Refresh" onclick="App.refresh()">${I.refresh}</button>` : ''}${actions}</header>`;
+    <h1 data-testid="page-title">${esc(title)}${sub ? `<span class="sub">${esc(sub)}</span>` : ''}</h1>${refresh ? `<button class="icon-btn refresh-btn" aria-label="Refresh" onclick="App.refresh()">${I.refresh}</button>` : ''}${actions}</header>`;
 }
 let navDepth = -1;
 App.back = () => { if (navDepth > 0) history.back(); else go('#/'); };
@@ -211,8 +211,9 @@ async function render() {
   const h = location.hash || '#/';
   const tok = S.routeTok = (S.routeTok || 0) + 1;
   // Visitors who are not signed in see the home page (#landing) instead of a login box
-  if (!S.user && (h === '#/' || h === '#')) { document.body.classList.remove('app-mode'); $('#app').innerHTML = ''; window.scrollTo(0, 0); return; }
+  if (!S.user && (h === '#/' || h === '#')) { document.body.classList.remove('app-mode'); if (S.landing && !document.getElementById('landing')) document.body.insertBefore(S.landing, $('#app')); $('#app').innerHTML = ''; window.scrollTo(0, 0); return; }
   document.body.classList.add('app-mode');
+  const lp = document.getElementById('landing'); if (lp) { S.landing = lp; lp.remove(); }
   for (const [re, fn, pub] of ROUTES) {
     const mm = h.match(re);
     if (!mm) continue;
@@ -321,7 +322,7 @@ async function captchaToken(action) {
 function resetCaptcha() { try { if (S.capId !== null && window.grecaptcha) grecaptcha.reset(S.capId); } catch (e) { /* ignore */ } }
 
 function authPage(inner) {
-  return `<div class="auth"><a href="#/" class="auth-home" aria-label="Home">← Home</a>${LOGO}<h1>Cric-Scorer</h1><div class="tag">by Aaryush</div>${inner}
+  return `<div class="auth"><a href="#/" class="auth-home" aria-label="Home">← Home</a>${LOGO}<h1 class="brand" data-testid="app-title">Cric-Scorer</h1><div class="tag">by Aaryush</div>${inner}
     <div class="legal-links"><a href="learn/">Learn cricket</a> · <a href="privacy">Privacy Policy</a> · <a href="terms">Terms of Use</a></div>
     <span class="seam">● ● ● LIVE CRICKET SCORING ● ● ●</span></div>`;
 }
