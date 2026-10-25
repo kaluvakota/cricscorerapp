@@ -628,6 +628,7 @@ function match_state(int $matchId, ?array $u): array {
             'stream_url' => $m['stream_url'],
             'penalties' => array_map(fn($r) => ['id' => (int)$r['id'], 'team_id' => (int)$r['team_id'], 'runs' => (int)$r['runs'], 'reason' => $r['reason']], rows('SELECT * FROM penalties WHERE match_id=? ORDER BY id', [$matchId])),
             'shot_types' => SHOT_TYPES, 'ball_type' => $m['ball_type'] ?? null, 'round_name' => $m['round_name'] ?? null,
+            'ground' => !empty($m['ground_id']) ? row('SELECT id, name, city FROM grounds WHERE id=?', [$m['ground_id']]) : null,
             'bonus' => !empty($m['bonus_json']) ? (json_decode($m['bonus_json'], true) ?: null) : null,
         ],
         'team1' => $t1, 'team2' => $t2, 'xi' => $xi, 'innings' => $inns,

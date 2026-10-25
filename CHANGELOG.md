@@ -4,6 +4,13 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.18.0 - 25 October 2026
+- Grounds directory: ground owners and academies list their ground (address, map link, pitch type, floodlights, size, timings, price, facilities, contact person and a WhatsApp number) - players find grounds by city, open the map, tap "WhatsApp to book", start a match there or post a "looking for" for it; ground pages show matches scored there and views
+- Pick a listed ground as the venue when creating a match; the match page links to the ground
+- "Looking for" board: post for an opponent team, players, umpire, scorer, ground or a team to join - with city, area, date, overs, ball type, your team and an optional contact; filter by kind and city, search, share on WhatsApp
+- Replies stay inside the app: only the poster sees them (with the replier's profile and contact); mark a post as sorted, reopen, edit or delete; up to 10 open posts and 10 grounds per account
+- Home tiles and More-menu entries for Looking for and Grounds
+
 ## 1.17.0 - 25 October 2026
 - Player page rebuilt with tabs: Matches (full history with your runs/wickets per match, won/lost, load more), Stats, Awards, Badges, Teams, Insights
 - Filters on Matches and Stats: year, result, tournament, playing for, against, ball type, overs

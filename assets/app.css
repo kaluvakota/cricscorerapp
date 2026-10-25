@@ -601,3 +601,6 @@ body:not(.app-mode) #tabbar{display:none!important}
 .xirow .tag{border:1px solid var(--line);background:var(--card);border-radius:12px;font-weight:900;font-size:12px;padding:0 10px;color:var(--muted);cursor:pointer}
 .xirow .tag.on{background:var(--pitch-3);color:#fff;border-color:var(--pitch-3)}
 @media (prefers-color-scheme:dark){.pill.won{background:#173326;color:#b2f2bb}.pill.lost{background:#3a1a1c;color:#ffb3b8}}
+/* ---- v1.18 grounds & looking for ---- */
+.card.lf.closed{opacity:.7}
+.search.grow{flex:1}

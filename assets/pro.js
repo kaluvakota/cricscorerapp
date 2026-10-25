@@ -750,3 +750,165 @@ viewTournament = async id => {
   first.insertAdjacentElement('afterend', card);
 };
 ROUTES.forEach(r => { if (r[1] === _viewTournament2) r[1] = viewTournament; });
+
+/* =====================================================================
+   v1.18 - GROUNDS directory & LOOKING FOR board
+   ===================================================================== */
+const KIND_ICON = { opponent: '🆚', player: '🙋', umpire: '🧑‍⚖️', scorer: '✍️', ground: '🏟️', team: '🧢' };
+const PITCH_LABEL = { turf: 'Turf', matting: 'Matting', cement: 'Cement', astro: 'Astro turf', box: 'Box cricket', other: 'Other' };
+
+async function viewGrounds() {
+  S.gr = S.gr || { city: '', q: '', mine: false };
+  mount(topbar('Grounds', { back: true }) + `<div class="content">${sk(3)}</div><button class="fab" aria-label="Add ground" onclick="go('#/ground/new')">${I.plus}</button>`, 'more');
+  const d = await api('grounds_list', { city: S.gr.city, q: S.gr.q, mine: S.gr.mine ? 1 : 0 });
+  const cities = d.cities.slice(0, 12);
+  mount(topbar('Grounds', { back: true, sub: 'Find a ground · list yours' }) + `<div class="content">
+    <div class="search">${I.search}<input class="input" placeholder="Search grounds, areas, cities" value="${esc(S.gr.q)}" onchange="S.gr.q=this.value;viewGrounds()"></div>
+    <div class="chips" style="margin-bottom:10px"><button class="chip ${!S.gr.city && !S.gr.mine ? 'on' : ''}" onclick="S.gr.city='';S.gr.mine=false;viewGrounds()">All</button><button class="chip ${S.gr.mine ? 'on' : ''}" onclick="S.gr.mine=!S.gr.mine;viewGrounds()">My grounds</button>${cities.map(c => `<button class="chip ${S.gr.city === c ? 'on' : ''}" onclick="S.gr.city='${esc(c)}';S.gr.mine=false;viewGrounds()">${esc(c)}</button>`).join('')}</div>
+    ${d.grounds.length ? `<div class="card flush list">${d.grounds.map(g => `<div class="item" onclick="go('#/ground/${g.id}')"><span class="tile ic" style="box-shadow:none;padding:0;width:40px;height:40px;justify-content:center">🏟️</span>
+      <div class="grow"><div class="t ellipsis">${esc(g.name)}${g.is_active ? '' : ' <span class="pill">hidden</span>'}</div><div class="s ellipsis">${esc([g.area, g.city].filter(Boolean).join(', '))}${g.pitch ? ' · ' + PITCH_LABEL[g.pitch] : ''}${g.lights ? ' · 💡 lights' : ''}${g.price ? ' · ' + esc(g.price) : ''}</div></div><span class="chev">${I.chev}</span></div>`).join('')}</div>`
+      : `<div class="card empty"><div class="big">🏟️</div>No grounds listed here yet.<br><button class="btn" style="margin-top:12px" onclick="go('#/ground/new')">List your ground</button></div>`}
+    <div class="small muted" style="margin-top:10px">Ground owners and academies: tap + to add your ground with timings, price and a WhatsApp number for bookings. Players can then pick it as the venue when they start a match.</div>
+  </div><button class="fab" aria-label="Add ground" onclick="go('#/ground/new')">${I.plus}</button>`, 'more');
+}
+async function viewGround(id) {
+  mount(topbar('Ground', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
+  const d = await api('ground_get', { id: +id }); const g = d.ground;
+  const kv = (k, v) => v ? `<div class="kv"><span>${k}</span><span>${v}</span></div>` : '';
+  const actions = g.mine ? `<button class="icon-btn" aria-label="Edit" onclick="go('#/ground/${g.id}/edit')">${I.edit}</button>` : '';
+  mount(topbar(g.name, { back: true, actions, sub: [g.area, g.city].filter(Boolean).join(', ') }) + `<div class="content">
+    <div class="card"><div class="row" style="gap:12px"><span style="font-size:40px">🏟️</span><div class="grow"><b style="font-size:18px">${esc(g.name)}</b><div class="small muted">${esc(g.address || '')}${g.address ? ' · ' : ''}${esc([g.area, g.city].filter(Boolean).join(', '))}</div>
+      <div class="small muted">${g.views} views · ${plural(g.matches, 'match')} scored here · listed by ${esc(g.owner || '-')}</div></div></div>
+      ${g.about ? `<p class="small" style="margin:10px 0 0">${esc(g.about)}</p>` : ''}
+      <div class="grid2" style="margin-top:12px">${g.wa ? `<a class="btn" href="https://wa.me/${esc(g.wa)}?text=${encodeURIComponent('Hi, I found ' + g.name + ' on Cric-Scorer. Is the ground free for a match?')}" target="_blank" rel="noopener">💬 WhatsApp to book</a>` : '<button class="btn light" disabled>No booking number</button>'}
+        ${g.map_url ? `<a class="btn light" href="${esc(g.map_url)}" target="_blank" rel="noopener">📍 Open map</a>` : `<a class="btn light" href="https://www.google.com/maps/search/${encodeURIComponent(g.name + ' ' + g.city)}" target="_blank" rel="noopener">📍 Find on map</a>`}</div></div>
+    <div class="card flush">${kv('Pitch', g.pitch ? PITCH_LABEL[g.pitch] : '')}${kv('Floodlights', g.lights ? 'Yes 💡' : 'No')}${kv('Size', esc(g.size))}${kv('Timings', esc(g.timings))}${kv('Price', esc(g.price))}${kv('Facilities', esc(g.facilities))}${kv('Contact', esc([g.contact_name, g.contact_mobile].filter(Boolean).join(' · ')))}</div>
+    <div class="grid2" style="margin:12px 0"><button class="btn light" onclick="S.nmGround={id:${g.id},name:'${esc(g.name)}',city:'${esc(g.city)}'};go('#/match/new')">🏏 Start a match here</button><button class="btn light" onclick="S.lfDraft={ground_id:${g.id},city:'${esc(g.city)}'};go('#/looking/new')">📣 Looking for a match here</button></div>
+    ${d.lookings.length ? `<div class="section"><h2>📣 Open posts for this ground</h2></div><div class="card flush list">${d.lookings.map(l => `<div class="item" onclick="go('#/looking/${l.id}')"><div class="grow"><div class="t">${esc(l.title)}</div><div class="s">${l.play_date ? esc(fmtDate(l.play_date, false)) : ''}</div></div><span class="chev">${I.chev}</span></div>`).join('')}</div>` : ''}
+    ${d.recent.length ? `<div class="section"><h2>Recent matches here</h2></div>${d.recent.map(matchCard).join('')}` : ''}
+    ${g.mine ? `<button class="btn light block" style="color:var(--red);margin-top:10px" onclick="App.groundDelete(${g.id})">🗑️ Remove this ground</button>` : ''}
+  </div>`, 'more');
+}
+async function viewGroundForm(id) {
+  let g = { name: '', address: '', city: '', area: '', map_url: '', pitch: '', lights: false, size: '', facilities: '', price: '', timings: '', contact_name: '', contact_mobile: '', about: '', is_active: true };
+  if (id) { mount(topbar('Edit ground', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more'); g = (await api('ground_get', { id: +id })).ground; }
+  const f = (name, label, ph = '', type = 'text', max = 120) => `<div class="field"><label>${label}</label><input class="input" name="${name}" type="${type}" maxlength="${max}" placeholder="${ph}" value="${esc(g[name] ?? '')}"></div>`;
+  mount(topbar(id ? 'Edit ground' : 'List your ground', { back: true }) + `<form class="content" onsubmit="App.groundSave(event,${id ? +id : 'null'})">
+    <div class="card">${f('name', 'Ground name *', 'e.g. Hattrick Cricket Ground')}
+      <div class="grid2">${f('city', 'City *', 'Hyderabad', 'text', 80)}${f('area', 'Area / locality', 'Nacharam', 'text', 80)}</div>
+      ${f('address', 'Address', 'Landmark, street', 'text', 250)}${f('map_url', 'Google Maps link', 'https://maps.app.goo.gl/…', 'url', 255)}</div>
+    <div class="section"><h2>About the ground</h2></div>
+    <div class="card"><div class="grid2"><div class="field"><label>Pitch</label><select class="input" name="pitch"><option value="">-</option>${Object.entries(PITCH_LABEL).map(([k, l]) => `<option value="${k}" ${g.pitch === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>${f('size', 'Size / boundary', 'e.g. 55-60 m', 'text', 40)}</div>
+      <label class="switch" style="margin-bottom:10px"><span><b>Floodlights</b><div class="small muted">Night matches possible</div></span><input type="checkbox" name="lights" ${g.lights ? 'checked' : ''}><span class="knob"></span></label>
+      ${f('timings', 'Timings', 'e.g. 6 am - 10 pm, Sat/Sun slots', 'text', 120)}${f('price', 'Price', 'e.g. ₹2,500 per hour / ₹8,000 per match', 'text', 80)}${f('facilities', 'Facilities', 'Nets, washrooms, parking, drinking water, scoreboard…', 'text', 300)}
+      <div class="field"><label>About</label><textarea class="input" name="about" rows="3" maxlength="600" placeholder="Anything players should know">${esc(g.about || '')}</textarea></div></div>
+    <div class="section"><h2>Bookings</h2></div>
+    <div class="card"><div class="grid2">${f('contact_name', 'Contact person', 'Name', 'text', 80)}${f('contact_mobile', 'WhatsApp number', '98765 43210', 'tel', 20)}</div>
+      <div class="small muted">The number is shown on the ground page with a "WhatsApp to book" button. Leave it blank if you prefer not to.</div>
+      ${id ? `<label class="switch" style="margin-top:10px"><span><b>Listed</b><div class="small muted">Switch off to hide the ground for now</div></span><input type="checkbox" name="is_active" ${g.is_active ? 'checked' : ''}><span class="knob"></span></label>` : ''}</div>
+    <button class="btn block" style="margin:6px 0 20px">${id ? 'Save changes' : 'List ground →'}</button></form>`, 'more');
+}
+App.groundSave = (e, id) => { e.preventDefault(); const d = formData(e.target); d.lights = e.target.lights.checked ? 1 : 0; if (e.target.is_active) d.is_active = e.target.is_active.checked ? 1 : 0; if (id) d.id = id;
+  run(async () => { const r = await api('ground_save', d); toast(id ? 'Ground updated ✓' : 'Ground listed ✓'); go('#/ground/' + r.id); }, e.submitter); };
+App.groundDelete = id => confirmSheet('Remove this ground?', 'Matches played here keep their venue text; the ground page disappears.', 'Remove', () => run(async () => { await api('ground_delete', { id }); closeSheet(); go('#/grounds'); }));
+
+/* ---------- Looking for ---------- */
+async function viewLooking() {
+  S.lf = S.lf || { kind: '', city: '', q: '', mine: false };
+  mount(topbar('Looking for', { back: true }) + `<div class="content">${sk(3)}</div><button class="fab" aria-label="New post" onclick="go('#/looking/new')">${I.plus}</button>`, 'more');
+  const d = await api('looking_list', { kind: S.lf.kind, city: S.lf.city, q: S.lf.q, mine: S.lf.mine ? 1 : 0 });
+  const kinds = Object.entries(d.kinds);
+  mount(topbar('Looking for', { back: true, sub: 'Opponents, players, umpires, scorers, grounds' }) + `<div class="content">
+    <div class="chips" style="margin-bottom:8px"><button class="chip ${!S.lf.kind && !S.lf.mine ? 'on' : ''}" onclick="S.lf.kind='';S.lf.mine=false;viewLooking()">All</button><button class="chip ${S.lf.mine ? 'on' : ''}" onclick="S.lf.mine=!S.lf.mine;viewLooking()">My posts</button>${kinds.map(([k, l]) => `<button class="chip ${S.lf.kind === k ? 'on' : ''}" onclick="S.lf.kind='${k}';S.lf.mine=false;viewLooking()">${KIND_ICON[k]} ${l}</button>`).join('')}</div>
+    <div class="row" style="margin-bottom:10px"><div class="search grow" style="margin:0">${I.search}<input class="input" placeholder="Search" value="${esc(S.lf.q)}" onchange="S.lf.q=this.value;viewLooking()"></div>
+      <select class="input" style="width:auto;flex:none" onchange="S.lf.city=this.value;viewLooking()"><option value="">All cities</option>${d.cities.map(c => `<option ${S.lf.city === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
+    ${d.posts.length ? d.posts.map(lookingCard).join('') : `<div class="card empty"><div class="big">📣</div>Nothing posted ${S.lf.city ? 'in ' + esc(S.lf.city) : 'yet'}.<br><button class="btn" style="margin-top:12px" onclick="go('#/looking/new')">Post what you're looking for</button></div>`}
+  </div><button class="fab" aria-label="New post" onclick="go('#/looking/new')">${I.plus}</button>`, 'more');
+}
+function lookingCard(l) {
+  const meta = [l.play_date ? '📅 ' + fmtDate(l.play_date, false) : '', l.overs ? l.overs + ' ov' : '', l.ball_type ? l.ball_type + ' ball' : '', l.ground ? '🏟️ ' + l.ground.name : '', [l.area, l.city].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
+  return `<div class="card lf ${l.status}" style="cursor:pointer" onclick="go('#/looking/${l.id}')"><div class="row" style="justify-content:space-between;align-items:flex-start"><span class="pill up">${KIND_ICON[l.kind]} ${esc(l.kind_label)}</span>${l.status === 'closed' ? '<span class="pill">Closed</span>' : l.replies ? `<span class="pill done">${(l.replies === 1 ? '1 reply' : l.replies + ' replies')}</span>` : ''}</div>
+    <b style="display:block;margin:6px 0 2px;font-size:16px">${esc(l.title)}</b><div class="small muted">${esc(meta)}</div>
+    ${l.details ? `<div class="small" style="margin-top:4px">${esc(l.details.length > 140 ? l.details.slice(0, 140) + '…' : l.details)}</div>` : ''}
+    <div class="small muted" style="margin-top:6px">${l.team ? badge(l.team, 'sm') + ' ' + esc(l.team.name) + ' · ' : ''}${l.by ? 'by ' + esc(l.by.name) : 'by a private player'} · ${esc(fmtDate(l.created_at, false))}</div></div>`;
+}
+async function viewLookingPost(id) {
+  mount(topbar('Looking for', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more');
+  const d = await api('looking_get', { id: +id }); const l = d.post;
+  const myReply = d.replies.find(r => r.mine);
+  mount(topbar(l.kind_label, { back: true }) + `<div class="content">${lookingCard(l).replace('onclick="go(\'#/looking/' + l.id + '\')"', '')}
+    ${l.contact ? `<div class="card"><div class="small muted">Contact</div><b>${esc(l.contact)}</b>${/^\+?\d[\d\s-]{8,}$/.test(l.contact) ? `<a class="btn block" style="margin-top:8px" href="https://wa.me/${esc(l.contact.replace(/\D/g, '').replace(/^0/, '91'))}" target="_blank" rel="noopener">💬 WhatsApp</a>` : ''}</div>` : ''}
+    ${l.mine ? `<div class="section"><h2>Replies</h2><span class="small muted">${d.replies.length}</span></div>
+      ${d.replies.length ? `<div class="card flush">${d.replies.map(r => `<div class="comm"><div class="grow"><b class="small">${esc(r.name)} <span class="muted">@${esc(r.username)}</span></b><div class="small">${esc(r.message)}</div>${r.contact ? `<div class="small muted">Contact: ${esc(r.contact)}</div>` : ''}<div class="small muted">${esc(fmtDate(r.at))}</div></div><button class="btn sm light" onclick="go('#/user/${r.user_id}')">Profile</button></div>`).join('')}</div>` : '<div class="card empty small">No replies yet. Share the post on WhatsApp to get more eyes on it.</div>'}
+      <div class="grid2" style="margin-top:12px"><button class="btn light" onclick="App.lookingShare(${l.id})">🔗 Share</button><button class="btn light" onclick="go('#/looking/${l.id}/edit')">✏️ Edit</button>
+        <button class="btn light" onclick="App.lookingToggle(${l.id},'${l.status === 'open' ? 'close' : 'reopen'}')">${l.status === 'open' ? '✅ Mark as sorted' : '🔄 Reopen'}</button><button class="btn light" style="color:var(--red)" onclick="App.lookingDelete(${l.id})">🗑️ Delete</button></div>`
+    : l.status === 'open' ? `<div class="section"><h2>${myReply ? 'Your reply' : 'Interested?'}</h2></div>
+      <form class="card" onsubmit="event.preventDefault();App.lookingReply(${l.id},this)"><div class="field"><label>Message</label><textarea class="input" name="message" rows="3" maxlength="400" required placeholder="e.g. We can play Sunday 4 pm, 16 overs">${esc(myReply ? myReply.message : '')}</textarea></div>
+        <div class="field"><label>How to reach you (optional)</label><input class="input" name="contact" maxlength="80" placeholder="WhatsApp number or @username" value="${esc(myReply ? myReply.contact || '' : '')}"></div>
+        <button class="btn block">${myReply ? 'Update reply' : 'Send reply'}</button><div class="small muted" style="margin-top:8px">Only the person who posted sees your reply.</div></form>
+      <button class="btn light block" onclick="App.lookingShare(${l.id})">🔗 Share this post</button>` : '<div class="card empty small">This post is closed.</div>'}
+  </div>`, 'more');
+}
+async function viewLookingForm(id) {
+  let l = { kind: 'opponent', title: '', details: '', city: '', area: '', play_date: '', overs: '', ball_type: '', team_id: '', ground_id: '', contact: '' };
+  if (id) { mount(topbar('Edit post', { back: true }) + `<div class="content">${sk(3)}</div>`, 'more'); l = (await api('looking_get', { id: +id })).post; l.team_id = l.team ? l.team.id : ''; l.ground_id = l.ground ? l.ground.id : ''; }
+  else if (S.lfDraft) { Object.assign(l, S.lfDraft); S.lfDraft = null; }
+  const [tm, gr] = await Promise.all([api('teams_list', { category: 'custom' }), api('grounds_list', {})]);
+  const myTeams = tm.teams.filter(t => t.can_use !== false);
+  const sel = (name, label, opts, val) => `<div class="field"><label>${label}</label><select class="input" name="${name}">${opts.map(([v, t]) => `<option value="${esc(v)}" ${String(val) === String(v) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`;
+  mount(topbar(id ? 'Edit post' : 'Looking for…', { back: true }) + `<form class="content" onsubmit="App.lookingSave(event,${id ? +id : 'null'})">
+    <div class="card">${sel('kind', 'What are you looking for? *', Object.entries(KIND_ICON).map(([k, ic]) => [k, ic + ' ' + ({ opponent: 'Opponent team', player: 'Players for my team', umpire: 'Umpire', scorer: 'Scorer', ground: 'Ground', team: 'A team to join' }[k])]), l.kind)}
+      <div class="field"><label>Title *</label><input class="input" name="title" maxlength="120" required placeholder="e.g. U-12 team wants a 20-over match this Sunday" value="${esc(l.title)}"></div>
+      <div class="field"><label>Details</label><textarea class="input" name="details" rows="3" maxlength="600" placeholder="Level, age group, format, who brings the ball…">${esc(l.details || '')}</textarea></div></div>
+    <div class="section"><h2>Where & when</h2></div>
+    <div class="card"><div class="grid2"><div class="field"><label>City *</label><input class="input" name="city" maxlength="80" required value="${esc(l.city)}" placeholder="Hyderabad"></div><div class="field"><label>Area</label><input class="input" name="area" maxlength="80" value="${esc(l.area || '')}" placeholder="Uppal"></div></div>
+      <div class="grid3"><div class="field"><label>Date</label><input class="input" type="date" name="play_date" value="${esc(l.play_date || '')}"></div><div class="field"><label>Overs</label><input class="input" type="number" name="overs" min="1" max="100" value="${esc(l.overs || '')}"></div>${sel('ball_type', 'Ball', [['', '-'], ['leather', 'Leather'], ['tennis', 'Tennis'], ['rubber', 'Rubber'], ['other', 'Other']], l.ball_type || '')}</div>
+      ${sel('ground_id', 'Ground (optional)', [['', '-'], ...gr.grounds.map(g => [g.id, g.name + ' - ' + g.city])], l.ground_id)}
+      ${myTeams.length ? sel('team_id', 'Your team (optional)', [['', '-'], ...myTeams.map(t => [t.id, t.name])], l.team_id) : ''}</div>
+    <div class="section"><h2>Contact</h2></div>
+    <div class="card"><div class="field"><label>How can people reach you? (optional)</label><input class="input" name="contact" maxlength="80" placeholder="WhatsApp number or @username" value="${esc(l.contact || '')}"></div>
+      <div class="small muted">Shown on the post. Replies also come to you inside the app, so you can leave this blank.</div></div>
+    <button class="btn block" style="margin:6px 0 20px">${id ? 'Save changes' : 'Post →'}</button></form>`, 'more');
+}
+App.lookingSave = (e, id) => { e.preventDefault(); const d = formData(e.target); if (id) d.id = id; run(async () => { const r = await api('looking_save', d); toast(id ? 'Post updated ✓' : 'Posted ✓'); go('#/looking/' + r.id); }, e.submitter); };
+App.lookingReply = (id, f) => run(async () => { await api('looking_reply', { id, message: f.message.value, contact: f.contact.value }); toast('Reply sent ✓'); viewLookingPost(id); });
+App.lookingToggle = (id, what) => run(async () => { await api('looking_' + what, { id }); toast(what === 'close' ? 'Marked as sorted' : 'Reopened'); viewLookingPost(id); });
+App.lookingDelete = id => confirmSheet('Delete this post?', 'Replies are deleted too.', 'Delete', () => run(async () => { await api('looking_delete', { id }); closeSheet(); go('#/looking'); }));
+App.lookingShare = async id => {
+  const url = (window.CS_SITE_URL || location.origin + '/') + '#/looking/' + id;
+  const text = `📣 Looking for: ${document.querySelector('.lf b') ? document.querySelector('.lf b').textContent : 'a match'} - reply on Cric-Scorer ${url}`;
+  if (navigator.share) { try { await navigator.share({ text }); return; } catch (e) { /* cancelled */ } }
+  window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+};
+ROUTES.unshift([/^#\/grounds$/, viewGrounds], [/^#\/ground\/new$/, () => viewGroundForm(null)], [/^#\/ground\/(\d+)\/edit$/, viewGroundForm], [/^#\/ground\/(\d+)$/, viewGround],
+  [/^#\/looking$/, viewLooking], [/^#\/looking\/new$/, () => viewLookingForm(null)], [/^#\/looking\/(\d+)\/edit$/, viewLookingForm], [/^#\/looking\/(\d+)$/, viewLookingPost]);
+
+/* More menu + Home tile + ground picker on the new-match form */
+const _viewMore = viewMore;
+viewMore = () => {
+  _viewMore();
+  const list = document.querySelector('.content .card.flush.list'); if (!list) return;
+  const c = (S.extras && S.extras.community) || {};
+  const item = (ic, t, s, fn) => `<div class="item" onclick="${fn}"><span class="tile ic" style="box-shadow:none;padding:0;width:38px;height:38px;justify-content:center">${ic}</span><div class="grow"><div class="t">${t}</div><div class="s">${s}</div></div><span class="chev">${I.chev}</span></div>`;
+  const anchor = [...list.children].find(x => x.textContent.includes('Cricket academies')) || list.firstElementChild;
+  anchor.insertAdjacentHTML('afterend', item('📣', 'Looking for', (c.open_posts ? plural(c.open_posts, 'open post') + ' · ' : '') + 'opponents, players, umpires, scorers, grounds', "go('#/looking')") + item('🏟️', 'Grounds', (c.grounds ? plural(c.grounds, 'ground') + ' listed · ' : '') + 'find a ground or list yours', "go('#/grounds')"));
+};
+ROUTES.forEach(r => { if (r[1] === _viewMore) r[1] = viewMore; });
+const _viewHome = viewHome;
+viewHome = async () => {
+  await _viewHome();
+  const tiles = document.querySelector('.tiles'); if (!tiles) return;
+  tiles.insertAdjacentHTML('beforeend', `<div class="tile" onclick="go('#/looking')"><span class="ic">📣</span>Looking for</div><div class="tile" onclick="go('#/grounds')"><span class="ic">🏟️</span>Grounds</div>`);
+};
+ROUTES.forEach(r => { if (r[1] === _viewHome) r[1] = viewHome; });
+const _viewMatchNew3 = viewMatchNew;
+viewMatchNew = async tid => {
+  await _viewMatchNew3(tid);
+  const venue = document.querySelector('form.content [name=venue]'); if (!venue) return;
+  let grounds = []; try { grounds = (await api('grounds_list', {})).grounds; } catch (e) { /* none */ }
+  const pre = S.nmGround; S.nmGround = null;
+  venue.closest('.field').insertAdjacentHTML('afterend', `<div class="field"><label>Ground (from the directory)</label><select class="input" name="ground_id" onchange="const o=this.selectedOptions[0];if(o.value){this.form.venue.value=o.dataset.v}"><option value="">- pick a listed ground -</option>${grounds.map(g => `<option value="${g.id}" data-v="${esc(g.name + ', ' + g.city)}" ${pre && pre.id === g.id ? 'selected' : ''}>${esc(g.name)} - ${esc(g.city)}</option>`).join('')}</select>
+    <div class="small muted" style="margin-top:4px">Not listed? Type the venue above, or <a class="link" href="#/ground/new">add the ground</a>.</div></div>`);
+  if (pre) venue.value = pre.name + ', ' + pre.city;
+};
+ROUTES.forEach(r => { if (r[1] === _viewMatchNew2 || r[1] === _viewMatchNew3) r[1] = viewMatchNew; });

@@ -28,6 +28,10 @@ Made for Aarush & Aayush.
   for and Insights; player level and profile views. Captain and keeper are picked in the playing XI (C / WK).
 - **Match page extras** - Summary (best performances, automatic match notes and timings, scorer notes log, match points
   with bonus), MVP (batting + bowling + fielding points - formula in the app under "how?"), Teams (both XIs).
+- **Grounds directory** - ground owners list their ground (map, pitch, lights, timings, price, facilities, WhatsApp
+  booking number); players browse by city, book on WhatsApp, and pick the ground as the venue of a match (`grounds` table).
+- **Looking for board** - posts for an opponent team, players, umpire, scorer, ground or a team to join, filtered by kind
+  and city; replies are private to the poster (`lookings`, `looking_replies` tables).
 - **Player insights** (free, on every player page) - batting strike rate and bowling economy by phase (powerplay /
   middle / death), how the player gets out, favourite shots, career wagon wheel, fielding, strengths and things to work on.
 - **Tournaments** - league, knockout, league + final; auto fixtures, points table with NRR, top scorers.

@@ -66,6 +66,9 @@ function handle(string $action, array $in, ?array $u) {
         return ['user' => public_user(row('SELECT * FROM users WHERE id=?', [$u['id']]))];
     case 'academies_list': case 'academy_get': case 'academy_save': case 'academy_delete': case 'academy_student_add': case 'academy_student_remove':
         return academies_action($action, $u, $in);
+    case 'grounds_list': case 'ground_get': case 'ground_save': case 'ground_delete':
+    case 'looking_list': case 'looking_get': case 'looking_save': case 'looking_close': case 'looking_reopen': case 'looking_delete': case 'looking_reply':
+        return community_action($action, $in, $u);
     case 'help_send': case 'help_list':
         return help_action($action, $u, $in);
     case 'game_create': case 'game_join': case 'game_get': case 'game_bowl': case 'game_bat': case 'game_nudge':
@@ -382,7 +385,8 @@ function handle(string $action, array $in, ?array $u) {
             !empty($in['last_man_stands']) ? 1 : 0, str_in($in, 'venue', 150) ?: null, $date, $visibility, max(0, min($overs, int_in($in, 'powerplay_overs', 0)))]);
         $mid = lastId();
         $bt = (string)($in['ball_type'] ?? ''); $round = str_in($in, 'round_name', 60);
-        if (in_array($bt, BALL_TYPES, true) || $round) q('UPDATE matches SET ball_type=?, round_name=? WHERE id=?', [in_array($bt, BALL_TYPES, true) ? $bt : null, $round ?: null, $mid]);
+        $gid = nint($in['ground_id'] ?? null); if ($gid && !val('SELECT 1 FROM grounds WHERE id=?', [$gid])) $gid = null;
+        if (in_array($bt, BALL_TYPES, true) || $round || $gid) q('UPDATE matches SET ball_type=?, round_name=?, ground_id=? WHERE id=?', [in_array($bt, BALL_TYPES, true) ? $bt : null, $round ?: null, $gid, $mid]);
         return ['id' => $mid];
     }
 

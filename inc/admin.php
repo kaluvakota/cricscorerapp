@@ -288,5 +288,6 @@ function client_extras(array $u): array {
         'help_unread' => (int)val('SELECT COUNT(*) FROM tickets WHERE user_id=? AND user_unread=1', [$u['id']]),
         'team_requests' => team_requests_waiting($u),
         'force_version' => setting('force_version'),
+        'community' => community_home($u),
     ];
 }
