@@ -408,7 +408,7 @@ function handle(string $action, array $in, ?array $u) {
     case 'match_bowler': case 'match_swap': case 'match_undo': case 'match_end_innings': case 'match_abandon':
     case 'match_rain': case 'match_rain_end': case 'match_rain_undo': case 'match_dls_level':
     case 'match_penalty': case 'match_penalty_undo': case 'match_powerplay': case 'match_overs': case 'match_batter_change':
-    case 'match_ball_detail': case 'match_ball_edit': case 'match_ball_delete': case 'match_super_over': case 'match_details': {
+    case 'match_ball_detail': case 'match_ball_edit': case 'match_ball_delete': case 'match_super_over': case 'match_details': case 'match_field': {
         db()->beginTransaction();
         $m = load_match(int_in($in, 'id'), true);
         if (!can_score_match($m, $u)) fail('Only the scorer of this match can do that', 403);
@@ -441,6 +441,7 @@ function handle(string $action, array $in, ?array $u) {
             case 'match_ball_delete': match_ball_edit($m, $in, true); break;
             case 'match_super_over': match_super_over($m); break;
             case 'match_details': match_details_save($m, $in); break;
+            case 'match_field': match_field_set($m, $in); break;
         }
         db()->commit();
         return match_state((int)$m['id'], $u);

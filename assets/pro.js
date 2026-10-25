@@ -8,8 +8,47 @@ const SHOT_ICON = { drive: '🏏', cut: '✂️', pull: '💪', hook: '🪝', sw
 const askShot = () => { try { return localStorage.getItem('cs_askshot') === '1'; } catch (e) { return false; } };
 
 /* ---------- scoring pad: extra tools ---------- */
+const wheelOn = () => { try { return localStorage.getItem('cs_wheel') !== '0'; } catch (e) { return true; } };
 const _scorePad = scorePad;
-scorePad = () => _scorePad() + `<div class="pad-tools"><button onclick="App.lastBallDetail()">🎯 Shot & fielding</button><button onclick="App.penaltySheet()">⚖️ Penalty runs</button><button onclick="App.changeBatterSheet()">🔀 Wrong batter</button></div>`;
+scorePad = () => (wheelOn() ? wheelPad() : '') + _scorePad() + `<div class="pad-tools"><button onclick="App.toggleWheel()">${wheelOn() ? '🎯 Hide wheel' : '🎯 Wheel scoring'}</button><button onclick="App.fieldSheet()">🧤 Set field</button></div>
+  <div class="pad-tools"><button onclick="App.lastBallDetail()">🎯 Shot & fielding</button><button onclick="App.penaltySheet()">⚖️ Penalty runs</button><button onclick="App.changeBatterSheet()">🔀 Wrong batter</button></div>`;
+App.toggleWheel = () => { try { localStorage.setItem('cs_wheel', wheelOn() ? '0' : '1'); } catch (e) { /* ignore */ } drawMatch(false); };
+
+/* Tap-to-score wagon wheel: rings for 0-6, eight zones, fielders shown where the scorer placed them */
+const RINGS = [0.14, 0.32, 0.48, 0.62, 0.78, 0.84, 1.0];   // outer edge of the band for 0,1,2,3,4,5,6
+function wheelPad() {
+  const inn = curInn(), field = inn.field || {};
+  const size = 330, c = size / 2, R = c - 4;
+  let g = '';
+  for (let k = RINGS.length - 1; k >= 0; k--) g += `<circle cx="${c}" cy="${c}" r="${(RINGS[k] * R).toFixed(1)}" class="wr${k} wring"/>`;
+  for (let z = 1; z <= 8; z++) {
+    const a0 = -Math.PI / 2 + (z - 5) * Math.PI / 4;
+    g += `<line x1="${c}" y1="${c}" x2="${(c + R * Math.cos(a0)).toFixed(1)}" y2="${(c + R * Math.sin(a0)).toFixed(1)}" class="wsp"/>`;
+    const a = a0 + Math.PI / 8;
+    g += `<text x="${(c + R * 0.91 * Math.cos(a)).toFixed(1)}" y="${(c + R * 0.91 * Math.sin(a)).toFixed(1)}" class="wl">${ZONES[z]}</text>`;
+    const f = field[z];
+    if (f) g += `<g class="wf"><circle cx="${(c + R * 0.64 * Math.cos(a)).toFixed(1)}" cy="${(c + R * 0.64 * Math.sin(a)).toFixed(1)}" r="11"/><text x="${(c + R * 0.64 * Math.cos(a)).toFixed(1)}" y="${(c + R * 0.64 * Math.sin(a) + 4).toFixed(1)}">${esc(f.name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</text></g>`;
+  }
+  // ring labels up the off side (north-west) so they don't sit on the fielders
+  const la = -Math.PI / 2 - Math.PI / 8 * 0.5;
+  [0, 1, 2, 3, 4, 5, 6].forEach(k => { const r = ((k ? RINGS[k - 1] : 0) + RINGS[k]) / 2 * R; g += `<text x="${(c + r * Math.cos(la)).toFixed(1)}" y="${(c + r * Math.sin(la) + 5).toFixed(1)}" class="wn">${k === 0 ? '•' : k}</text>`; });
+  g += `<rect x="${c - 2}" y="${c - 10}" width="4" height="20" rx="2" fill="#c9a44c"/>`;
+  return `<div class="wheel-pad"><svg viewBox="0 0 ${size} ${size}" id="wheelSvg" onclick="App.wheelTap(event)">${g}</svg>
+    <div class="small muted" style="text-align:center">Tap where the ball went - the ring is the runs. Commentary says it for you.</div></div>`;
+}
+App.wheelTap = ev => {
+  const svg = document.getElementById('wheelSvg'); if (!svg || S.busy) return;
+  const r = svg.getBoundingClientRect(), c = r.width / 2, R = c - 4 * r.width / 330;
+  const dx = ev.clientX - r.left - c, dy = ev.clientY - r.top - c;
+  const d = Math.sqrt(dx * dx + dy * dy) / R;
+  if (d > 1.08) return;
+  let runs = 6; for (let k = 0; k < RINGS.length; k++) if (d <= RINGS[k]) { runs = k; break; }
+  const t = ((Math.atan2(dy, dx) - Math.PI / 2) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+  const zone = Math.floor(t / (Math.PI / 4)) + 1;
+  if (navigator.vibrate) navigator.vibrate(8);
+  App.ballZ(runs, zone);
+};
+App.ballZ = (runs, zone) => scoreAction('match_ball', { runs, shot_zone: zone });
 
 /* ---------- retire / timed out ---------- */
 App.retireSheet = () => {
@@ -84,13 +123,34 @@ function drawBallDetail() {
     <label class="switch" style="margin:4px 0 10px"><span><b>Ask after every scoring shot</b><div class="small muted">Opens this sheet automatically</div></span><input type="checkbox" ${chk ? 'checked' : ''} onchange="try{localStorage.setItem('cs_askshot',this.checked?'1':'0')}catch(e){}"><span class="knob"></span></label>
     <div class="grid2"><button class="btn light" onclick="closeSheet()">Skip</button><button class="btn" onclick="App.bdSave()">Save</button></div>`);
 }
-App.pickZone = z => { if (S.bd) App.bdSet('zone', z); };
+App.pickZone = z => { if (S.fs) { S.fs.zone = S.fs.zone === z ? null : z; drawFieldSheet(); } else if (S.bd) App.bdSet('zone', z); };
+App.fieldSheet = () => {
+  const inn = curInn(); const pos = {}; Object.entries(inn.field || {}).forEach(([z, f]) => { pos[z] = f.id; });
+  S.fs = { pos, zone: null }; drawFieldSheet();
+};
+function drawFieldSheet() {
+  const st = S.m, inn = curInn(), f = S.fs;
+  const xi = st.xi[inn.bowling_team_id];
+  const nameOf = id => (xi.find(p => p.id === id) || { name: '?' }).name;
+  const used = new Set(Object.values(f.pos));
+  const chip = (label, fn, on, dis = false) => `<button class="chip ${on ? 'on' : ''}" ${dis ? 'disabled' : ''} onclick="${fn}">${esc(label)}</button>`;
+  const labels = {}; Object.entries(f.pos).forEach(([z, id]) => { labels[z] = { name: nameOf(id) }; });
+  sheet(`<h3>🧤 Set the field</h3><div class="sub">Tap a zone, then the fielder standing there. Commentary then says who fielded the ball. Bowler and keeper are known already.</div>
+    ${wagonWheel([], { pick: f.zone || 0, size: 250, field: labels })}
+    ${f.zone ? `<div class="field"><label>${ZONES[f.zone]}</label><div class="chips wrap">${chip('nobody', `App.fsSet(null)`, !f.pos[f.zone])}${xi.filter(p => p.id !== inn.bowler_id).map(p => chip(p.name, `App.fsSet(${p.id})`, f.pos[f.zone] === p.id, used.has(p.id) && f.pos[f.zone] !== p.id)).join('')}</div></div>` : ''}
+    ${Object.keys(f.pos).length ? `<div class="small" style="margin:6px 0 10px">${Object.entries(f.pos).map(([z, id]) => `<b>${ZONES[z]}</b>: ${esc(nameOf(id))}`).join(' · ')}</div>` : ''}
+    <div class="grid2"><button class="btn light" onclick="S.fs=null;closeSheet()">Cancel</button><button class="btn" onclick="App.fsSave()">Save field</button></div>`);
+}
+App.fsSet = id => { const f = S.fs; if (!f.zone) return; if (id) f.pos[f.zone] = id; else delete f.pos[f.zone]; f.zone = null; drawFieldSheet(); };
+App.fsSave = () => run(async () => { S.m = await api('match_field', { id: S.m.match.id, positions: S.fs.pos }); S.fs = null; closeSheet(); toast('Field set ✓'); drawMatch(false); });
 App.bdSave = () => run(async () => {
   const d = S.bd;
   S.m = await api('match_ball_detail', { id: S.m.match.id, innings_id: d.innId, seq: d.seq, shot_type: d.shot || '', shot_zone: d.zone || 0, drop_id: d.drop, field_id: d.fruns ? d.field : null, field_runs: d.fruns ? d.fruns : 0 });
   closeSheet(); toast('Ball tagged ✓'); drawMatch(false);
 });
 // ask for the shot after a scoring stroke when the scorer wants that
+const _closeSheet = closeSheet;
+closeSheet = () => { S.fs = null; _closeSheet(); };
 const _ballFn = App.ball;
 App.ball = async (runs, extra = null, wicket = null) => {
   const ok = await _ballFn(runs, extra, wicket);
@@ -99,7 +159,7 @@ App.ball = async (runs, extra = null, wicket = null) => {
 };
 
 /** Wagon wheel SVG. balls: [{z, r, w}] ; opts.pick highlights one zone and makes zones tappable */
-function wagonWheel(balls, { pick = null, size = 260, title = '' } = {}) {
+function wagonWheel(balls, { pick = null, size = 260, title = '', field = null } = {}) {
   const c = size / 2, R = c - 6, lines = [];
   const col = r => r >= 6 ? '#e63946' : r >= 4 ? '#1d7ad8' : r >= 3 ? '#8e44ad' : r >= 2 ? '#2a9d8f' : '#6c757d';
   const seg = []; const zoneRuns = {};
@@ -110,6 +170,7 @@ function wagonWheel(balls, { pick = null, size = 260, title = '' } = {}) {
     seg.push(`<path d="M${c},${c} L${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 0 1 ${x1.toFixed(1)},${y1.toFixed(1)} Z" class="wz ${pick === z ? 'on' : ''}" ${pick !== null ? `onclick="App.pickZone(${z})"` : ''}/>`);
     const [lx, ly] = p((a0 + a1) / 2, R * 0.78);
     seg.push(`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" class="wl">${ZONES[z]}</text>`);
+    if (field && field[z]) { const [fx, fy] = p((a0 + a1) / 2, R * 0.5); seg.push(`<g class="wf" pointer-events="none"><circle cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="11"/><text x="${fx.toFixed(1)}" y="${(fy + 4).toFixed(1)}">${esc(field[z].name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</text></g>`); }
   }
   balls.forEach((b, i) => {
     const a0 = -Math.PI / 2 + (b.z - 1 - 4) * Math.PI / 4;
@@ -473,3 +534,18 @@ viewTournament = async id => {
 
 /* the router captured the original screen builders - point it at the extended ones */
 ROUTES.forEach(r => { if (r[1] === _viewPlayer) r[1] = viewPlayer; else if (r[1] === _viewTournament) r[1] = viewTournament; else if (r[1] === _viewMatchNew) r[1] = viewMatchNew; });
+
+/* ---------- voice commentary says where the ball went ---------- */
+const _announce = announce;
+announce = (before, after) => {
+  const inns = after.innings, inn = inns[inns.length - 1];
+  const bi = before ? before.innings.find(i => i.no === inn.no) : null;
+  const b = inn && inn.timeline.length > (bi ? bi.timeline.length : 0) ? inn.timeline[inn.timeline.length - 1] : null;
+  S.zoneLine = b && b.zone && !b.w && (!b.ex || b.ex === 'nb') ? b.desc.replace(/^[^,]*, /, '').replace(/!/g, '.') + '.' : null;
+  try { _announce(before, after); } finally { S.zoneLine = null; }
+};
+const _soundLine = Sound.line;
+Sound.line = (key, d) => {
+  if (S.zoneLine && ['dot', 'run1', 'run2', 'run3', 'four', 'six', 'noball'].includes(key)) { const t = S.zoneLine; S.zoneLine = null; return key === 'noball' ? 'No ball. ' + t : t.charAt(0).toUpperCase() + t.slice(1); }
+  return _soundLine(key, d);
+};

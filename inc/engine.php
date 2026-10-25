@@ -5,6 +5,7 @@ const BOWLER_WICKETS = ['bowled', 'caught', 'lbw', 'stumped', 'hit wicket'];
 const WICKET_TYPES   = ['bowled', 'caught', 'lbw', 'run out', 'stumped', 'hit wicket', 'retired hurt', 'retired out', 'timed out', 'obstructing the field', 'hit the ball twice'];
 const NON_DELIVERY   = ['retired hurt', 'retired out', 'timed out'];      // no ball is bowled for these
 const FIELD_WICKETS  = ['run out', 'obstructing the field', 'hit the ball twice'];   // either batter, runs may be completed
+const SHOT_VERBS     = ['drive' => 'driven', 'cut' => 'cut', 'pull' => 'pulled', 'hook' => 'hooked', 'sweep' => 'swept', 'reverse sweep' => 'reverse swept', 'flick' => 'flicked', 'glance' => 'glanced', 'defence' => 'defended', 'loft' => 'lofted', 'slog' => 'slogged', 'scoop' => 'scooped', 'edge' => 'edged', 'leave' => 'left alone', 'other' => 'played'];
 const SHOT_TYPES     = ['drive', 'cut', 'pull', 'hook', 'sweep', 'reverse sweep', 'flick', 'glance', 'defence', 'loft', 'slog', 'scoop', 'edge', 'leave', 'other'];
 require_once __DIR__ . '/dls.php';
 require_once __DIR__ . '/pro.php';
@@ -188,10 +189,10 @@ function score_ball(array $m, array $in): void {
     $overNo = intdiv((int)$inn['legal_balls'], $bpo);
     $ballNo = ((int)$inn['legal_balls'] % $bpo) + 1;
     $seq = (int)val('SELECT COALESCE(MAX(seq),0) FROM balls WHERE innings_id=?', [$inn['id']]) + 1;
-    q('INSERT INTO balls (innings_id, seq, over_no, ball_no, batsman_id, non_striker_id, bowler_id, runs_bat, extra_type, extra_runs, total_runs, is_legal, is_wicket, wicket_type, dismissed_id, fielder_id, shot_type, shot_zone, drop_id, field_id, field_runs, created_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    q('INSERT INTO balls (innings_id, seq, over_no, ball_no, batsman_id, non_striker_id, bowler_id, runs_bat, extra_type, extra_runs, total_runs, is_legal, is_wicket, wicket_type, dismissed_id, fielder_id, shot_type, shot_zone, drop_id, field_id, field_runs, fielded_id, created_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [$inn['id'], $seq, $overNo, $ballNo, $s, $ns, (int)$inn['bowler_id'], $runsBat, $extra, $extraRuns, $runsBat + $extraRuns, $legal, $isW, $wType, $dismissed, $fielder,
-         $det['shot_type'], $det['shot_zone'], $det['drop_id'], $det['field_id'], $det['field_runs'], $in['_created_at'] ?? date('Y-m-d H:i:s')]);
+         $det['shot_type'], $det['shot_zone'], $det['drop_id'], $det['field_id'], $det['field_runs'], $det['fielded_id'], $in['_created_at'] ?? date('Y-m-d H:i:s')]);
 
     // Strike rotation: odd runs physically run swap ends
     if ($runs % 2 === 1) { [$s, $ns] = [$ns, $s]; }
@@ -403,6 +404,16 @@ function ball_desc(array $b, array $n): string {
         case 'lb': $d = (int)$b['extra_runs'] . ' leg bye' . ((int)$b['extra_runs'] > 1 ? 's' : ''); break;
         default:   $d = $r === 4 ? 'FOUR!' : ($r === 6 ? 'SIX!' : ($r === 0 ? 'no run' : "$r run" . ($r > 1 ? 's' : '')));
     }
+    $zone = !empty($b['shot_zone']) ? strtolower(WAGON_ZONES[(int)$b['shot_zone']] ?? '') : '';
+    if ($zone && !$b['is_wicket'] && ($b['extra_type'] === null || $b['extra_type'] === 'nb')) {
+        $verb = $b['shot_type'] ? (SHOT_VERBS[$b['shot_type']] ?? $b['shot_type']) : ($r >= 4 ? '' : 'played');
+        $fld = $b['fielded_id'] ? ($n[(int)$b['fielded_id']] ?? null) : null;
+        $where = $r === 6 ? "over $zone" : ($r === 4 ? "through $zone" : "to $zone");
+        $runs = $r === 0 ? 'no run' : "$r run" . ($r > 1 ? 's' : '');
+        $shot = in_array($r, [4, 6], true) ? ($r === 6 ? 'SIX! ' : 'FOUR! ') . ($verb ? "$verb $where" : $where) : ($verb ?: 'played') . " for $runs $where";
+        if ($fld && $r < 4) $shot .= ", fielded by $fld";
+        $d = $b['extra_type'] === 'nb' ? 'no ball, ' . $shot : $shot;
+    }
     if ($b['is_wicket']) $d .= ' - OUT! ' . ($n[(int)$b['dismissed_id']] ?? '?') . ' ' . dismissal_text($b, $n);
     return $head . $d;
 }
@@ -486,6 +497,7 @@ function innings_card(array $m, array $inn, array $names): array {
             'shot' => $b['shot_type'], 'zone' => $b['shot_zone'] ? (int)$b['shot_zone'] : null,
             'drop' => $b['drop_id'] ? ($names[(int)$b['drop_id']] ?? '') : null, 'drop_id' => $b['drop_id'] ? (int)$b['drop_id'] : null,
             'field' => $b['field_id'] ? ($names[(int)$b['field_id']] ?? '') : null, 'field_id' => $b['field_id'] ? (int)$b['field_id'] : null, 'field_runs' => (int)$b['field_runs'],
+            'fielded' => $b['fielded_id'] ? ($names[(int)$b['fielded_id']] ?? '') : null,
             'at' => $b['created_at'], 'pp' => $pp && (int)$b['over_no'] < $pp];
     }
     if ($partPlayers || $partRuns) $partnerships[] = partnership_row($partPlayers, $partBat, $partRuns, $partBalls, $names, $wk + 1, $score, true);
@@ -516,6 +528,7 @@ function innings_card(array $m, array $inn, array $names): array {
         'partnerships' => $partnerships, 'wagon' => $wagon, 'fielding' => $fielding, 'penalty_runs' => $penalties,
         'powerplay' => $pp ? ['overs' => $pp, 'runs' => $ppRuns, 'balls' => $ppBalls, 'wkts' => $ppWk, 'live' => $inn['status'] === 'live' && $lb < $pp * $bpo] : null,
         'super' => (int)$inn['innings_no'] >= 3,
+        'field' => field_positions($inn, $names),
         'striker_id' => $inn['striker_id'] ? (int)$inn['striker_id'] : null,
         'non_striker_id' => $inn['non_striker_id'] ? (int)$inn['non_striker_id'] : null,
         'bowler_id' => $inn['bowler_id'] ? (int)$inn['bowler_id'] : null,

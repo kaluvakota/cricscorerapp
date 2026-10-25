@@ -13,6 +13,8 @@ function schema_v116(): void {
                     MODIFY COLUMN wicket_type VARCHAR(30) NULL");
     }
     if (!val("SHOW COLUMNS FROM balls WHERE Field='wicket_type' AND Type LIKE '%30%'")) db()->exec("ALTER TABLE balls MODIFY COLUMN wicket_type VARCHAR(30) NULL");
+    if (!val("SHOW COLUMNS FROM balls LIKE 'fielded_id'")) db()->exec("ALTER TABLE balls ADD COLUMN fielded_id INT NULL AFTER field_runs");
+    if (!val("SHOW COLUMNS FROM innings LIKE 'field_json'")) db()->exec("ALTER TABLE innings ADD COLUMN field_json TEXT NULL AFTER bowler_id");
     if (!val("SHOW COLUMNS FROM matches LIKE 'powerplay_overs'")) {
         db()->exec("ALTER TABLE matches ADD COLUMN powerplay_overs TINYINT NOT NULL DEFAULT 0 AFTER max_overs_bowler, ADD COLUMN super_over TINYINT(1) NOT NULL DEFAULT 0 AFTER powerplay_overs,
                     ADD COLUMN best_bat_id INT NULL AFTER player_of_match_id, ADD COLUMN best_bowl_id INT NULL AFTER best_bat_id,
@@ -33,7 +35,7 @@ function penalty_runs_for_innings(int $innId): int {
 
 /** Optional per-ball details sent with a ball (or when tagging a ball later) */
 function ball_details_in(array $m, array $inn, array $in): array {
-    $d = ['shot_type' => null, 'shot_zone' => null, 'drop_id' => null, 'field_id' => null, 'field_runs' => 0];
+    $d = ['shot_type' => null, 'shot_zone' => null, 'drop_id' => null, 'field_id' => null, 'field_runs' => 0, 'fielded_id' => null];
     $st = trim((string)($in['shot_type'] ?? ''));
     if ($st !== '') { if (!in_array($st, SHOT_TYPES, true)) fail('Unknown shot type'); $d['shot_type'] = $st; }
     $z = (int)($in['shot_zone'] ?? 0);
@@ -47,7 +49,38 @@ function ball_details_in(array $m, array $inn, array $in): array {
         if (!in_array($f, $fieldXi, true)) fail('The fielder must be on the fielding side');
         $d['field_id'] = $f; $d['field_runs'] = max(-6, min(6, $fr));
     }
+    // who fielded it: given explicitly, or the fielder set for that zone
+    $fd = nint($in['fielded_id'] ?? null);
+    if ($fd && in_array($fd, $fieldXi, true)) $d['fielded_id'] = $fd;
+    elseif ($d['shot_zone'] && !empty($inn['field_json'])) {
+        $pos = json_decode($inn['field_json'], true) ?: [];
+        $who = (int)($pos[(string)$d['shot_zone']] ?? 0);
+        if ($who && in_array($who, $fieldXi, true)) $d['fielded_id'] = $who;
+    }
     return $d;
+}
+
+/** Field positions of the bowling side for this innings: zone (1-8) => player */
+function field_positions(array $inn, array $names): array {
+    $pos = !empty($inn['field_json']) ? (json_decode($inn['field_json'], true) ?: []) : [];
+    $out = [];
+    foreach ($pos as $z => $pid) if ((int)$pid) $out[(string)(int)$z] = ['id' => (int)$pid, 'name' => $names[(int)$pid] ?? '?'];
+    return $out;
+}
+
+/** Scorer sets where the fielders stand (zone => player id); used for commentary */
+function match_field_set(array $m, array $in): void {
+    $inn = latest_innings((int)$m['id']);
+    if (!$inn || $inn['status'] !== 'live') fail('No innings in progress');
+    $xi = xi_ids((int)$m['id'], (int)$inn['bowling_team_id']);
+    $pos = [];
+    foreach ((array)($in['positions'] ?? []) as $z => $pid) {
+        $z = (int)$z; $pid = (int)$pid;
+        if ($z < 1 || $z > 8 || !$pid) continue;
+        if (!in_array($pid, $xi, true)) fail('Fielders must be from the fielding side');
+        $pos[(string)$z] = $pid;
+    }
+    q('UPDATE innings SET field_json=? WHERE id=?', [$pos ? json_encode($pos) : null, $inn['id']]);
 }
 
 function partnership_row(array $players, array $partBat, int $runs, int $balls, array $names, int $wkt, int $score, bool $unbroken = false): array {
@@ -142,7 +175,7 @@ function match_batter_change(array $m, array $in): void {
 function match_ball_detail(array $m, array $in): void {
     [$inn, $ball] = find_ball($m, $in);
     $d = ball_details_in($m, $inn, $in);
-    q('UPDATE balls SET shot_type=?, shot_zone=?, drop_id=?, field_id=?, field_runs=? WHERE id=?', [$d['shot_type'], $d['shot_zone'], $d['drop_id'], $d['field_id'], $d['field_runs'], $ball['id']]);
+    q('UPDATE balls SET shot_type=?, shot_zone=?, drop_id=?, field_id=?, field_runs=?, fielded_id=? WHERE id=?', [$d['shot_type'], $d['shot_zone'], $d['drop_id'], $d['field_id'], $d['field_runs'], $d['fielded_id'], $ball['id']]);
 }
 
 function find_ball(array $m, array $in): array {
@@ -156,7 +189,7 @@ function find_ball(array $m, array $in): array {
 /** Turn a stored ball back into scoring input so it can be replayed */
 function ball_to_input(array $b): array {
     $in = ['runs' => 0, 'extra' => $b['extra_type'], 'wicket' => null, 'shot_type' => $b['shot_type'], 'shot_zone' => $b['shot_zone'],
-           'drop_id' => $b['drop_id'], 'field_id' => $b['field_id'], 'field_runs' => $b['field_runs'], '_created_at' => $b['created_at']];
+           'drop_id' => $b['drop_id'], 'field_id' => $b['field_id'], 'field_runs' => $b['field_runs'], 'fielded_id' => $b['fielded_id'], '_created_at' => $b['created_at']];
     switch ($b['extra_type']) {
         case 'wd': $in['runs'] = max(0, (int)$b['extra_runs'] - 1); break;
         case 'b': case 'lb': $in['runs'] = (int)$b['extra_runs']; break;

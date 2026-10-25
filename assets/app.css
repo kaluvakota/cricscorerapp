@@ -579,3 +579,11 @@ body:not(.app-mode) #tabbar{display:none!important}
 .ins{font-size:13px;font-weight:700;padding:4px 0}
 .ins.ok{color:#1b5e20}.ins.warn{color:#8a4b00}
 @media (prefers-color-scheme:dark){.wg{fill:#1b3a2a;stroke:#2f5e42}.wl{fill:#9ccf9a}.wr{fill:#e8ffe0}.pp-tag{background:#3a2e0a;color:#ffd166}.ins.ok{color:#b2f2bb}.ins.warn{color:#ffd8a8}}
+.wheel-pad{margin:0 0 10px}
+.wheel-pad svg{width:100%;height:auto;display:block;touch-action:manipulation}
+.wring{stroke:#8fbf7a;stroke-width:1.2}
+.wr0{fill:#c8e6b5}.wr1{fill:#dff1d0}.wr2{fill:#d2ebc1}.wr3{fill:#c5e4b2}.wr4{fill:#b8dea4}.wr5{fill:#f7e8b0;stroke:#d4b45a;stroke-width:3}.wr6{fill:#eaf4e0}
+.wsp{stroke:#9fc78a;stroke-width:1}
+.wn{font:900 15px Nunito,Arial;fill:#0d4a36;text-anchor:middle;pointer-events:none}
+.wf circle{fill:#0d4a36;stroke:#fff;stroke-width:2}.wf text{font:800 10px Nunito,Arial;fill:#fff;text-anchor:middle;pointer-events:none}
+@media (prefers-color-scheme:dark){.wr0{fill:#2b5a3c}.wr1{fill:#1f4a30}.wr2{fill:#214f33}.wr3{fill:#235436}.wr4{fill:#255939}.wr5{fill:#4a3f14;stroke:#c9a44c}.wr6{fill:#1a3a28}.wring{stroke:#3c7a52}.wn{fill:#e8ffe0}.wsp{stroke:#2f5e42}}

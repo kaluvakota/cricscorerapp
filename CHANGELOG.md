@@ -4,6 +4,11 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.16.1 - 25 October 2026
+- Wheel scoring: a tap-to-score wagon wheel above the pad - rings for • 1 2 3 4 5 6, eight zones; tap where the ball went and the runs and direction are recorded in one go (🎯 Hide wheel to switch it off)
+- Commentary and the voice now say where it went: "cut for 2 runs to point, fielded by Rohit", "FOUR! driven through cover", "SIX! over long on"
+- 🧤 Set field: place the fielders on the wheel (zone → player) so commentary names who fielded the ball; fielders show on the wheel while scoring
+
 ## 1.16.0 - 25 October 2026
 - Edit or delete any earlier ball (Overs / Ball by ball tab) - everything after it is re-counted with the same batters and bowlers; works after the match too
 - New dismissals: retired out, timed out, obstructing the field, hit the ball twice (plus retired hurt, which stays not out)

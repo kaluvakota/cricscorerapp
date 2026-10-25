@@ -14,7 +14,9 @@ Made for Aarush & Aayush.
   strike rotation, over changes, bowler limits, unlimited undo, **edit or delete any earlier ball** (later balls are
   re-counted), swap a wrongly chosen batter, change overs in the first innings, replace a bowler mid-over, penalty /
   bonus runs, powerplay overs, super over for ties, shot type + wagon-wheel direction, dropped catches and runs
-  saved/missed per ball (tap 🎯 *Shot & fielding*, or switch on "ask after every scoring shot").
+  saved/missed per ball (tap 🎯 *Shot & fielding*, or switch on "ask after every scoring shot"). **Wheel scoring**: a
+  tap-to-score wagon wheel (rings • 1 2 3 4 5 6, eight zones) records runs and direction in one tap; 🧤 *Set field* places
+  the fielders so commentary and the voice say "cut for 2 runs to point, fielded by Rohit".
 - **Scorecards & analysis** - batting/bowling cards with minutes, extras, fall of wickets, ball-by-ball commentary,
   Analysis tab (Manhattan, worm, run rate, wagon wheel per batter, wickets pie, types of runs, all partnerships,
   powerplay, fielding), automatic result with Player of the Match, best batter and best bowler, match officials and a
