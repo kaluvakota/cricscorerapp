@@ -513,14 +513,6 @@ function insightsCard(ins) {
       ${zones.length ? wagonWheel(zones, { size: 260, title: 'Career wagon wheel' }) : ''}
       ${ins.fielding.drops || ins.fielding.saved || ins.fielding.missed ? `<div class="kv"><span>🧤 Fielding</span><span>${ins.fielding.saved} saved · ${ins.fielding.missed} given away · ${plural(ins.fielding.drops, 'drop')}</span></div>` : ''}</div>`;
 }
-const _viewPlayer = viewPlayer;
-viewPlayer = async id => {
-  await _viewPlayer(id);
-  const d = S.player; if (!d || !d.stats || !d.stats.insights) return;
-  const content = document.querySelector('#app .content, main .content, .content');
-  if (content) content.insertAdjacentHTML('beforeend', insightsCard(d.stats.insights));
-};
-
 /* ---------- tournament boundary tracker ---------- */
 const _viewTournament = viewTournament;
 viewTournament = async id => {
@@ -533,7 +525,7 @@ viewTournament = async id => {
 };
 
 /* the router captured the original screen builders - point it at the extended ones */
-ROUTES.forEach(r => { if (r[1] === _viewPlayer) r[1] = viewPlayer; else if (r[1] === _viewTournament) r[1] = viewTournament; else if (r[1] === _viewMatchNew) r[1] = viewMatchNew; });
+ROUTES.forEach(r => { if (r[1] === _viewTournament) r[1] = viewTournament; else if (r[1] === _viewMatchNew) r[1] = viewMatchNew; });
 
 /* ---------- voice commentary says where the ball went ---------- */
 const _announce = announce;
@@ -549,3 +541,212 @@ Sound.line = (key, d) => {
   if (S.zoneLine && ['dot', 'run1', 'run2', 'run3', 'four', 'six', 'noball'].includes(key)) { const t = S.zoneLine; S.zoneLine = null; return key === 'noball' ? 'No ball. ' + t : t.charAt(0).toUpperCase() + t.slice(1); }
   return _soundLine(key, d);
 };
+
+/* =====================================================================
+   v1.17 - PLAYER PAGE: history with filters, full stats, awards, badges, teams
+   ===================================================================== */
+const _viewPlayer = viewPlayer;
+const PF_EMPTY = () => ({ year: '', tournament_id: '', team_id: '', opponent_id: '', overs_min: '', overs_max: '', ball_type: '', result: '' });
+viewPlayer = async id => {
+  id = +id;
+  if (!S.pf || S.pf.id !== id) S.pf = { id, f: PF_EMPTY(), tab: 'matches', stab: 'batting', page: 1, cache: {} };
+  mount(topbar('Player', { back: true }) + `<div class="content">${sk(4)}</div>`, 'teams');
+  let d; try { d = await api('player_get', { id }); } catch (e) { mount(topbar('Player', { back: true }) + `<div class="content"><div class="card empty"><div class="big">🏏</div>${esc(e.message)}</div></div>`, 'teams'); return; }
+  S.player = d; S.pf.cache = {};
+  drawPlayer();
+};
+const pfActive = () => Object.values(S.pf.f).some(v => v !== '' && v !== null);
+function drawPlayer() {
+  const d = S.player, p = d.player, fg = textOn(p.color), st = d.stats;
+  const actions = p.can_edit ? `<button class="icon-btn" aria-label="Edit" onclick="App.playerForm(${p.id},${p.team_id})">${I.edit}</button>` : '';
+  const tabs = [['matches', 'Matches'], ['stats', 'Stats'], ['awards', 'Awards'], ['badges', 'Badges'], ['teams', 'Teams'], ['insights', 'Insights']];
+  const strip = [[st.batting.mat, 'Matches'], [st.batting.runs, 'Runs'], [st.bowling.wkts, 'Wickets']].map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`).join('');
+  mount(topbar(p.name, { back: true, actions }) + `<div class="team-hero" style="background:${esc(p.color)};color:${fg}">
+      <span class="avatar" style="width:64px;height:64px;font-size:24px;background:rgba(255,255,255,.2);color:${fg}">${esc(p.name.split(' ').map(x => x[0]).slice(0, 2).join(''))}</span>
+      <div><div class="lvl">${esc(d.level)}</div><h2>${esc(p.name)}</h2><p>${roleIcon(p.role)} ${esc(p.role)}${p.jersey_no ? ' · #' + esc(p.jersey_no) : ''}${p.city ? ' · 📍 ' + esc(p.city) : ''} · 👁 ${d.views}</p>
+      <p>${esc([p.batting_style, p.bowling_style].filter(Boolean).join(' · ') || '-')}</p>
+      <p onclick="go('#/team/${p.team_id}')" style="cursor:pointer;text-decoration:underline">${esc(p.team_name)}</p></div></div>
+    <div class="content">
+      <div class="card flush hero-strip"><div class="statgrid">${strip}</div></div>
+      <div class="seg scroll">${tabs.map(([k, l]) => `<button class="${S.pf.tab === k ? 'on' : ''}" onclick="S.pf.tab='${k}';S.pf.page=1;drawPlayer()">${l}</button>`).join('')}</div>
+      ${['matches', 'stats'].includes(S.pf.tab) ? `<div class="row" style="margin:-4px 0 10px;justify-content:space-between"><span class="small muted">${pfActive() ? 'Filtered' : 'All matches'}</span><button class="btn sm light" onclick="App.pfSheet()">⚙️ Filters${pfActive() ? ' •' : ''}</button></div>` : ''}
+      <div id="ptab">${sk(3)}</div>
+    </div>`, 'teams');
+  drawPlayerTab();
+}
+async function drawPlayerTab() {
+  const d = S.player, p = d.player, t = S.pf.tab, el = () => document.getElementById('ptab');
+  const g = (v, l) => `<div><b>${v ?? '–'}</b><span>${l}</span></div>`;
+  try {
+    if (t === 'matches') {
+      const key = 'm' + JSON.stringify(S.pf.f) + S.pf.page;
+      const r = S.pf.cache[key] || (S.pf.cache[key] = await api('player_matches', { id: p.id, filters: S.pf.f, page: S.pf.page }));
+      if (S.pf.page > 1 && S.pf.list) S.pf.list = S.pf.list.concat(r.matches); else S.pf.list = r.matches;
+      if (!el()) return;
+      el().innerHTML = (S.pf.list.length ? S.pf.list.map(m => playerMatchCard(m, p)).join('') : '<div class="card empty"><div class="big">🏏</div>No matches match these filters.</div>')
+        + (r.more ? `<button class="btn light block" onclick="S.pf.page++;drawPlayerTab()">Load more</button>` : '');
+    } else if (t === 'stats') {
+      const key = 's' + JSON.stringify(S.pf.f);
+      const r = pfActive() ? (S.pf.cache[key] || (S.pf.cache[key] = await api('player_career', { id: p.id, filters: S.pf.f }))) : { stats: d.stats };
+      if (!el()) return;
+      const s = r.stats, b = s.batting, w = s.bowling, f = s.fielding, c = s.captain;
+      const sub = [['batting', '🏏 Batting'], ['bowling', '🎯 Bowling'], ['fielding', '🧤 Fielding'], ['captain', '©️ Captain']];
+      let body = '';
+      if (S.pf.stab === 'batting') body = `<div class="statgrid">${g(b.mat, 'Matches')}${g(b.inns, 'Innings')}${g(b.no, 'Not out')}${g(b.runs, 'Runs')}${g(b.hs + (b.hs_no ? '*' : ''), 'Highest')}${g(b.avg, 'Average')}${g(b.sr, 'Strike rate')}${g(b.thirties, '30s')}${g(b.fifties, '50s')}${g(b.hundreds, '100s')}${g(b.f4, '4s')}${g(b.f6, '6s')}${g(b.ducks, 'Ducks')}${g(b.won, 'Won')}${g(b.lost, 'Lost')}</div>`;
+      else if (S.pf.stab === 'bowling') body = `<div class="statgrid">${g(w.mat, 'Matches')}${g(w.inns, 'Innings')}${g(w.balls ? Math.floor(w.balls / 6) + '.' + (w.balls % 6) : 0, 'Overs')}${g(w.maidens, 'Maidens')}${g(w.wkts, 'Wickets')}${g(w.runs, 'Runs')}${g(w.inns ? w.best_w + '/' + w.best_r : null, 'Best')}${g(w.three, '3 wickets')}${g(w.five, '5 wickets')}${g(w.econ, 'Economy')}${g(w.sr, 'Strike rate')}${g(w.avg, 'Average')}${g(w.wd, 'Wides')}${g(w.nb, 'No balls')}${g(w.dots, 'Dot balls')}${g(w.f4, '4s given')}${g(w.f6, '6s given')}</div>`;
+      else if (S.pf.stab === 'fielding') body = `<div class="statgrid">${g(f.mat, 'Matches')}${g(f.catches, 'Catches')}${g(f.caught_behind, 'Caught behind')}${g(f.run_outs, 'Run outs')}${g(f.stumpings, 'Stumpings')}${g(f.saved, 'Runs saved')}${g(f.missed, 'Runs given')}${g(f.drops, 'Drops')}${g(s.pom, 'POM awards')}</div>`;
+      else body = c.mat ? `<div class="statgrid">${g(c.mat, 'As captain')}${g(c.won, 'Won')}${g(c.lost, 'Lost')}${g(c.win_pct !== null ? c.win_pct + '%' : null, 'Win %')}${g(c.toss_won, 'Tosses won')}</div>` : '<div class="card empty small">Not captained a match yet. Pick the captain when choosing the playing XI.</div>';
+      el().innerHTML = `<div class="chips" style="margin-bottom:10px">${sub.map(([k, l]) => `<button class="chip ${S.pf.stab === k ? 'on' : ''}" onclick="S.pf.stab='${k}';drawPlayerTab()">${l}</button>`).join('')}</div><div class="card flush">${body}</div>
+        <div class="small muted" style="margin-top:8px">From matches scored in Cric-Scorer${pfActive() ? ' (filtered)' : ''}. Super overs are not counted.</div>`;
+    } else if (t === 'awards') {
+      const r = S.pf.cache.aw || (S.pf.cache.aw = await api('player_awards', { id: p.id }));
+      if (!el()) return;
+      el().innerHTML = r.awards.length ? r.awards.map(a => `<div class="card" style="cursor:pointer" onclick="go('#/match/${a.match_id}')"><div class="row" style="justify-content:space-between"><b>${a.kinds.map(k => ({ 'Player of the Match': '⭐', 'Best batter': '🏏', 'Best bowler': '🎯' }[k] || '') + ' ' + k).join(' · ')}</b></div>
+        <div class="small muted">${esc(a.title)} · ${esc(a.tour)} · ${esc(fmtDate(a.date, false))}</div>
+        <div class="row" style="gap:14px;margin-top:6px">${a.bat ? `<span><b class="big-num">${a.bat.r}${a.bat.out ? '' : '*'}</b> <span class="small muted">(${a.bat.b}) ${a.bat.f4}×4 ${a.bat.f6}×6</span></span>` : ''}${a.bowl ? `<span><b class="big-num">${a.bowl.w}/${a.bowl.r}</b> <span class="small muted">(${a.bowl.o} ov)</span></span>` : ''}</div></div>`).join('')
+        : '<div class="card empty"><div class="big">🏆</div>No awards yet - Player of the Match, best batter and best bowler land here.</div>';
+    } else if (t === 'badges') {
+      const r = S.pf.cache.bd || (S.pf.cache.bd = await api('player_badges', { id: p.id }));
+      if (!el()) return;
+      el().innerHTML = `<div class="badges">${r.badges.map(b => `<div class="bdg ${b.count ? '' : 'off'}" title="${esc(b.how)}"><div class="ic">${b.icon}</div><b>${b.count}</b><span>${esc(b.name)}</span><small>${esc(b.how)}</small></div>`).join('')}</div>`;
+    } else if (t === 'teams') {
+      const r = S.pf.cache.tm || (S.pf.cache.tm = await api('player_teams', { id: p.id }));
+      if (!el()) return;
+      el().innerHTML = r.teams.length ? `<div class="card flush list">${r.teams.map(x => `<div class="item" onclick="go('#/team/${x.id}')">${badge(x)}<div class="grow"><div class="t">${esc(x.name)}</div><div class="s">Since ${esc(fmtDate(x.since, false))} · Played ${x.played} · Won ${x.won} · Lost ${x.lost}</div></div><span class="chev">${I.chev}</span></div>`).join('')}</div>` : '<div class="card empty small">No matches played yet.</div>';
+    } else if (t === 'insights') {
+      if (!el()) return;
+      el().innerHTML = insightsCard(d.stats.insights).replace('<div class="section"><h2>🔍 Insights</h2><span class="small muted">free · like the pros</span></div>', '');
+    }
+  } catch (e) { if (el()) el().innerHTML = `<div class="card empty small">${esc(e.message)}</div>`; }
+}
+function playerMatchCard(m, p) {
+  const me = m.me, mine = me.team_id;
+  const res = me.won === null ? (m.status === 'live' ? '<span class="pill live">Live</span>' : m.status === 'scheduled' ? '<span class="pill up">Upcoming</span>' : '<span class="pill">No result</span>') : me.won ? '<span class="pill won">Won</span>' : '<span class="pill lost">Lost</span>';
+  const line = [me.bat ? `🏏 ${me.bat.r}${me.bat.out ? '' : '*'} (${me.bat.b})` : '', me.bowl ? `🎯 ${me.bowl.w}/${me.bowl.r} (${me.bowl.o})` : '', me.pom ? '⭐ POM' : ''].filter(Boolean).join(' · ');
+  const row = (t, sc) => `<div class="tm ${t && m.winner_team_id === t.id ? 'win' : ''}">${badge(t, 'sm')}<span class="n">${esc(t?.name)}${t && t.id === mine ? ' <small class="muted">(me)</small>' : ''}</span><span class="sc">${esc(sc || '')}</span></div>`;
+  return `<div class="mcard ${m.status}" onclick="go('#/match/${m.id}')"><div class="top"><span class="ellipsis">${esc(m.tournament_name || m.title || 'Friendly match')}${me.round ? ' · ' + esc(me.round) : ''}</span>${res}</div>
+    <div class="foot m" style="border:0;padding:0 0 6px">${esc(fmtDate(m.match_date, false))}${m.venue ? ' · ' + esc(m.venue) : ''} · ${m.overs} ov</div>${row(m.team1, m.score1)}${row(m.team2, m.score2)}
+    <div class="foot">${m.result_text ? esc(m.result_text) + (line ? ' · ' : '') : ''}<b>${esc(line || (m.status === 'scheduled' ? 'Not started' : 'Did not bat or bowl'))}</b></div></div>`;
+}
+App.pfSheet = () => {
+  const o = S.player.filters, f = S.pf.f;
+  const sel = (name, label, opts, val) => `<div class="field"><label>${label}</label><select class="input" name="${name}">${opts.map(([v, l]) => `<option value="${esc(v)}" ${String(val) === String(v) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>`;
+  sheet(`<h3>⚙️ Filters</h3><div class="sub">Narrow the matches and stats.</div><form onsubmit="event.preventDefault();App.pfApply(this)">
+    <div class="grid2">${sel('year', 'Year', [['', 'All'], ...o.years.map(y => [y, y])], f.year)}${sel('result', 'Result', [['', 'All'], ['won', 'Won'], ['lost', 'Lost']], f.result)}</div>
+    ${sel('tournament_id', 'Tournament', [['', 'All'], ...o.tournaments.map(t => [t.id, t.name])], f.tournament_id)}
+    <div class="grid2">${sel('team_id', 'Playing for', [['', 'All'], ...o.teams.map(t => [t.id, t.name])], f.team_id)}${sel('opponent_id', 'Against', [['', 'All'], ...o.opponents.map(t => [t.id, t.name])], f.opponent_id)}</div>
+    <div class="grid3">${sel('ball_type', 'Ball', [['', 'All'], ...o.ball_types.map(b => [b, b[0].toUpperCase() + b.slice(1)])], f.ball_type)}<div class="field"><label>Overs from</label><input class="input" type="number" name="overs_min" min="1" value="${esc(f.overs_min)}"></div><div class="field"><label>to</label><input class="input" type="number" name="overs_max" min="1" value="${esc(f.overs_max)}"></div></div>
+    <div class="grid2"><button type="button" class="btn light" onclick="App.pfReset()">Reset</button><button class="btn">Apply</button></div></form>`);
+};
+App.pfApply = form => { const d = formData(form); const f = PF_EMPTY(); Object.keys(f).forEach(k => { f[k] = d[k] ?? ''; }); S.pf.f = f; S.pf.page = 1; closeSheet(); drawPlayer(); };
+App.pfReset = () => { S.pf.f = PF_EMPTY(); S.pf.page = 1; closeSheet(); drawPlayer(); };
+ROUTES.forEach(r => { if (r[1] === _viewPlayer) r[1] = viewPlayer; });
+
+/* ---------- match page: Summary / MVP / Teams tabs ---------- */
+const _matchTabs2 = matchTabs;
+matchTabs = st => {
+  const tabs = [['card', 'Scorecard'], ['summary', 'Summary'], ['overs', 'Overs'], ['comm', 'Ball by ball'], ['analysis', 'Analysis'], ['mvp', 'MVP'], ['teams', 'Teams']];
+  const n = st.innings.length;
+  if (S.cardInn === null || S.cardInn >= n || S.cardInnN !== n) { S.cardInn = n - 1; S.cardInnN = n; }
+  const innName = i => (i.super ? 'SO ' : '') + teamById(i.batting_team_id).short_name;
+  const perInn = ['card', 'overs', 'comm'].includes(S.mTab);
+  const innSel = n > 1 && perInn ? `<div class="chips" style="margin-bottom:10px">${st.innings.map((i, k) => `<button class="chip ${k === S.cardInn ? 'on' : ''}" onclick="S.cardInn=${k};drawMatch(false)">${esc(innName(i))} ${i.runs}/${i.wickets}</button>`).join('')}</div>` : '';
+  const inn = st.innings[S.cardInn];
+  const body = { overs: () => oversView(st, inn), comm: () => commView(st, inn), analysis: () => analysisView(st), summary: () => summaryView(st), mvp: () => mvpView(st), teams: () => teamsView(st) }[S.mTab]?.() ?? scorecardView(st, inn);
+  const extra = S.mTab === 'card' ? streamEmbed(st.match.stream_url) + officialsCard(st.match) : '';
+  return `<div class="content" style="padding-top:2px">${extra}<div class="seg scroll">${tabs.map(([k, l]) => `<button class="${S.mTab === k ? 'on' : ''}" onclick="S.mTab='${k}';drawMatch(false)">${l}</button>`).join('')}</div>${innSel}${body}</div>`;
+};
+function summaryView(st) {
+  const m = st.match, inns = st.innings.filter(i => !i.super);
+  const bats = inns.flatMap(i => i.batting.map(b => ({ ...b, team: teamById(i.batting_team_id).short_name }))).filter(b => b.b > 0 || b.r > 0).sort((a, b) => b.r - a.r || a.b - b.b).slice(0, 3);
+  const bowls = inns.flatMap(i => i.bowling.map(b => ({ ...b, team: teamById(i.bowling_team_id).short_name }))).filter(b => b.balls > 0).sort((a, b) => b.w - a.w || a.r - b.r).slice(0, 3);
+  const perf = `<div class="card flush"><div class="kv" style="border-top:0"><span>Best performances</span><span></span></div>
+    <table class="tbl"><tr><th>Batter</th><th>R</th><th>B</th><th>4s</th><th>6s</th><th>SR</th></tr>${bats.map(b => `<tr onclick="go('#/player/${b.id}')"><td><div class="nm">${esc(b.name)}</div><div class="how">${esc(b.team)}</div></td><td><b>${b.r}</b></td><td>${b.b}</td><td>${b.f4}</td><td>${b.f6}</td><td>${b.sr}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">-</td></tr>'}</table>
+    <table class="tbl"><tr><th>Bowler</th><th>O</th><th>M</th><th>R</th><th>W</th><th>Econ</th></tr>${bowls.map(b => `<tr onclick="go('#/player/${b.id}')"><td><div class="nm">${esc(b.name)}</div><div class="how">${esc(b.team)}</div></td><td>${b.o}</td><td>${b.m}</td><td>${b.r}</td><td><b>${b.w}</b></td><td>${b.econ}</td></tr>`).join('') || '<tr><td colspan="6" class="muted">-</td></tr>'}</table></div>`;
+  const notes = st.notes && st.notes.notes.length ? `<div class="card flush" style="margin-top:12px"><div class="kv" style="border-top:0"><span>Match notes</span><span class="muted small">auto</span></div>${st.notes.notes.map(n => `<div class="note">${esc(n.text)}</div>`).join('')}</div>` : '';
+  const tm = st.notes && st.notes.timings.length ? `<div class="card flush" style="margin-top:12px"><div class="kv" style="border-top:0"><span>Timings</span><span></span></div>${st.notes.timings.map(t => `<div class="kv"><span>${t.no >= 3 ? 'Super over ' + (t.no - 2) : (t.no === 1 ? '1st' : '2nd') + ' innings'}</span><span>${t.mins} min (${t.from} - ${t.to})</span></div>`).join('')}</div>` : '';
+  const log = st.log && st.log.length ? `<div class="card flush" style="margin-top:12px"><div class="kv" style="border-top:0"><span>Scorer notes</span><span></span></div>${st.log.map(l => `<div class="note"><b>${esc(l.who || 'Scorer')}</b>: ${esc(l.text)}${l.score ? ' <span class="muted">at ' + esc(l.score) + '</span>' : ''}</div>`).join('')}</div>` : '';
+  const pts = m.tournament ? `<div class="card flush" style="margin-top:12px"><div class="kv" style="border-top:0"><span>Match points</span><span></span></div>${[st.team1, st.team2].map(t => { const w = m.winner_team_id === t.id ? 2 : (m.status === 'completed' && !m.winner_team_id ? 1 : 0); const b = m.bonus && m.bonus[t.id] ? +m.bonus[t.id] : 0; return `<div class="kv"><span>${esc(t.short_name)}</span><span>${w} pts${b ? ` + ${b} bonus = ${w + b}` : ''}</span></div>`; }).join('')}</div>` : '';
+  return perf + notes + tm + log + pts;
+}
+function mvpView(st) {
+  const list = st.mvp || [];
+  if (!list.length) return '<div class="card empty">MVP points appear once the first ball is bowled.</div>';
+  return `<div class="card flush"><div class="kv" style="border-top:0"><span>MVP - most valuable player</span><span class="muted small" onclick="App.mvpHelp()">how? ⓘ</span></div>
+    ${list.map((p, i) => `<div class="item" onclick="go('#/player/${p.id}')"><span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>${badge(teamById(p.team_id) || { short_name: '?', color: '#888' }, 'sm')}
+      <div class="grow"><div class="t ellipsis">${esc(p.name)}</div><div class="s">Bat ${p.bat} + Bowl ${p.bowl} + Field ${p.field}</div></div><b class="big-num">${p.total}</b></div>`).join('')}</div>`;
+}
+App.mvpHelp = () => sheet(`<h3>How MVP points work</h3><div class="sub">Same simple formula for every match, so you can check it yourself.</div>
+  <div class="small"><b>Batting</b>: 1 per run, +1 per four, +2 per six, +5 at 30, +10 at 50, +25 at 100; strike-rate bonus (SR − 100) ÷ 10 when 10+ balls faced (max ±10); −2 for a duck.<br><br>
+  <b>Bowling</b>: 20 per wicket, +10 for three, +25 for five, +5 per maiden, +0.5 per dot ball; economy bonus (6 − economy) × 3 when 2+ overs bowled (max ±15).<br><br>
+  <b>Fielding</b>: 8 per catch or run out, 10 per stumping, +1 per run saved, −1 per run given away, −5 per dropped catch.<br><br>Super overs are not counted.</div>`);
+function teamsView(st) {
+  return [st.team1, st.team2].map(t => `<div class="card flush" style="margin-bottom:12px"><div class="inn-head">${badge(t, 'sm')}<span>${esc(t.name)}</span><b>${(st.xi[t.id] || []).length}</b></div>
+    ${(st.xi[t.id] || []).length ? `<div class="list">${st.xi[t.id].map(p => `<div class="item" onclick="go('#/player/${p.id}')"><span class="avatar">${esc(p.name.split(' ').map(w => w[0]).slice(0, 2).join(''))}</span><div class="grow"><div class="t">${esc(p.name)}${p.is_captain ? ' <span class="role-tag">C</span>' : ''}${p.is_keeper ? ' <span class="role-tag">WK</span>' : ''}</div><div class="s">${roleIcon(p.role)} ${esc(p.role)}</div></div></div>`).join('')}</div>` : '<div class="muted small" style="padding:12px 14px">Playing XI not chosen yet.</div>'}</div>`).join('');
+}
+
+/* ---------- XI: captain & keeper ---------- */
+xiSetup = () => {
+  const st = S.m, m = st.match;
+  if (!S.squads || S.squads.mid !== m.id) { loadSquads(); return `<div class="content">${sk(3)}</div>`; }
+  const tid = S.xiTeam, team = S.squads[tid], sel = S.xiSel[tid];
+  S.xiCap = S.xiCap || {}; S.xiWk = S.xiWk || {};
+  if (S.xiCap[tid] === undefined) { const c = (st.xi[tid] || []).find(p => p.is_captain); S.xiCap[tid] = c ? c.id : null; }
+  if (S.xiWk[tid] === undefined) { const k = (st.xi[tid] || []).find(p => p.is_keeper); S.xiWk[tid] = k ? k.id : null; }
+  const tabs = [st.team1, st.team2].map(t => `<button class="${t.id === tid ? 'on' : ''}" onclick="S.xiTeam=${t.id};drawMatch(false)">${esc(t.short_name)} · ${S.xiSel[t.id].size}/${m.players_per_side}</button>`).join('');
+  const list = team.players.map(p => { const on = sel.has(+p.id); return `<div class="xirow"><button class="pbtn ${on ? 'on' : ''}" onclick="App.xiToggle(${p.id})"><span class="chk">${on ? '✓' : ''}</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.role)}</span></button>
+    ${on ? `<button class="tag ${S.xiCap[tid] === +p.id ? 'on' : ''}" onclick="App.xiCap(${p.id})">C</button><button class="tag ${S.xiWk[tid] === +p.id ? 'on' : ''}" onclick="App.xiWk(${p.id})">WK</button>` : ''}</div>`; }).join('');
+  return `<div class="content"><div class="section" style="margin-top:6px"><h2>Pick playing teams</h2><span class="small muted">up to ${m.players_per_side} each</span></div>
+    <div class="seg">${tabs}</div>
+    <div class="row" style="margin-bottom:10px;flex-wrap:wrap"><button class="btn sm light" onclick="App.xiFirst()">Pick first ${m.players_per_side}</button><button class="btn sm light" onclick="App.xiClear()">Clear</button>
+    ${team.team.can_edit ? '<button class="btn sm light" onclick="App.quickPlayer()">+ New player</button>' : ''}</div>
+    <div class="small muted" style="margin:-4px 0 8px">Tap <b>C</b> for the captain and <b>WK</b> for the keeper - used for captain stats and caught-behind.</div>
+    ${team.players.length ? `<div class="plist">${list}</div>` : `<div class="card empty"><div class="big">🧢</div>This team has no players yet.${team.team.can_edit ? '<br>Tap <b>+ New player</b> to add some.' : ''}</div>`}
+    <button class="btn block" style="margin:8px 0 20px" onclick="App.saveXI(this)">Save teams & go to toss →</button></div>`;
+};
+App.xiCap = id => { S.xiCap[S.xiTeam] = S.xiCap[S.xiTeam] === id ? null : id; drawMatch(false); };
+App.xiWk = id => { S.xiWk[S.xiTeam] = S.xiWk[S.xiTeam] === id ? null : id; drawMatch(false); };
+App.saveXI = btn => {
+  const st = S.m, min = st.match.last_man_stands ? 1 : 2;
+  for (const t of [st.team1, st.team2]) if (S.xiSel[t.id].size < min) { S.xiTeam = t.id; drawMatch(false); return toast(`Pick at least ${min} players for ${t.name}`, true); }
+  const xi = { [st.team1.id]: [...S.xiSel[st.team1.id]], [st.team2.id]: [...S.xiSel[st.team2.id]] };
+  const pick = o => ({ [st.team1.id]: (o || {})[st.team1.id] || 0, [st.team2.id]: (o || {})[st.team2.id] || 0 });
+  run(() => scoreAction('match_xi', { xi, captain: pick(S.xiCap), keeper: pick(S.xiWk) }), btn);
+};
+
+/* ---------- new match: ball type & round; details sheet: ball, round, bonus ---------- */
+const _viewMatchNew2 = viewMatchNew;
+viewMatchNew = async tid => {
+  await _viewMatchNew2(tid);
+  const pp = document.querySelector('form.content [name=powerplay_overs]');
+  if (pp) pp.closest('.field').insertAdjacentHTML('afterend', `<div class="grid2"><div class="field"><label>Ball</label><select class="input" name="ball_type"><option value="">-</option><option value="leather">Leather</option><option value="tennis">Tennis</option><option value="rubber">Rubber</option><option value="other">Other</option></select></div>
+    <div class="field"><label>Round (optional)</label><input class="input" name="round_name" maxlength="60" placeholder="e.g. Semi final 1"></div></div>`);
+};
+ROUTES.forEach(r => { if (r[1] === _viewMatchNew2) r[1] = viewMatchNew; });
+const _detailsSheet = App.detailsSheet;
+App.detailsSheet = () => {
+  _detailsSheet();
+  const m = S.m.match, st = S.m, f = document.querySelector('.sheet form'); if (!f) return;
+  const b = m.bonus || {};
+  f.querySelector('[name=stream_url]').closest('.field').insertAdjacentHTML('afterend', `<div class="grid2"><div class="field"><label>Ball</label><select class="input" name="ball_type">${[['', '-'], ['leather', 'Leather'], ['tennis', 'Tennis'], ['rubber', 'Rubber'], ['other', 'Other']].map(([v, l]) => `<option value="${v}" ${(m.ball_type || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    <div class="field"><label>Round</label><input class="input" name="round_name" maxlength="60" value="${esc(m.round_name || '')}" placeholder="e.g. Final"></div></div>
+    ${m.tournament ? `<div class="grid2"><div class="field"><label>Bonus pts ${esc(st.team1.short_name)}</label><input class="input" type="number" name="bonus_${st.team1.id}" min="-10" max="10" value="${b[st.team1.id] || 0}"></div><div class="field"><label>Bonus pts ${esc(st.team2.short_name)}</label><input class="input" type="number" name="bonus_${st.team2.id}" min="-10" max="10" value="${b[st.team2.id] || 0}"></div></div>` : ''}`);
+};
+App.saveDetails = f => run(async () => {
+  const d = formData(f), bonus = {};
+  Object.keys(d).forEach(k => { if (k.startsWith('bonus_')) { bonus[k.slice(6)] = +d[k] || 0; delete d[k]; } });
+  S.m = await api('match_details', { id: S.m.match.id, ...d, bonus }); closeSheet(); toast('Saved ✓'); drawMatch(false);
+});
+
+/* ---------- tournament: MVP table on the Stats tab ---------- */
+const _viewTournament2 = viewTournament;
+viewTournament = async id => {
+  await _viewTournament2(id);
+  const d = S.tour; if (!d || S.tTab !== 'leaders' || !d.mvp || !d.mvp.length) return;
+  const seg = document.querySelector('.content .seg'); if (!seg) return;
+  const card = document.createElement('div');
+  card.innerHTML = `<div class="section"><h2>🏅 MVP</h2><span class="small muted" onclick="App.mvpHelp()">how? ⓘ</span></div><div class="card flush list">${d.mvp.map((p, i) => `<div class="item" onclick="go('#/player/${p.id}')"><span class="rank">${['🥇', '🥈', '🥉'][i] || i + 1}</span>${badge({ short_name: p.team, color: p.color }, 'sm')}<div class="grow"><div class="t ellipsis">${esc(p.name)}</div><div class="s">Bat ${p.bat} · Bowl ${p.bowl} · Field ${p.field} · ${plural(p.mats, 'match')}</div></div><b class="big-num">${p.total}</b></div>`).join('')}</div>`;
+  const first = seg.nextElementSibling && seg.nextElementSibling.classList.contains('card') ? seg.nextElementSibling : seg;
+  first.insertAdjacentElement('afterend', card);
+};
+ROUTES.forEach(r => { if (r[1] === _viewTournament2) r[1] = viewTournament; });

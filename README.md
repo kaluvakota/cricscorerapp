@@ -23,6 +23,11 @@ Made for Aarush & Aayush.
   live-stream video on the match page, scorecard as an image for WhatsApp.
 - **Score overlay for streamers** - `overlay.php?m=ID` (add `&theme=light` for a light bar) is a transparent 1280×140
   browser source for OBS / phone streaming apps; it polls the public match API every 5 s. Free.
+- **Player pages** - tabs for Matches (full history with the player's own figures, filters by year, result, tournament,
+  team, opponent, ball type and overs), Stats (batting, bowling, fielding and captain cards), Awards, Badges, Teams played
+  for and Insights; player level and profile views. Captain and keeper are picked in the playing XI (C / WK).
+- **Match page extras** - Summary (best performances, automatic match notes and timings, scorer notes log, match points
+  with bonus), MVP (batting + bowling + fielding points - formula in the app under "how?"), Teams (both XIs).
 - **Player insights** (free, on every player page) - batting strike rate and bowling economy by phase (powerplay /
   middle / death), how the player gets out, favourite shots, career wagon wheel, fielding, strengths and things to work on.
 - **Tournaments** - league, knockout, league + final; auto fixtures, points table with NRR, top scorers.

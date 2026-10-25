@@ -310,8 +310,15 @@ function handle(string $action, array $in, ?array $u) {
                         FROM innings_batters ib JOIN innings i ON i.id=ib.innings_id JOIN matches m ON m.id=i.match_id
                         JOIN teams t1 ON t1.id=m.team1_id JOIN teams t2 ON t2.id=m.team2_id
                         WHERE ib.player_id=? AND " . vis_sql($u, 'm')[0] . " ORDER BY m.id DESC LIMIT 8", array_merge([$p['id'], $p['id'], $p['id'], $p['id']], vis_sql($u, 'm')[1]));
-        return ['player' => $p, 'stats' => player_stats((int)$p['id'], $u), 'recent' => $recent];
+        if (!$p['can_edit'] && empty($u['is_admin'])) q('UPDATE players SET views=views+1 WHERE id=?', [$p['id']]);
+        $career = player_career((int)$p['id'], $u);
+        return ['player' => $p, 'stats' => $career, 'recent' => $recent, 'views' => (int)$p['views'] + ($p['can_edit'] ? 0 : 1), 'level' => $career['level'], 'filters' => career_filter_options((int)$p['id'], $u)];
     }
+    case 'player_matches': return player_matches(int_in($in, 'id'), $u, (array)($in['filters'] ?? []), max(1, int_in($in, 'page', 1)));
+    case 'player_career': return ['stats' => player_career(int_in($in, 'id'), $u, (array)($in['filters'] ?? []))];
+    case 'player_awards': return ['awards' => player_awards(int_in($in, 'id'), $u)];
+    case 'player_badges': return ['badges' => player_badges(int_in($in, 'id'), $u)];
+    case 'player_teams': return ['teams' => player_teams(int_in($in, 'id'), $u)];
 
     /* ===== Match types ===== */
     case 'types_list':
@@ -373,7 +380,10 @@ function handle(string $action, array $in, ?array $u) {
             $overs, max(1, min(10, int_in($in, 'balls_per_over', 6))),
             max(1, min(15, int_in($in, 'players_per_side', 11))), max(0, min(50, int_in($in, 'max_overs_bowler', 0))),
             !empty($in['last_man_stands']) ? 1 : 0, str_in($in, 'venue', 150) ?: null, $date, $visibility, max(0, min($overs, int_in($in, 'powerplay_overs', 0)))]);
-        return ['id' => lastId()];
+        $mid = lastId();
+        $bt = (string)($in['ball_type'] ?? ''); $round = str_in($in, 'round_name', 60);
+        if (in_array($bt, BALL_TYPES, true) || $round) q('UPDATE matches SET ball_type=?, round_name=? WHERE id=?', [in_array($bt, BALL_TYPES, true) ? $bt : null, $round ?: null, $mid]);
+        return ['id' => $mid];
     }
 
     case 'match_get':
@@ -389,11 +399,12 @@ function handle(string $action, array $in, ?array $u) {
         $m = load_match(int_in($in, 'id'));
         if (!can_edit_owned($m, $u)) fail('Only the player who created this match can choose the scorer', 403);
         $un = strtolower(trim((string)($in['username'] ?? '')));
-        if ($un === '') { q('UPDATE matches SET scorer_id=NULL WHERE id=?', [$m['id']]); return ['scorer' => null]; }
+        if ($un === '') { if ($m['scorer_id']) match_log($m, 'Scoring taken back by the creator', $u); q('UPDATE matches SET scorer_id=NULL WHERE id=?', [$m['id']]); return ['scorer' => null]; }
         $p = row('SELECT id, username, display_name FROM users WHERE username=?', [$un]);
         if (!$p) fail('No player with that exact username');
         if ((int)$p['id'] === (int)$m['owner_id']) fail("That's you - you can always score your own match");
         q('UPDATE matches SET scorer_id=? WHERE id=?', [$p['id'], $m['id']]);
+        match_log($m, 'Scoring handed to ' . $p['display_name'], $u);
         return ['scorer' => ['id' => (int)$p['id'], 'username' => $p['username'], 'display_name' => $p['display_name']]];
     }
 
@@ -443,6 +454,14 @@ function handle(string $action, array $in, ?array $u) {
             case 'match_details': match_details_save($m, $in); break;
             case 'match_field': match_field_set($m, $in); break;
         }
+        $logText = [
+            'match_ball_edit' => 'Edited ball ' . (int)($in['seq'] ?? 0), 'match_ball_delete' => 'Deleted ball ' . (int)($in['seq'] ?? 0),
+            'match_penalty' => (int)($in['runs'] ?? 5) . ' penalty runs awarded', 'match_penalty_undo' => 'Penalty runs removed',
+            'match_overs' => 'Overs changed to ' . (int)($in['overs'] ?? 0), 'match_powerplay' => 'Powerplay set to ' . (int)($in['overs'] ?? 0) . ' overs',
+            'match_batter_change' => 'Batter changed', 'match_super_over' => 'Super over started', 'match_abandon' => 'Match abandoned',
+            'match_rain' => 'Rain: overs reduced to ' . (int)($in['overs'] ?? 0), 'match_rain_end' => 'Rain stopped play - result by DLS', 'match_end_innings' => 'Innings ended by the scorer',
+        ][$action] ?? null;
+        if ($logText) match_log($m, $logText, $u);
         db()->commit();
         return match_state((int)$m['id'], $u);
     }
@@ -472,7 +491,7 @@ function handle(string $action, array $in, ?array $u) {
         $t['done'] = count(array_filter($matches, fn($m) => in_array($m['status'], ['completed', 'abandoned'], true)));
         $t['live'] = count(array_filter($matches, fn($m) => $m['status'] === 'live'));
         $t['state'] = tournament_state($t);
-        return ['tournament' => $t, 'teams' => $teams, 'matches' => $matches, 'points' => points_table((int)$t['id']), 'leaders' => leaderboards((int)$t['id'], 5, $u)];
+        return ['tournament' => $t, 'teams' => $teams, 'matches' => $matches, 'points' => points_table((int)$t['id']), 'leaders' => leaderboards((int)$t['id'], 5, $u), 'mvp' => tournament_mvp((int)$t['id'], 10)];
     }
 
     case 'tournament_save': {

@@ -4,6 +4,17 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.17.0 - 25 October 2026
+- Player page rebuilt with tabs: Matches (full history with your runs/wickets per match, won/lost, load more), Stats, Awards, Badges, Teams, Insights
+- Filters on Matches and Stats: year, result, tournament, playing for, against, ball type, overs
+- Full stats cards: batting adds ducks and won/lost; bowling adds maidens, 3/5-wicket hauls, strike rate, wides, no-balls, dot balls, 4s/6s conceded; new fielding card (catches, caught behind, run outs, stumpings, runs saved/given, drops) and captain card (matches, won, lost, win %, tosses)
+- Awards: every Player of the Match, best batter and best bowler with the figures that earned it; Badges: fifty, century, quick fire, six machine, 50 stand, 3-wicket haul, five-for, hat-trick, maiden, safe hands, duck
+- Teams played for (since, played, won, lost); player level (Rookie → Aspirant → Regular → Star → Legend) and profile views
+- Captain and wicket-keeper picked in the playing XI (C / WK) - used for captain stats and caught-behind
+- Match page: Summary tab (best performances, auto match notes - team 50s, batter 50/100s, 50 partnerships, bowler hauls, innings start/end and break timings - scorer notes log, match points), MVP tab (batting + bowling + fielding points, published formula), Teams tab (both XIs)
+- Tournament Stats tab shows an MVP leaderboard; bonus points per match add to the points table
+- Ball type (leather / tennis / rubber) and round name on a match (new-match form or Officials sheet)
+
 ## 1.16.1 - 25 October 2026
 - Wheel scoring: a tap-to-score wagon wheel above the pad - rings for • 1 2 3 4 5 6, eight zones; tap where the ball went and the runs and direction are recorded in one go (🎯 Hide wheel to switch it off)
 - Commentary and the voice now say where it went: "cut for 2 runs to point, fielded by Rohit", "FOUR! driven through cover", "SIX! over long on"

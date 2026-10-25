@@ -280,7 +280,13 @@ function match_details_save(array $m, array $in): void {
     }
     $url = trim((string)($in['stream_url'] ?? ''));
     if ($url !== '' && (!preg_match('~^https?://~i', $url) || strlen($url) > 255)) fail('The stream link must start with http:// or https://');
-    q('UPDATE matches SET officials=?, stream_url=? WHERE id=?', [$o ? json_encode($o) : null, $url ?: null, $m['id']]);
+    $bt = (string)($in['ball_type'] ?? ($m['ball_type'] ?? ''));
+    $bt = in_array($bt, BALL_TYPES, true) ? $bt : null;
+    $round = mb_substr(trim((string)($in['round_name'] ?? ($m['round_name'] ?? ''))), 0, 60) ?: null;
+    $bonus = [];
+    foreach ((array)($in['bonus'] ?? []) as $tid => $pts) if (in_array((int)$tid, [(int)$m['team1_id'], (int)$m['team2_id']], true) && (int)$pts) $bonus[(string)(int)$tid] = max(-10, min(10, (int)$pts));
+    if (!array_key_exists('bonus', $in) && !empty($m['bonus_json'])) $bonus = json_decode($m['bonus_json'], true) ?: [];
+    q('UPDATE matches SET officials=?, stream_url=?, ball_type=?, round_name=?, bonus_json=? WHERE id=?', [$o ? json_encode($o) : null, $url ?: null, $bt, $round, $bonus ? json_encode($bonus) : null, $m['id']]);
 }
 
 /* ---------- Player insights (free) ---------- */

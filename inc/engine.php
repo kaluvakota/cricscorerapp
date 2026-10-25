@@ -9,6 +9,7 @@ const SHOT_VERBS     = ['drive' => 'driven', 'cut' => 'cut', 'pull' => 'pulled',
 const SHOT_TYPES     = ['drive', 'cut', 'pull', 'hook', 'sweep', 'reverse sweep', 'flick', 'glance', 'defence', 'loft', 'slog', 'scoop', 'edge', 'leave', 'other'];
 require_once __DIR__ . '/dls.php';
 require_once __DIR__ . '/pro.php';
+require_once __DIR__ . '/career.php';
 
 function overs_str(int $balls, int $bpo): string { return intdiv($balls, $bpo) . '.' . ($balls % $bpo); }
 
@@ -71,10 +72,12 @@ function set_playing_xi(array $m, array $in): void {
         if (count($ids) < $min) fail("Select at least $min player(s) for each team");
         if (count($ids) > $max) fail("Select at most $max players per team");
         $order = 0;
+        $cap = (int)($in['captain'][$tid] ?? $in['captain'][(string)$tid] ?? 0); $wk = (int)($in['keeper'][$tid] ?? $in['keeper'][(string)$tid] ?? 0);
         foreach ($ids as $pid) {
             if (!val('SELECT 1 FROM players WHERE id=? AND team_id=?', [$pid, $tid])) fail('A selected player does not belong to the team');
-            q('INSERT INTO match_players (match_id, team_id, player_id, bat_order) VALUES (?,?,?,?)', [$m['id'], $tid, $pid, ++$order]);
+            q('INSERT INTO match_players (match_id, team_id, player_id, bat_order, is_captain, is_keeper) VALUES (?,?,?,?,?,?)', [$m['id'], $tid, $pid, ++$order, $pid === $cap ? 1 : 0, $pid === $wk ? 1 : 0]);
         }
+        if (!$wk) q("UPDATE match_players mp JOIN players p ON p.id=mp.player_id SET mp.is_keeper=1 WHERE mp.match_id=? AND mp.team_id=? AND p.role='Wicket-keeper' AND mp.player_id=(SELECT MIN(x.player_id) FROM (SELECT mp2.player_id FROM match_players mp2 JOIN players p2 ON p2.id=mp2.player_id WHERE mp2.match_id=? AND mp2.team_id=? AND p2.role='Wicket-keeper') x)", [$m['id'], $tid, $m['id'], $tid]);
     }
 }
 
@@ -560,7 +563,8 @@ function match_state(int $matchId, ?array $u): array {
     $t1 = team_brief((int)$m['team1_id']); $t2 = team_brief((int)$m['team2_id']);
     $xi = [];
     foreach ([(int)$m['team1_id'], (int)$m['team2_id']] as $tid) {
-        $xi[$tid] = rows('SELECT p.id, p.name, p.role, p.batting_style, p.bowling_style FROM match_players mp JOIN players p ON p.id=mp.player_id WHERE mp.match_id=? AND mp.team_id=? ORDER BY mp.bat_order', [$matchId, $tid]);
+        $xi[$tid] = rows('SELECT p.id, p.name, p.role, p.batting_style, p.bowling_style, mp.is_captain, mp.is_keeper FROM match_players mp JOIN players p ON p.id=mp.player_id WHERE mp.match_id=? AND mp.team_id=? ORDER BY mp.bat_order', [$matchId, $tid]);
+        foreach ($xi[$tid] as &$px) { $px['id'] = (int)$px['id']; $px['is_captain'] = (bool)$px['is_captain']; $px['is_keeper'] = (bool)$px['is_keeper']; } unset($px);
     }
     $inns = [];
     foreach (rows('SELECT * FROM innings WHERE match_id=? ORDER BY innings_no', [$matchId]) as $inn) $inns[] = innings_card($m, $inn, $names);
@@ -623,12 +627,16 @@ function match_state(int $matchId, ?array $u): array {
             'officials' => $m['officials'] ? (json_decode($m['officials'], true) ?: null) : null,
             'stream_url' => $m['stream_url'],
             'penalties' => array_map(fn($r) => ['id' => (int)$r['id'], 'team_id' => (int)$r['team_id'], 'runs' => (int)$r['runs'], 'reason' => $r['reason']], rows('SELECT * FROM penalties WHERE match_id=? ORDER BY id', [$matchId])),
-            'shot_types' => SHOT_TYPES,
+            'shot_types' => SHOT_TYPES, 'ball_type' => $m['ball_type'] ?? null, 'round_name' => $m['round_name'] ?? null,
+            'bonus' => !empty($m['bonus_json']) ? (json_decode($m['bonus_json'], true) ?: null) : null,
         ],
         'team1' => $t1, 'team2' => $t2, 'xi' => $xi, 'innings' => $inns,
         'needs' => $needs, 'available_batters' => $avail, 'prev_over_bowler' => $prevBowler, 'bowler_balls' => $bowlerBalls,
         'next' => $next,
         'dls' => $inns ? dls_info($m) : null,
+        'notes' => $inns ? match_notes($m, rows('SELECT * FROM innings WHERE match_id=? ORDER BY innings_no', [$matchId]), $names) : ['notes' => [], 'timings' => []],
+        'log' => array_map(fn($r) => ['who' => $r['who'], 'text' => $r['text'], 'score' => $r['score'], 'at' => $r['created_at']], rows('SELECT * FROM match_log WHERE match_id=? ORDER BY id', [$matchId])),
+        'mvp' => $inns ? mvp_points($matchId) : [],
         'can_edit' => can_score_match($m, $u),
         'is_owner' => can_edit_owned($m, $u),
     ];
@@ -682,6 +690,7 @@ function points_table(int $tid): array {
         if ($m['status'] === 'abandoned') { foreach ([$a, $b] as $x) { $tbl[$x]['nr']++; $tbl[$x]['pts'] += 1; } continue; }
         if (!$m['winner_team_id']) { foreach ([$a, $b] as $x) { $tbl[$x]['t']++; $tbl[$x]['pts'] += 1; } }
         else { $w = (int)$m['winner_team_id']; $l = $w === $a ? $b : $a; $tbl[$w]['w']++; $tbl[$w]['pts'] += 2; $tbl[$l]['l']++; }
+        if (!empty($m['bonus_json'])) foreach ((json_decode($m['bonus_json'], true) ?: []) as $bt => $bp) if (isset($tbl[(int)$bt])) { $tbl[(int)$bt]['pts'] += (int)$bp; $tbl[(int)$bt]['bonus'] = ($tbl[(int)$bt]['bonus'] ?? 0) + (int)$bp; }
         $n = [];
         foreach ([$a, $b] as $x) $n[$x] = count(xi_ids((int)$m['id'], $x));
         foreach (rows('SELECT * FROM innings WHERE match_id=? AND innings_no<=2', [$m['id']]) as $i) {
@@ -734,8 +743,9 @@ function leaderboards(?int $tournamentId = null, int $limit = 10, ?array $viewer
     return ['runs' => $cast($bat), 'wickets' => $cast($bowl), 'sixes' => $cast($six), 'fours' => $cast($four), 'totals' => $tot];
 }
 
-function player_stats(int $pid, ?array $viewer = null): array {
+function player_stats(int $pid, ?array $viewer = null, array $filters = []): array {
     [$vs, $vp] = vis_sql($viewer, 'm');
+    if ($filters) { [$fw, $fp] = career_filter($filters, $pid); $vs .= $fw; $vp = array_merge($vp, $fp); }
     $bat = ['mat' => 0, 'inns' => 0, 'no' => 0, 'runs' => 0, 'balls' => 0, 'hs' => 0, 'hs_no' => false, 'f4' => 0, 'f6' => 0, 'fifties' => 0, 'hundreds' => 0, 'thirties' => 0];
     $bowl = ['inns' => 0, 'balls' => 0, 'runs' => 0, 'wkts' => 0, 'best_w' => 0, 'best_r' => 0, 'three' => 0, 'five' => 0];
     $bat['mat'] = (int)val("SELECT COUNT(*) FROM match_players mp JOIN matches m ON m.id=mp.match_id WHERE mp.player_id=? AND m.status IN ('live','completed') AND $vs", array_merge([$pid], $vp));
