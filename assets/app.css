@@ -549,3 +549,4 @@ body:not(.app-mode) #tabbar{display:none!important}
 .access-card .item .btn.sm{margin-left:4px}
 .access-card.ok{background:#ebfbee;color:#1b5e20}
 @media (prefers-color-scheme:dark){.req-pill{background:#2e2410;color:#ffe0a3}.access-card.ok{background:#173326;color:#b2f2bb}}
+.invite-preview{box-shadow:none;border:1px solid var(--line);background:var(--soft);margin:0 0 12px}

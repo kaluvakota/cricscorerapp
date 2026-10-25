@@ -4,6 +4,9 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.15.1 - 25 October 2026
+- More → Invite friends: four ready-made messages (fun, for my team, for parents, short) to share on WhatsApp or anywhere, or copy
+
 ## 1.15.0 - 25 October 2026
 - Players in a team can have a WhatsApp number; when that person later joins or verifies with the same number, their account is linked automatically and all matches scored under that name become their stats
 - Add players: the search now also finds players who use the app (by name, username or number), including brand-new accounts in no team yet, so anyone can add them to a team

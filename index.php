@@ -84,7 +84,7 @@ $jsonld = [ld_app(), ld_organization(),
 <div id="sheet-root"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 <div id="ptr" aria-hidden="true"><span></span></div>
-<script>window.CS_VERSION = <?= json_encode(APP_VERSION) ?>;</script>
+<script>window.CS_VERSION = <?= json_encode(APP_VERSION) ?>; window.CS_SITE_URL = <?= json_encode(rtrim(SITE_URL, "/") . "/") ?>;</script>
 <script src="assets/sound.js?v=<?= $v ?>"></script>
 <script src="assets/app.js?v=<?= $v ?>"></script>
 </body>

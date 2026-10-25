@@ -1531,6 +1531,7 @@ function viewMore() {
       ${item('🎓', 'Cricket academies', (u.academies && u.academies.length) ? 'You train at ' + esc(u.academies.map(a => a.name).join(', ')) : 'Find an academy, or register yours', "go('#/academies')")}
       ${item('🧢', 'Our teams' + (S.extras && S.extras.team_requests ? ' <span class="dot-new"></span>' : ''), S.extras && S.extras.team_requests ? `${plural(S.extras.team_requests, 'player')} asking to use your teams` : 'Teams you and your friends made', "go('#/teams?c=custom')")}
       ${item('🔊', 'Sound & commentary', (Sound.sfx ? 'Sounds on' : 'Sounds off') + ' · ' + (Sound.voice ? 'voice on' : 'voice muted'), 'App.soundSheet()')}
+      ${item('💌', 'Invite friends', 'Share Cric-Scorer on WhatsApp & more', 'App.inviteSheet()')}
       ${item('📲', 'Install app', 'Add Cric-Scorer to your home screen', 'App.installHelp()')}
       ${item('🔄', 'Update app', 'Version ' + esc(window.CS_VERSION || '') + (S.newVersion ? ' · new version ' + esc(S.newVersion) + ' available!' : ' · reload the latest code'), 'App.updateApp()')}
       ${item('ℹ️', 'About Cric-Scorer', 'How scoring works', 'App.about()')}
@@ -1541,6 +1542,31 @@ function viewMore() {
     <button class="btn light block" style="color:var(--red)" onclick="App.logout()">Log out</button>
     <p class="small muted" style="text-align:center;margin-top:18px">Cric-Scorer · by Aaryush 🏏</p></div>`, 'more');
 }
+/* ---------- Invite friends: a ready-made message to share ---------- */
+const INVITES = [
+  { k: 'fun', t: '🎉 Fun', msg: n => `🏏 Hey! I'm using Cric-Scorer to score our cricket matches ball by ball - live scores, commentary, tournaments and even a cricket academy for kids. It's free, no download needed!\n\nJoin me 👉 ${SITE}` },
+  { k: 'team', t: '🧢 For my team', msg: n => `🏏 Team, let's keep proper scores this season! I've set us up on Cric-Scorer - live scorecards, points tables, batting & bowling stats for everyone. Free and works on any phone.\n\nCreate your account 👉 ${SITE}` },
+  { k: 'kids', t: '🎓 For parents', msg: n => `🏏 Found a brilliant free app for kids who love cricket: Cric-Scorer. They can score real matches, learn the rules with quizzes and field-position lessons, and play a bat-vs-bowl game with friends. Safe, no ads.\n\nTry it 👉 ${SITE}` },
+  { k: 'short', t: '⚡ Short', msg: n => `Score your cricket matches live, for free 🏏 ${SITE}` },
+];
+const SITE = (typeof CS_SITE_URL === 'string' && CS_SITE_URL) || location.origin + location.pathname.replace(/[^/]*$/, '');
+App.inviteSheet = (k = 'fun') => {
+  const inv = INVITES.find(x => x.k === k) || INVITES[0], msg = inv.msg(S.user ? S.user.display_name : '');
+  S.inviteK = k;
+  sheet(`<h3>💌 Invite friends</h3><div class="sub">Pick a message, then share it anywhere - WhatsApp, Instagram, SMS…</div>
+    <div class="chips wrap" style="margin-bottom:10px">${INVITES.map(x => `<button type="button" class="chip ${x.k === k ? 'on' : ''}" onclick="App.inviteSheet('${x.k}')">${x.t}</button>`).join('')}</div>
+    <div class="card invite-preview"><div class="small" style="white-space:pre-wrap">${esc(msg)}</div></div>
+    <div class="grid2"><button class="btn" style="background:#25d366" onclick="App.inviteWa()">WhatsApp</button><button class="btn" onclick="App.inviteShare()">📤 Share…</button></div>
+    <button class="btn light block" style="margin-top:8px" onclick="App.inviteCopy()">📋 Copy message</button>`);
+};
+const inviteMsg = () => (INVITES.find(x => x.k === S.inviteK) || INVITES[0]).msg(S.user ? S.user.display_name : '');
+App.inviteWa = () => { window.open('https://wa.me/?text=' + encodeURIComponent(inviteMsg()), '_blank', 'noopener'); };
+App.inviteShare = async () => {
+  const text = inviteMsg();
+  if (navigator.share) { try { await navigator.share({ title: 'Cric-Scorer', text }); } catch (e) { /* cancelled */ } }
+  else App.inviteCopy();
+};
+App.inviteCopy = async () => { try { await navigator.clipboard.writeText(inviteMsg()); toast('Message copied - paste it anywhere ✓'); } catch (e) { toast('Could not copy - long-press the message to select it', true); } };
 App.about = () => sheet(`<div style="text-align:center">${LOGO.replace('class="logo"', 'style="width:64px;height:64px"')}<h3>Cric-Scorer</h3><div class="sub">by Aaryush · made for Aarush & Aayush</div></div>
   <div class="card" style="box-shadow:none;border:1px solid var(--line)"><b>Scoring tips</b><div class="small muted" style="margin-top:6px">
   • Tap <b>0–6</b> for runs off the bat.<br>• <b>WD</b> wide and <b>NB</b> no-ball add 1 run and don't count as a ball.<br>• <b>BYE/LB</b> are runs not off the bat.<br>• <b>OUT</b> records a wicket - pick how and who.<br>• Made a mistake? Tap <b>Undo</b> as many times as you need.<br>• Share the match link so family can watch the score live!</div></div>`);
