@@ -604,3 +604,4 @@ body:not(.app-mode) #tabbar{display:none!important}
 /* ---- v1.18 grounds & looking for ---- */
 .card.lf.closed{opacity:.7}
 .search.grow{flex:1}
+.pw{position:relative}.pw .input{padding-right:46px}.pw .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;font-size:18px;cursor:pointer;padding:6px}

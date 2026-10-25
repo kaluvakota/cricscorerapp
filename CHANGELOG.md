@@ -4,6 +4,9 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.18.1 - 25 October 2026
+- Sign-up: one password field with a show/hide (👁) button instead of "confirm password" - easier on phones and works with automated testers that expect a single password input
+
 ## 1.18.0 - 25 October 2026
 - Grounds directory: ground owners and academies list their ground (address, map link, pitch type, floodlights, size, timings, price, facilities, contact person and a WhatsApp number) - players find grounds by city, open the map, tap "WhatsApp to book", start a match there or post a "looking for" for it; ground pages show matches scored there and views
 - Pick a listed ground as the venue when creating a match; the match page links to the ground

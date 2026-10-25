@@ -363,8 +363,7 @@ function viewRegister() {
     ${googleBlock('gbtn', true)}
     <div class="field"><label>Your name</label><input class="input" name="display_name" placeholder="e.g. Aarush" required></div>
     <div class="field"><label>Username</label><input class="input" name="username" autocapitalize="none" autocomplete="username" placeholder="letters & numbers" required></div>
-    <div class="field"><label>Password</label><input class="input" type="password" name="password" autocomplete="new-password" minlength="6" required></div>
-    <div class="field"><label>Confirm password</label><input class="input" type="password" name="password2" autocomplete="new-password" required></div>
+    <div class="field"><label>Password <span class="muted">(6+ characters)</span></label><div class="pw"><input class="input" type="password" name="password" autocomplete="new-password" minlength="6" required><button type="button" class="eye" aria-label="Show password" onclick="App.togglePw(this)">👁</button></div></div>
     ${consentBox()}
     <div id="cap" class="cap"></div>
     <button class="btn block">Create account</button></form>
@@ -381,10 +380,11 @@ App.login = e => {
     } catch (err) { resetCaptcha(); throw err; }
   }, e.submitter);
 };
+App.togglePw = b => { const i = b.previousElementSibling; const show = i.type === 'password'; i.type = show ? 'text' : 'password'; b.textContent = show ? '🙈' : '👁'; b.setAttribute('aria-label', show ? 'Hide password' : 'Show password'); };
 App.register = e => {
   e.preventDefault();
   const f = formData(e.target);
-  if (f.password !== f.password2) return toast('Passwords do not match', true);
+  if (String(f.password || '').length < 6) return toast('Password needs at least 6 characters', true);
   run(async () => {
     try {
       f.captcha = await captchaToken('register');
