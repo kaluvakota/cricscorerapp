@@ -4,6 +4,10 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.14.2 - 25 October 2026
+- WhatsApp verification works with the standard Meta Authentication template out of the box (template "otp", players type the code)
+- Groundwork for a Verify quick-reply button with webhook (WHATSAPP_TEMPLATE_KIND = 'button', whatsapp-webhook.php) - not switched on yet
+
 ## 1.14.1 - 25 October 2026
 - WhatsApp: support Meta "Authentication" templates (Copy code / Autofill) with WHATSAPP_TEMPLATE_KIND = 'code'; Meta's full error reason is shown to the admin
 

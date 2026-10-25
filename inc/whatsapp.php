@@ -6,11 +6,16 @@
 
 defined('WHATSAPP_TOKEN')         || define('WHATSAPP_TOKEN', '');             // Meta "permanent" system-user access token
 defined('WHATSAPP_PHONE_ID')      || define('WHATSAPP_PHONE_ID', '');          // the Phone number ID from WhatsApp → API Setup
-defined('WHATSAPP_TEMPLATE')      || define('WHATSAPP_TEMPLATE', 'cricscorer_verify');
+defined('WHATSAPP_TEMPLATE')      || define('WHATSAPP_TEMPLATE', 'otp');
 defined('WHATSAPP_TEMPLATE_LANG') || define('WHATSAPP_TEMPLATE_LANG', 'en');
-/* 'link' = our Utility template: body {{1}} = code, website button URL ending in {{1}} = one-tap link token.
-   'code' = a Meta "Authentication" template (Copy code / Autofill button): both slots get the code, no one-tap link. */
-defined('WHATSAPP_TEMPLATE_KIND') || define('WHATSAPP_TEMPLATE_KIND', 'link');
+/* 'button' = Utility template with a Quick Reply button "Verify": tapping it in WhatsApp verifies the account through
+            the webhook (whatsapp-webhook.php) and WhatsApp replies "verified" - nothing to open or type. (default)
+   'link'   = Utility template with a website button whose URL ends in {{1}}: tapping opens /v/TOKEN and signs in.
+   'code'   = a Meta "Authentication" template (Copy code / Autofill): players type the code in the app. */
+defined('WHATSAPP_TEMPLATE_KIND')  || define('WHATSAPP_TEMPLATE_KIND', 'code');
+defined('WHATSAPP_WEBHOOK_TOKEN')  || define('WHATSAPP_WEBHOOK_TOKEN', '');    // any secret word you type into Meta's webhook settings
+defined('WHATSAPP_APP_SECRET')     || define('WHATSAPP_APP_SECRET', '');       // optional: the app secret, to check webhook signatures
+defined('WHATSAPP_VERIFIED_TEXT')  || define('WHATSAPP_VERIFIED_TEXT', "✅ Your Cric-Scorer account is verified, {name}!\n\nOpen the app to continue: {url}");
 defined('WHATSAPP_API_URL')       || define('WHATSAPP_API_URL', 'https://graph.facebook.com/v21.0/');
 defined('DEFAULT_COUNTRY_CODE')   || define('DEFAULT_COUNTRY_CODE', '91');     // numbers typed without a country code are Indian
 defined('OTP_MINUTES')            || define('OTP_MINUTES', 15);
@@ -36,15 +41,22 @@ function mask_mobile(?string $m): string { return $m ? '+' . substr($m, 0, 2) . 
 /** Send the template. Returns ['ok'=>bool, 'error'=>string] */
 function wa_send_verify(string $mobile, string $code, string $link): array {
     if (!wa_enabled()) return ['ok' => false, 'error' => 'WhatsApp is not set up on this website yet'];
-    $buttonText = WHATSAPP_TEMPLATE_KIND === 'code' ? $code : basename($link);
+    $tokenPart = basename($link);
+    $button = WHATSAPP_TEMPLATE_KIND === 'button'
+        ? ['type' => 'button', 'sub_type' => 'quick_reply', 'index' => '0', 'parameters' => [['type' => 'payload', 'payload' => 'VERIFY:' . $tokenPart]]]
+        : ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => WHATSAPP_TEMPLATE_KIND === 'code' ? $code : $tokenPart]]];
     $payload = ['messaging_product' => 'whatsapp', 'to' => $mobile, 'type' => 'template', 'template' => [
         'name' => WHATSAPP_TEMPLATE, 'language' => ['code' => WHATSAPP_TEMPLATE_LANG],
-        'components' => [
-            ['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $code]]],
-            ['type' => 'button', 'sub_type' => 'url', 'index' => '0', 'parameters' => [['type' => 'text', 'text' => $buttonText]]],
-        ]]];
-    $url = rtrim(WHATSAPP_API_URL, '/') . '/' . WHATSAPP_PHONE_ID . '/messages';
-    $body = json_encode($payload);
+        'components' => [['type' => 'body', 'parameters' => [['type' => 'text', 'text' => $code]]], $button]]];
+    return wa_post($url = rtrim(WHATSAPP_API_URL, '/') . '/' . WHATSAPP_PHONE_ID . '/messages', $payload, $mobile);
+}
+/** A plain text reply (allowed for 24 hours after the player messaged us, e.g. tapped the button) */
+function wa_send_text(string $mobile, string $text): array {
+    if (!wa_enabled()) return ['ok' => false, 'error' => 'WhatsApp is not set up'];
+    return wa_post(rtrim(WHATSAPP_API_URL, '/') . '/' . WHATSAPP_PHONE_ID . '/messages', ['messaging_product' => 'whatsapp', 'to' => $mobile, 'type' => 'text', 'text' => ['body' => $text]], $mobile);
+}
+function wa_post(string $url, array $payload, string $mobile): array {
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
     $headers = ['Content-Type: application/json', 'Authorization: Bearer ' . WHATSAPP_TOKEN];
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
@@ -83,13 +95,14 @@ function otp_request(string $mobileRaw, string $purpose, ?array $u, array $extra
     if ((int)val('SELECT COUNT(*) FROM otp_tokens WHERE mobile=? AND created_at >= DATE_SUB(NOW(), INTERVAL 10 MINUTE)', [$mobile]) >= 3) fail('Too many messages to that number. Please wait a few minutes and try again.');
     $code = str_pad((string)random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     $token = bin2hex(random_bytes(16));
-    $data = $purpose === 'signup' ? ['display_name' => mb_substr(trim((string)$extra['display_name']), 0, 100)] : [];
+    $pollKey = bin2hex(random_bytes(16));
+    $data = ['poll' => hash('sha256', $pollKey)] + ($purpose === 'signup' ? ['display_name' => mb_substr(trim((string)$extra['display_name']), 0, 100)] : []);
     q('INSERT INTO otp_tokens (token_hash, code_hash, mobile, purpose, user_id, data, expires_at) VALUES (?,?,?,?,?,?,DATE_ADD(NOW(), INTERVAL ? MINUTE))',
       [hash('sha256', $token), password_hash($code, PASSWORD_DEFAULT), $mobile, $purpose, $purpose === 'link' ? $u['id'] : ($owner['id'] ?? null), json_encode($data), (int)OTP_MINUTES]);
     $id = lastId();
     $link = rtrim(SITE_URL, '/') . '/v/' . $token;
     $sent = wa_send_verify($mobile, $code, $link);
-    $out = ['ok' => true, 'id' => $id, 'mobile' => mask_mobile($mobile), 'sent' => $sent['ok'], 'minutes' => (int)OTP_MINUTES];
+    $out = ['ok' => true, 'id' => $id, 'poll' => $pollKey, 'kind' => WHATSAPP_TEMPLATE_KIND, 'mobile' => mask_mobile($mobile), 'sent' => $sent['ok'], 'minutes' => (int)OTP_MINUTES];
     if (!$sent['ok']) {
         $out['error_hint'] = $sent['error'];
         // While WhatsApp is not set up, the admin (or DEBUG) can see the link to test with
@@ -100,7 +113,7 @@ function otp_request(string $mobileRaw, string $purpose, ?array $u, array $extra
 }
 
 /** The player tapped the link (or typed the code). Returns the user now verified / logged in. */
-function otp_consume(?string $token, ?int $id = null, ?string $code = null): array {
+function otp_consume(?string $token, ?int $id = null, ?string $code = null, bool $login = true): array {
     $t = $token ? row('SELECT * FROM otp_tokens WHERE token_hash=? AND used_at IS NULL', [hash('sha256', $token)])
                 : ($id ? row('SELECT * FROM otp_tokens WHERE id=? AND used_at IS NULL', [$id]) : null);
     if (!$t) fail('This link has already been used or is not valid. Ask for a new one.');
@@ -134,7 +147,37 @@ function otp_consume(?string $token, ?int $id = null, ?string $code = null): arr
         }
     }
     $u = row('SELECT * FROM users WHERE id=?', [$u['id']]);
-    login_user($u, true);
+    q('UPDATE otp_tokens SET user_id=?, done=1 WHERE id=?', [$u['id'], $t['id']]);
+    if ($login) login_user($u, true);
     return $u;
+}
+/** The app waits for the Verify tap: returns pending / done (and signs this browser in when done) */
+function otp_poll(int $id, string $pollKey): array {
+    $t = row('SELECT * FROM otp_tokens WHERE id=?', [$id]);
+    $data = $t ? (json_decode((string)$t['data'], true) ?: []) : [];
+    if (!$t || empty($data['poll']) || !hash_equals($data['poll'], hash('sha256', $pollKey))) fail('Not found', 404);
+    if (!$t['done']) return ['status' => strtotime($t['expires_at']) < time() ? 'expired' : 'pending'];
+    $u = row('SELECT * FROM users WHERE id=?', [$t['user_id']]);
+    if (!$u) fail('Account not found');
+    if (empty($data['logged'])) { login_user($u, true); $data['logged'] = 1; q('UPDATE otp_tokens SET data=? WHERE id=?', [json_encode($data), $t['id']]); }
+    return ['status' => 'done', 'user' => public_user($u)];
+}
+/** Meta webhook: a player tapped the Verify button in WhatsApp */
+function wa_handle_webhook(array $body): void {
+    foreach ($body['entry'] ?? [] as $entry) foreach ($entry['changes'] ?? [] as $ch) {
+        foreach ($ch['value']['messages'] ?? [] as $msg) {
+            $from = preg_replace('/\D/', '', (string)($msg['from'] ?? ''));
+            $payload = $msg['type'] === 'button' ? (string)($msg['button']['payload'] ?? '') : ($msg['type'] === 'interactive' ? (string)($msg['interactive']['button_reply']['id'] ?? '') : '');
+            if (strpos($payload, 'VERIFY:') !== 0) { if ($msg['type'] === 'text' && $from) wa_send_text($from, "Hi! This number sends Cric-Scorer verification messages only. Open the app: " . rtrim(SITE_URL, '/')); continue; }
+            $token = preg_replace('/[^a-f0-9]/', '', substr($payload, 7));
+            try {
+                $u = otp_consume($token, null, null, false);
+                if ($from && $from !== $u['mobile']) error_log("Cric-Scorer WhatsApp: verify tap from $from for a token of " . mask_mobile($u['mobile']));
+                wa_send_text($u['mobile'], str_replace(['{name}', '{url}'], [$u['display_name'], rtrim(SITE_URL, '/')], WHATSAPP_VERIFIED_TEXT));
+            } catch (Throwable $e) {
+                if ($from) wa_send_text($from, '⚠️ ' . ($e instanceof ApiError ? $e->getMessage() : 'Something went wrong.') . ' Open Cric-Scorer and tap Verify again.');
+            }
+        }
+    }
 }
 function otp_cleanup(): void { try { q('DELETE FROM otp_tokens WHERE expires_at < DATE_SUB(NOW(), INTERVAL 1 DAY)'); } catch (Throwable $e) { /* fine */ } }
