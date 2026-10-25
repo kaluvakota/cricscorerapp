@@ -366,12 +366,13 @@ function handle(string $action, array $in, ?array $u) {
         $date = str_in($in, 'match_date', 20);
         $date = $date ? date('Y-m-d H:i:s', strtotime($date)) : date('Y-m-d H:i:s');
         $visibility = ($in['visibility'] ?? '') === 'private' ? 'private' : 'public';
-        q('INSERT INTO matches (owner_id, tournament_id, match_type_id, title, team1_id, team2_id, overs, balls_per_over, players_per_side, max_overs_bowler, last_man_stands, venue, match_date, visibility)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
+        $overs = max(1, min(100, int_in($in, 'overs', 20)));
+        q('INSERT INTO matches (owner_id, tournament_id, match_type_id, title, team1_id, team2_id, overs, balls_per_over, players_per_side, max_overs_bowler, last_man_stands, venue, match_date, visibility, powerplay_overs)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
             $u['id'], $tour, nint($in['match_type_id'] ?? null), str_in($in, 'title', 100) ?: null, $t1, $t2,
-            max(1, min(100, int_in($in, 'overs', 20))), max(1, min(10, int_in($in, 'balls_per_over', 6))),
+            $overs, max(1, min(10, int_in($in, 'balls_per_over', 6))),
             max(1, min(15, int_in($in, 'players_per_side', 11))), max(0, min(50, int_in($in, 'max_overs_bowler', 0))),
-            !empty($in['last_man_stands']) ? 1 : 0, str_in($in, 'venue', 150) ?: null, $date, $visibility]);
+            !empty($in['last_man_stands']) ? 1 : 0, str_in($in, 'venue', 150) ?: null, $date, $visibility, max(0, min($overs, int_in($in, 'powerplay_overs', 0)))]);
         return ['id' => lastId()];
     }
 
@@ -405,11 +406,13 @@ function handle(string $action, array $in, ?array $u) {
 
     case 'match_xi': case 'match_toss': case 'match_start_innings': case 'match_ball': case 'match_batter':
     case 'match_bowler': case 'match_swap': case 'match_undo': case 'match_end_innings': case 'match_abandon':
-    case 'match_rain': case 'match_rain_end': case 'match_rain_undo': case 'match_dls_level': {
+    case 'match_rain': case 'match_rain_end': case 'match_rain_undo': case 'match_dls_level':
+    case 'match_penalty': case 'match_penalty_undo': case 'match_powerplay': case 'match_overs': case 'match_batter_change':
+    case 'match_ball_detail': case 'match_ball_edit': case 'match_ball_delete': case 'match_super_over': case 'match_details': {
         db()->beginTransaction();
         $m = load_match(int_in($in, 'id'), true);
         if (!can_score_match($m, $u)) fail('Only the scorer of this match can do that', 403);
-        if (!in_array($action, ['match_undo', 'match_rain_undo'], true) && in_array($m['status'], ['completed', 'abandoned'], true)) fail('This match is finished');
+        if (!in_array($action, ['match_undo', 'match_rain_undo', 'match_ball_edit', 'match_ball_delete', 'match_ball_detail', 'match_super_over', 'match_details', 'match_penalty', 'match_penalty_undo'], true) && in_array($m['status'], ['completed', 'abandoned'], true)) fail('This match is finished');
         switch ($action) {
             case 'match_xi': set_playing_xi($m, $in); break;
             case 'match_toss': set_toss($m, $in); break;
@@ -428,6 +431,16 @@ function handle(string $action, array $in, ?array $u) {
                 dls_update_target($m);
                 break;
             case 'match_abandon': q("UPDATE matches SET status='abandoned', result_text='No result (match abandoned)', winner_team_id=NULL WHERE id=?", [$m['id']]); break;
+            case 'match_penalty': match_penalty($m, $in); break;
+            case 'match_penalty_undo': match_penalty_undo($m, $in); break;
+            case 'match_powerplay': match_powerplay($m, $in); break;
+            case 'match_overs': match_overs_change($m, $in); break;
+            case 'match_batter_change': match_batter_change($m, $in); break;
+            case 'match_ball_detail': match_ball_detail($m, $in); break;
+            case 'match_ball_edit': match_ball_edit($m, $in); break;
+            case 'match_ball_delete': match_ball_edit($m, $in, true); break;
+            case 'match_super_over': match_super_over($m); break;
+            case 'match_details': match_details_save($m, $in); break;
         }
         db()->commit();
         return match_state((int)$m['id'], $u);

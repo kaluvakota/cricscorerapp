@@ -9,12 +9,22 @@ Made for Aarush & Aayush.
   plus your own custom teams. "Pick from teams" copies stars like Kohli or Bumrah into your own team.
 - **Match types** - T20, ODI, T10, Box Cricket, Gully Cricket, Backyard (Kids), Custom - or create your own
   (overs, balls per over, players per side, bowler overs limit, last-man-stands).
-- **Live ball-by-ball scoring** - runs, 4s/6s, wides, no-balls, byes, leg-byes, all dismissal types,
-  retired hurt, strike rotation, over changes, bowler limits, unlimited undo.
-- **Scorecards** - batting/bowling cards, extras, fall of wickets, runs-per-over chart, ball-by-ball commentary,
-  automatic result and Player of the Match.
+- **Live ball-by-ball scoring** - runs, 4s/6s, wides, no-balls, byes, leg-byes, every dismissal (bowled, caught, lbw,
+  run out, stumped, hit wicket, obstructing the field, hit the ball twice, retired out, timed out, retired hurt),
+  strike rotation, over changes, bowler limits, unlimited undo, **edit or delete any earlier ball** (later balls are
+  re-counted), swap a wrongly chosen batter, change overs in the first innings, replace a bowler mid-over, penalty /
+  bonus runs, powerplay overs, super over for ties, shot type + wagon-wheel direction, dropped catches and runs
+  saved/missed per ball (tap 🎯 *Shot & fielding*, or switch on "ask after every scoring shot").
+- **Scorecards & analysis** - batting/bowling cards with minutes, extras, fall of wickets, ball-by-ball commentary,
+  Analysis tab (Manhattan, worm, run rate, wagon wheel per batter, wickets pie, types of runs, all partnerships,
+  powerplay, fielding), automatic result with Player of the Match, best batter and best bowler, match officials and a
+  live-stream video on the match page, scorecard as an image for WhatsApp.
+- **Score overlay for streamers** - `overlay.php?m=ID` (add `&theme=light` for a light bar) is a transparent 1280×140
+  browser source for OBS / phone streaming apps; it polls the public match API every 5 s. Free.
+- **Player insights** (free, on every player page) - batting strike rate and bowling economy by phase (powerplay /
+  middle / death), how the player gets out, favourite shots, career wagon wheel, fielding, strengths and things to work on.
 - **Tournaments** - league, knockout, league + final; auto fixtures, points table with NRR, top scorers.
-- **Leaderboards & player stats** - runs, average, strike rate, wickets, economy, best figures.
+- **Leaderboards & player stats** - runs, average, strike rate, wickets, economy, best figures; tournament boundary tracker.
 - **Rain rules (DLS)** - Duckworth-Lewis-Stern, ICC Standard Edition: reduce overs before or during either innings,
   revised targets, live par score and par-by-over table, "rain stopped play" results, G50 = 200 (junior/club) or 245
   (international). Scorer menu → *Rain / DLS*. The resource table is in `inc/dls.php`.

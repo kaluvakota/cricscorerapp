@@ -107,6 +107,7 @@ function ensure_schema(): void {
     }
     if (!val("SHOW COLUMNS FROM players LIKE 'mobile'")) db()->exec("ALTER TABLE players ADD COLUMN mobile VARCHAR(20) NULL AFTER jersey_no, ADD INDEX idx_player_mobile (mobile)");
     if (!val("SHOW COLUMNS FROM users LIKE 'terms_accepted_at'")) db()->exec("ALTER TABLE users ADD COLUMN terms_accepted_at DATETIME NULL AFTER player_id");
+    schema_v116();   // v1.16: pro scoring
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
     db()->exec("UPDATE innings i JOIN matches m ON m.id=i.match_id SET i.max_overs=m.overs, i.start_overs=m.overs");

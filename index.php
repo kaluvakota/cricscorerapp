@@ -87,5 +87,6 @@ $jsonld = [ld_app(), ld_organization(),
 <script>window.CS_VERSION = <?= json_encode(APP_VERSION) ?>; window.CS_SITE_URL = <?= json_encode(rtrim(SITE_URL, "/") . "/") ?>;</script>
 <script src="assets/sound.js?v=<?= $v ?>"></script>
 <script src="assets/app.js?v=<?= $v ?>"></script>
+<script src="assets/pro.js?v=<?= $v ?>"></script>
 </body>
 </html>

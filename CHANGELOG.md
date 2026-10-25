@@ -4,6 +4,22 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.16.0 - 25 October 2026
+- Edit or delete any earlier ball (Overs / Ball by ball tab) - everything after it is re-counted with the same batters and bowlers; works after the match too
+- New dismissals: retired out, timed out, obstructing the field, hit the ball twice (plus retired hurt, which stays not out)
+- Wrong batter? Swap a batter who has not faced a ball yet; change the overs during the first innings; replace a bowler mid-over
+- Penalty / bonus runs for either side with a reason; powerplay overs (set when creating the match or any time) shown on the scoreboard
+- Shot & fielding on every ball: shot type, wagon-wheel direction, dropped catch, runs saved or given away - tap 🎯 or switch on "ask after every scoring shot"
+- New Analysis tab: Manhattan, worm, run rate, wagon wheel per batter, wickets pie, types of runs, all partnerships, powerplay and fielding
+- Super over for tied matches (one over, two wickets; the side that batted second bats first)
+- Result card shows Player of the Match, best batter and best bowler
+- Match officials (umpires, third umpire, referee, scorer, commentator) and a live-stream link - YouTube plays right on the match page
+- Download the scorecard as an image to share on WhatsApp
+- Free score overlay for streamers: overlay.php?m=ID as a browser source in OBS or any streaming app
+- Free player insights on every profile: batting and bowling by phase (powerplay / middle / death), how they get out, favourite shots, career wagon wheel, fielding, strengths and things to work on
+- Tournament stats show a boundary tracker (fours, sixes, run rate, dot-ball %)
+- Minutes batted on the scorecard; super-over runs are kept out of career stats and NRR
+
 ## 1.15.1 - 25 October 2026
 - More → Invite friends: four ready-made messages (fun, for my team, for parents, short) to share on WhatsApp or anywhere, or copy
 

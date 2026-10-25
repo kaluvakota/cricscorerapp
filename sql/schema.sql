@@ -208,7 +208,7 @@ CREATE TABLE balls (
   total_runs INT NOT NULL DEFAULT 0,
   is_legal TINYINT(1) NOT NULL DEFAULT 1,
   is_wicket TINYINT(1) NOT NULL DEFAULT 0,
-  wicket_type VARCHAR(20) NULL,
+  wicket_type VARCHAR(30) NULL,
   dismissed_id INT NULL,
   fielder_id INT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
