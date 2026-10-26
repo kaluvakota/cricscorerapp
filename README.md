@@ -71,6 +71,18 @@ Made for Aarush & Aayush.
   three no-balls lose; a 15 s bowling timer with a warning then a loss. A squad of 12 players with stats, unlocked with
   coins won in games (`game_profiles` table). Nets, vs the computer, one phone or two phones online (4-digit code). Rules: `assets/game-engine.js` (phones) and `inc/game.php` (server) -
   check they still match with `node tools/test_game_parity.js | php tools/test_game_parity.php`.
+- **APL Auction** (More → APL Auction, Home tile) - Aaryush Premier League, a multiplayer IPL-style player auction with
+  virtual coins (no money, ever). The host creates a private room with the rules (purse, squad, XI, overseas limit, timer,
+  bid steps, base prices, franchises in the pool, custom players) and shares the 8-character code / invite link; friends
+  join on their own phones. Everything is decided on the server: bids are inserted inside a locked transaction (a unique
+  key on lot + amount means two simultaneous equal bids can never both win), each lot has a deadline stored in the
+  database, and whichever phone polls first after the deadline finalises the sale (purse deducted once, player marked
+  sold, next player presented) - so a server restart or a dropped phone cannot lose or duplicate a sale. Browsers poll
+  `auc_state` every 2 s (`auction_state()` in `inc/auction.php`) and run a local countdown corrected by the server's
+  `secs_left`. Host console: pause/resume, skip, next, withdraw/reopen, +10 s, timer/accelerated mode, end, close, bonus
+  points (audited). Results: leaderboard = players × 1 + roles covered × 5 + coins left × 0.2 + bonus (weights set per
+  room), squads, every sale, bid history, audit log, playing XI, CSV. Tables: `auc_rooms`, `auc_participants`,
+  `auc_players` (per-room copy of the pool, seeded from the app's IPL teams), `auc_bids`, `auc_events`.
 - **Admin portal** (More → Admin portal, admin account only) - totals and charts only, never names or emails:
   players joined/active, devices, app versions, matches, games, Academy; **Roll-out** (switch features off, on for
   selected usernames, or on for everyone); **Updates** (one-tap update from GitHub with backup and roll back, and "ask

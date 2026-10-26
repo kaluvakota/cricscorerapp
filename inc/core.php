@@ -12,6 +12,7 @@ require_once __DIR__ . '/teams.php';
 require_once __DIR__ . '/whatsapp.php';
 require_once __DIR__ . '/academies.php';
 require_once __DIR__ . '/community.php';
+require_once __DIR__ . '/auction.php';
 
 if (!function_exists('mb_substr')) { function mb_substr($s, $start, $len = null) { return $len === null ? substr($s, $start) : substr($s, $start, $len); } }
 
@@ -111,6 +112,7 @@ function ensure_schema(): void {
     schema_v116();   // v1.16: pro scoring
     schema_v117();   // v1.17: career pages
     schema_v118();   // v1.18: grounds & looking for
+    schema_v119();   // v1.19: APL Auction
     if (val("SHOW COLUMNS FROM innings LIKE 'max_overs'")) return;   // already on the DLS schema
     db()->exec("ALTER TABLE innings ADD COLUMN max_overs INT NOT NULL DEFAULT 20 AFTER target, ADD COLUMN start_overs INT NOT NULL DEFAULT 20 AFTER max_overs, ADD COLUMN dls TINYINT(1) NOT NULL DEFAULT 0 AFTER start_overs");
     db()->exec("UPDATE innings i JOIN matches m ON m.id=i.match_id SET i.max_overs=m.overs, i.start_overs=m.overs");

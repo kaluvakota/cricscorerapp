@@ -16,9 +16,10 @@ function setting_set(string $k, ?string $v): void {
 /* ---------- Feature roll-out: off, selected players, or everyone ---------- */
 const FEATURES = [
     'game' => ['name' => 'Gully Duel (bat vs bowl game)', 'emoji' => '🎮', 'about' => 'Two players - one bowls, one bats - on two phones, one phone, or against the computer.'],
+    'auction' => ['name' => 'APL Auction (IPL-style player auction)', 'emoji' => '🔨', 'about' => 'Friends and family join a private room with a code and bid virtual coins for IPL players in real time.', 'default' => 'all'],
 ];
 function feature_mode(string $f): string {
-    $m = setting('feature_' . $f, 'some');
+    $m = setting('feature_' . $f, FEATURES[$f]['default'] ?? 'some');
     return in_array($m, ['off', 'some', 'all'], true) ? $m : 'some';
 }
 function feature_on(?array $u, string $f): bool {

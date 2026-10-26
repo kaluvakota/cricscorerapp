@@ -157,6 +157,14 @@ const ROUTES = [
   [/^#\/wa$/, viewWaLogin, true],
   [/^#\/user\/(\d+)\/(followers|following)$/, viewFollowList],
   [/^#\/user\/(\d+)$/, viewUser],
+  [/^#\/apl$/, () => apl('home')],
+  [/^#\/apl\/new$/, () => apl('create')],
+  [/^#\/apl\/join(?:\/([A-Za-z0-9]{1,8}))?$/, code => apl('join', code || '')],
+  [/^#\/apl\/room\/([A-Za-z0-9]{8})$/, code => apl('room', code)],
+  [/^#\/apl\/teams$/, () => apl('teams')],
+  [/^#\/apl\/players$/, () => apl('gallery')],
+  [/^#\/apl\/rules$/, () => apl('rules')],
+  [/^#\/apl\/help$/, () => apl('help')],
   [/^#\/play$/, () => duel('lobby')],
   [/^#\/play\/squad$/, () => duel('squad')],
   [/^#\/play\/room\/(\d+)$/, code => duel('room', code)],
@@ -204,7 +212,16 @@ async function duel(fn, ...args) {
   await withScript('Duel', 'assets/game.js');
   return Duel[fn](...args);
 }
-function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; }
+async function apl(fn, ...args) {
+  if (!S.user.features || !S.user.features.auction) {
+    mount(topbar('APL Auction', { back: true }) + `<div class="content"><div class="card empty"><div class="big">🔨</div><b>Coming soon!</b><br>The APL Auction is being tried out by a few players first. It will appear here when it's switched on for you.</div></div>`, 'more');
+    return;
+  }
+  if (!window.Auction) mount(topbar('APL Auction', { back: true, refresh: false }) + `<div class="content">${sk(3)}</div>`, 'more');
+  await withScript('Auction', 'assets/auction.js', 'assets/auction.css');
+  return Auction[fn](...args);
+}
+function clearTimers() { S.timers.forEach(clearInterval); S.timers = []; if (window.Auction) Auction.stop(); }
 async function render() {
   clearTimers(); closeSheet();
   if (window.Duel) Duel.leave();
@@ -428,6 +445,7 @@ async function viewHome() {
   const sec = (t, list, more, empty) => `<div class="section"><h2>${t}</h2>${more ? `<a href="${more}">See all</a>` : ''}</div>` + (list.length ? list.map(matchCard).join('') : (empty || ''));
   mount(hero + `<div class="stats-row"><div class="stat"><b>${d.counts.matches}</b><span>My matches</span></div><div class="stat"><b>${d.counts.teams}</b><span>My teams</span></div><div class="stat"><b>${d.counts.tournaments}</b><span>My cups</span></div></div>
     <div class="content">${announcementsHtml()}${install}
+    ${S.user.features && S.user.features.auction ? `<div class="duel-tile apl-tile" onclick="go('#/apl')"><span class="ic">🔨</span><div class="grow"><b>APL Auction</b><span>Aaryush Premier League - bid virtual coins for IPL stars with friends</span></div><span class="go">Play</span></div>` : ''}
     ${S.user.features && S.user.features.game ? `<div class="duel-tile" onclick="go('#/play')"><span class="ic">🎮</span><div class="grow"><b>Gully Duel</b><span>Bat vs bowl with a friend - or the computer!</span></div><span class="go">Play</span></div>` : ''}
     ${d.live.length ? sec('🔴 Live now', d.live, '#/matches') : ''}
     ${d.upcoming.length ? sec('Up next', d.upcoming) : ''}
@@ -1531,6 +1549,7 @@ function viewMore() {
       <button class="btn sm light" onclick="event.stopPropagation();go('#/profile')">Edit</button></div>
     <div class="card flush list">
       ${u.is_admin ? item('🛠️', 'Admin portal', 'Stats, roll-out, updates, help desk', "go('#/admin')") : ''}
+      ${u.features && u.features.auction ? item('🔨', 'APL Auction', 'Aaryush Premier League - bid for IPL stars with friends', "go('#/apl')") : ''}
       ${u.features && u.features.game ? item('🎮', 'Gully Duel', 'Bat vs bowl - two phones, one phone or the computer', "go('#/play')") : ''}
       ${item('👥', 'Find players', 'Search, follow, and see your followers', "go('#/people')")}
       ${item('📊', 'Leaderboard', 'Top run scorers & wicket takers', "go('#/stats')")}

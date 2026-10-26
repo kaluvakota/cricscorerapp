@@ -4,6 +4,15 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.19.0 - 26 October 2026
+- New game: APL Auction (Aaryush Premier League) - a multiplayer IPL-style player auction with virtual coins. Create a private room, share the 8-character code or invite link, everyone joins on their own phone, and the host starts
+- Live bidding screen: player card, countdown ring, big Bid button and "jump to" steps, highest bidder, bids on the player, coming-up list, team purses - all decided on the server (bids, timer, sales) and synced every 2 seconds; reconnecting shows the true state
+- Host console: start, pause/resume, skip, bring a player forward, withdraw/reopen, +10 s, timer & accelerated mode, end, close; add your own players (friends, fictional stars); remove a team before the start
+- Rules per room: purse, max teams, squad size, playing XI, overseas limit, per-role cap, timer, bid steps with bigger steps at higher prices, base price, unsold players come back once, host bids or only auctions
+- My team dashboard (coins, spent, slots, Indian/overseas, role balance, player cards), results (highlights, transparent leaderboard = players + roles covered + coins left + host bonus, squads, every sale, unsold, bid history, audit log), playing XI picker, CSV export, print
+- Player gallery of all IPL squads with filters; Auction rules and How to play pages; animations and sounds can be switched off
+- Admin portal → Roll-out can switch the auction off, on for some players, or everyone (on for everyone by default)
+
 ## 1.18.4 - 25 October 2026
 - Exactly one <h1> on every screen (splash title is no longer a heading; the visitor home page is taken out of the page while the app runs) - better for accessibility and automated tests
 - data-testid hooks: app-title (login/sign-up), page-title (every app screen), splash-title

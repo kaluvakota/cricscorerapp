@@ -66,6 +66,9 @@ function handle(string $action, array $in, ?array $u) {
         return ['user' => public_user(row('SELECT * FROM users WHERE id=?', [$u['id']]))];
     case 'academies_list': case 'academy_get': case 'academy_save': case 'academy_delete': case 'academy_student_add': case 'academy_student_remove':
         return academies_action($action, $u, $in);
+    case 'auc_home': case 'auc_create': case 'auc_lookup': case 'auc_join': case 'auc_profile': case 'auc_settings': case 'auc_pool_add': case 'auc_pool_remove':
+    case 'auc_kick': case 'auc_leave': case 'auc_start': case 'auc_state': case 'auc_bid': case 'auc_host': case 'auc_xi': case 'auc_results': case 'auc_csv': case 'auc_gallery':
+        return auction_action($action, $in, $u);
     case 'grounds_list': case 'ground_get': case 'ground_save': case 'ground_delete':
     case 'looking_list': case 'looking_get': case 'looking_save': case 'looking_close': case 'looking_reopen': case 'looking_delete': case 'looking_reply':
         return community_action($action, $in, $u);

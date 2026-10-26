@@ -1,0 +1,54 @@
+/* APL Auction */
+.apl .apl-hero{background:linear-gradient(135deg,#0d4a36,#1b7a52 60%,#b6e94a);color:#fff;border-radius:20px;padding:18px;box-shadow:var(--shadow);margin-bottom:12px}
+.apl .apl-hero.small{padding:14px}
+.apl-hero-t{font-family:var(--display);font-size:26px;font-weight:800;line-height:1.05}.apl-hero-s{font-size:13px;opacity:.9;margin-top:6px}
+.btn.lime{background:#b6e94a;color:#13241b}
+.apl-swatches{display:flex;flex-wrap:wrap;gap:8px}
+.apl-swatches .sw{width:30px;height:30px;border-radius:50%;border:3px solid transparent;cursor:pointer}.apl-swatches .sw.on{border-color:var(--ink);box-shadow:0 0 0 2px #fff inset}
+.apl-swatches .av{width:38px;height:38px;border-radius:12px;border:2px solid var(--line);background:var(--card);font-size:20px;cursor:pointer}.apl-swatches .av.on{border-color:var(--pitch-3);background:var(--soft)}
+.chip.apl-fr{cursor:pointer;border-left:6px solid var(--tc)}.chip.apl-fr input{margin:0 4px 0 0}.chip.apl-fr:has(input:checked){background:var(--pitch-3);color:#fff}
+.apl-code{font-family:var(--display);font-size:24px;letter-spacing:4px;text-transform:uppercase;text-align:center}
+.apl-codecard{text-align:center}.apl-bigcode{font-family:var(--display);font-size:40px;letter-spacing:6px;font-weight:800;margin:6px 0 12px;cursor:pointer;color:var(--pitch-3)}
+.apl-tchip{display:inline-flex;align-items:center;gap:4px;background:var(--tc);color:#fff;border-radius:999px;padding:3px 10px;font-weight:800;font-size:13px;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.apl-stage{background:linear-gradient(160deg,var(--tc) 0%,#0d2a1e 70%);color:#fff;border-radius:22px;padding:14px;box-shadow:var(--shadow);margin-bottom:10px;position:relative;overflow:hidden}
+.apl-stage::after{content:"";position:absolute;inset:auto -40px -60px auto;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,.06)}
+.apl-lotno{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.85}
+.apl-player{display:flex;gap:12px;align-items:center;margin:10px 0}
+.apl-player.reveal{animation:aplReveal .5s ease}
+@keyframes aplReveal{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:none}}
+.apl-pic{width:72px;height:72px;border-radius:18px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-family:var(--display);font-size:26px;font-weight:800;flex:none;border:2px solid rgba(255,255,255,.35)}
+.apl-pinfo{flex:1;min-width:0}.apl-pname{font-family:var(--display);font-size:24px;font-weight:800;line-height:1.05}.apl-pmeta{font-size:13px;opacity:.9;margin-top:2px}
+.apl-clock{--p:1;width:66px;height:66px;border-radius:50%;flex:none;display:grid;place-items:center;background:conic-gradient(#b6e94a calc(var(--p)*360deg),rgba(255,255,255,.18) 0);position:relative}
+.apl-clock::before{content:"";position:absolute;inset:6px;border-radius:50%;background:#0d2a1e}
+.apl-clock b,.apl-clock span{position:relative;z-index:1}.apl-clock b{font-family:var(--display);font-size:24px;line-height:1}.apl-clock span{font-size:9px;opacity:.8;margin-top:-2px}
+.apl-clock.hot{background:conic-gradient(#e63946 calc(var(--p)*360deg),rgba(255,255,255,.18) 0);animation:aplHot .6s infinite alternate}
+@keyframes aplHot{to{transform:scale(1.08)}}
+.apl-bidrow{display:flex;align-items:center;gap:12px;background:rgba(0,0,0,.25);border-radius:14px;padding:10px 12px}
+.apl-amount{font-family:var(--display);font-size:34px;font-weight:800;line-height:1}.apl-amount small{font-size:13px;font-weight:700}
+.apl-bidrow.pulse{animation:aplPulse .5s ease}
+@keyframes aplPulse{0%{transform:scale(1)}40%{transform:scale(1.04);box-shadow:0 0 0 6px rgba(182,233,74,.35)}100%{transform:scale(1)}}
+.apl-ctl{margin-bottom:10px}.apl-bidbtn{font-size:20px;padding:16px}.apl-bidbtn:disabled{opacity:.7}
+.apl-mine{display:flex;justify-content:space-between;gap:8px;font-size:12px;font-weight:800;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.apl-teams{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.apl-team{background:var(--card);border-radius:14px;padding:8px 10px;border-left:6px solid var(--tc);box-shadow:var(--shadow);font-size:13px}
+.apl-team.me{outline:2px solid var(--tc)}.apl-team.dim{opacity:.6}
+.apl-av{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:8px;background:var(--soft);font-size:15px}.apl-av.big{width:52px;height:52px;font-size:28px;border-radius:14px;background:rgba(255,255,255,.25)}
+.apl-teamhead{display:flex;align-items:center;gap:12px;background:var(--tc);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+.apl-roles{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.apl-rolebox{background:var(--card);border-radius:12px;padding:8px 4px;text-align:center;box-shadow:var(--shadow);font-size:11px;font-weight:800;color:var(--muted)}.apl-rolebox b{display:block;font-size:20px;color:var(--ink);font-family:var(--display)}.apl-rolebox.ok{background:#e6f7d9;color:#1b5e20}
+.apl-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.apl-card{background:var(--card);border-radius:14px;padding:8px;box-shadow:var(--shadow);border-top:5px solid var(--tc);text-align:center;font-size:13px}
+.apl-cardtop{display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted)}
+.apl-cardpic{width:48px;height:48px;border-radius:50%;margin:4px auto 6px;background:var(--tc);color:#fff;display:grid;place-items:center;font-weight:800;font-family:var(--display);font-size:18px;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.apl-card b{display:block}.apl-cardprice{font-weight:900;color:var(--pitch-3);margin-top:4px}
+.apl-hl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px}.apl-hl .card{margin:0;padding:10px;font-size:12px}.apl-hl b{font-size:14px;display:block}
+.apl-ol{padding-left:20px;margin:0;font-size:14px;line-height:1.5}.apl-ol li{margin-bottom:6px}
+.apl-banner{position:fixed;left:50%;top:18%;transform:translateX(-50%);z-index:60;padding:14px 22px;border-radius:16px;font-family:var(--display);font-size:24px;font-weight:800;color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.35);animation:aplBanner 2.6s ease forwards;max-width:90vw;text-align:center}
+.apl-banner.sold{background:#1b7a52}.apl-banner.unsold{background:#8a4b00}.apl-banner.info{background:#1d7ad8}
+.apl-banner.still{animation:none}
+@keyframes aplBanner{0%{opacity:0;transform:translate(-50%,-20px) scale(.9)}12%{opacity:1;transform:translate(-50%,0) scale(1.05)}20%{transform:translate(-50%,0) scale(1)}85%{opacity:1}100%{opacity:0}}
+body.apl-still .apl-player.reveal,body.apl-still .apl-clock.hot,body.apl-still .apl-bidrow.pulse{animation:none}
+@media (prefers-reduced-motion:reduce){.apl-player.reveal,.apl-clock.hot,.apl-bidrow.pulse,.apl-banner{animation:none}}
+@media (min-width:700px){.apl-teams{grid-template-columns:repeat(4,1fr)}.apl-pic{width:96px;height:96px;font-size:34px}.apl-pname{font-size:30px}}
+@media (prefers-color-scheme:dark){.apl-rolebox.ok{background:#173326;color:#b2f2bb}}
+@media print{.topbar,.tabbar,.fab,.seg,.btn{display:none!important}}
