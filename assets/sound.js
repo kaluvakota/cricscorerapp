@@ -98,10 +98,14 @@ const Sound = (() => {
     }
   }
 
-  function fx(kind) {
-    if (!st.sfx || !kind || !ctx()) return;
+  function fx(kind, force = false) {
+    if ((!st.sfx && !force) || !kind || !ctx()) return;
     const t = st.ctx.currentTime + 0.02;
     switch (kind) {
+      case 'gavel': noise(t, 0.04, { freq: 1800, q: 1.5, gain: 0.9 }); tone(t, 180, 0.12, { type: 'square', gain: 0.5, to: 90 }); noise(t + 0.09, 0.04, { freq: 1600, q: 1.5, gain: 0.7 }); tone(t + 0.09, 170, 0.12, { type: 'square', gain: 0.45, to: 85 }); break;
+      case 'tick': tone(t, 1200, 0.05, { type: 'square', gain: 0.18 }); break;
+      case 'bid': tone(t, 660, 0.08, { type: 'triangle', gain: 0.35 }); tone(t + 0.08, 990, 0.12, { type: 'triangle', gain: 0.35 }); break;
+      case 'sold': tone(t, 523, 0.12, { type: 'triangle', gain: 0.4 }); tone(t + 0.12, 659, 0.12, { type: 'triangle', gain: 0.4 }); tone(t + 0.24, 784, 0.3, { type: 'triangle', gain: 0.45 }); crowd(t + 0.2, 2.2, 0.8); claps(t + 0.3, 90, 2.6, 0.45); break;
       case 'dot': bat(t, 0.35); break;
       case 'run': bat(t, 0.6); claps(t + 0.15, 25, 1.2, 0.25); break;
       case 'four': bat(t, 1); crowd(t + 0.1, 2.2, 0.8); claps(t + 0.2, 90, 2.6, 0.45); break;
@@ -127,8 +131,8 @@ const Sound = (() => {
     return voiceCache;
   }
   if (hasSpeech) speechSynthesis.onvoiceschanged = () => { voiceCache = null; };
-  function say(text, { delay = 350, interrupt = true } = {}) {
-    if (!st.voice || !hasSpeech || !text) return;
+  function say(text, { delay = 350, interrupt = true, force = false } = {}) {
+    if ((!st.voice && !force) || !hasSpeech || !text) return;
     if (interrupt) speechSynthesis.cancel();
     setTimeout(() => {
       const u = new SpeechSynthesisUtterance(text), v = pickVoice();

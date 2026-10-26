@@ -4,6 +4,9 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.19.1 - 26 October 2026
+- APL Auction audio: gavel, bid chime, countdown ticks, crowd on a sale, and an auctioneer voice that introduces every player, calls each bid, says "going once… going twice…" and "Sold!" - with its own 🔊 switches on the room page (independent of the scoring sounds) and a Test button
+
 ## 1.19.0 - 26 October 2026
 - New game: APL Auction (Aaryush Premier League) - a multiplayer IPL-style player auction with virtual coins. Create a private room, share the 8-character code or invite link, everyone joins on their own phone, and the host starts
 - Live bidding screen: player card, countdown ring, big Bid button and "jump to" steps, highest bidder, bids on the player, coming-up list, team purses - all decided on the server (bids, timer, sales) and synced every 2 seconds; reconnecting shows the true state

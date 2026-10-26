@@ -5,13 +5,21 @@ window.Auction = (() => {
   const ROLE_ICON = { 'Batter': '🏏', 'Wicket-keeper': '🧤', 'All-rounder': '⭐', 'Bowler': '🎯' };
   const pref = (k, d) => { try { const v = localStorage.getItem('apl_' + k); return v === null ? d : v === '1'; } catch (e) { return d; } };
   const setPref = (k, v) => { try { localStorage.setItem('apl_' + k, v ? '1' : '0'); } catch (e) { /* ignore */ } };
-  const A = { st: null, since: 0, lastLot: null, timer: null, poll: null, anim: pref('anim', true), sfx: pref('sfx', true), tab: 'live', lastVersion: 0, busy: false };
+  const A = { st: null, since: 0, lastLot: null, timer: null, poll: null, anim: pref('anim', true), sfx: pref('sfx', true), voice: pref('voice', true), tab: 'live', lastVersion: 0, busy: false, said: {} };
 
   const coin = n => `<b class="apl-coin">${n}</b>`;
   const initials = n => esc(String(n || '?').split(' ').map(w => w[0]).slice(0, 2).join(''));
   const teamChip = t => `<span class="apl-tchip" style="--tc:${esc(t.color)}">${esc(t.avatar)} ${esc(t.name)}</span>`;
-  const fxOn = () => A.sfx && window.Sound && Sound.sfx;
-  const fx = k => { if (fxOn()) Sound.fx(k); };
+  const SND = () => (typeof Sound !== 'undefined' ? Sound : null);
+  // The auction has its own audio switches (independent of the scoring sounds): gavel & crowd effects, and an auctioneer voice
+  const fx = k => { if (A.sfx && SND()) Sound.fx(k, true); };
+  const say = (text, interrupt = false) => { if (A.voice && SND() && Sound.hasSpeech) Sound.say(text, { delay: 60, interrupt, force: true }); };
+  const unlockAudio = () => { if (SND()) Sound.unlock(); };
+  document.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const roleWord = r => ({ 'Batter': 'batter', 'Wicket-keeper': 'wicket-keeper batter', 'All-rounder': 'all-rounder', 'Bowler': 'bowler' }[r] || 'player');
+  function presentLine(lot) { return pick([`Lot ${lot.lot_no}. ${lot.name}, ${roleWord(lot.role)}${lot.country ? ' from ' + lot.country : ''}${lot.franchise && lot.franchise !== 'APL' ? ', ' + lot.franchise : ''}. Base price ${lot.base_price} coins. Who will open the bidding?`,
+    `Next up, ${lot.name}! ${lot.overseas ? 'Overseas ' : ''}${roleWord(lot.role)}. We start at ${lot.base_price} coins.`, `Here comes ${lot.name}, ${roleWord(lot.role)}. Opening at ${lot.base_price}. Any takers?`]); }
 
   /* ---------- home ---------- */
   async function home() {
@@ -99,6 +107,7 @@ window.Auction = (() => {
     catch (e) { if (/not in this auction|No auction|already started/.test(e.message)) { go('#/apl/join/' + code); return; } throw e; }
     A.st = st; A.since = st.events.length ? st.events[0].id : 0; A.lastLot = st.lot ? st.lot.id : null; A.lastVersion = st.room.version; A.tab = st.room.status === 'done' ? 'results' : (A.tab === 'results' ? 'live' : A.tab);
     draw(true);
+    if (st.room.status === 'live' && st.lot) say(presentLine(st.lot) + (st.lot.high_bidder ? ` The bid stands at ${st.lot.high_bid} with ${st.lot.high_bidder.name}.` : ''), true);
     A.poll = setInterval(poll, 2000); S.timers.push(A.poll);
     A.timer = setInterval(tickClock, 200); S.timers.push(A.timer);
   }
@@ -118,19 +127,21 @@ window.Auction = (() => {
     if (st.events.length) A.since = Math.max(A.since, ...st.events.map(e => e.id));
     newEvents.forEach(e => react(e, prev));
     const lotChanged = (st.lot ? st.lot.id : null) !== A.lastLot; A.lastLot = st.lot ? st.lot.id : null;
+    if (lotChanged) A.said = {};
     if (st.room.status === 'done' && prev && prev.room.status !== 'done') { A.tab = 'results'; draw(true); return; }
     if (st.room.version !== A.lastVersion || lotChanged) { A.lastVersion = st.room.version; draw(false); }
   }
   function react(e, prev) {
     const d = e.data || {}, me = A.st.me;
     switch (e.kind) {
-      case 'bid_accepted': if (!me || d.participant !== me.id) { fx('run'); } flash('bid'); break;
-      case 'player_sold': banner(`SOLD! ${d.name} → ${d.team} for ${d.price} coins`, 'sold'); fx(me && d.participant === me.id ? 'win' : 'cheer'); if (me && d.participant === me.id && A.anim && window.confetti) confetti(); break;
-      case 'player_unsold': banner(`UNSOLD - ${d.name}${d.again ? ' (back later)' : ''}`, 'unsold'); fx('wide'); break;
-      case 'auction_started': banner('The auction has started!', 'sold'); fx('milestone'); break;
-      case 'auction_paused': banner('Paused by the host', 'info'); break;
-      case 'auction_resumed': banner('And we are back!', 'info'); break;
-      case 'auction_completed': banner('That\'s a wrap - the auction is complete!', 'sold'); fx('win'); break;
+      case 'bid_accepted': fx('bid'); flash('bid'); A.said = {}; say(pick([`${d.team}, ${d.amount}!`, `${d.amount} coins from ${d.team}.`, `${d.team} goes to ${d.amount}!`, `${d.amount}! ${d.team} in the lead.`])); break;
+      case 'player_sold': banner(`SOLD! ${d.name} → ${d.team} for ${d.price} coins`, 'sold'); fx('gavel'); setTimeout(() => fx(me && d.participant === me.id ? 'win' : 'sold'), 250); say(`Sold! ${d.name} goes to ${d.team} for ${d.price} coins.`, true); if (me && d.participant === me.id && A.anim && typeof confetti === 'function') confetti(); break;
+      case 'player_unsold': banner(`UNSOLD - ${d.name}${d.again ? ' (back later)' : ''}`, 'unsold'); fx('gavel'); setTimeout(() => fx('wide'), 250); say(`No bids. ${d.name} goes unsold${d.again ? ', we will see him again later' : ''}.`, true); break;
+      case 'player_presented': if (A.st.lot) say(presentLine(A.st.lot), true); break;
+      case 'auction_started': banner('The auction has started!', 'sold'); fx('milestone'); say('Welcome to the Aaryush Premier League auction! Purses are full, paddles are ready. Let us begin.', true); break;
+      case 'auction_paused': banner('Paused by the host', 'info'); say('The auction is paused.', true); break;
+      case 'auction_resumed': banner('And we are back!', 'info'); say('And we are back!', true); break;
+      case 'auction_completed': banner('That\'s a wrap - the auction is complete!', 'sold'); fx('win'); say('That is a wrap! The auction is complete. Check the results for the final squads.', true); break;
       case 'participant_joined': if (prev && prev.room.status === 'lobby') toast(`${d.team} joined ${d.host ? '(host)' : ''}`); break;
       case 'participant_left': toast(`${d.team} left`); break;
     }
@@ -149,13 +160,19 @@ window.Auction = (() => {
     el.querySelector('b').textContent = Math.ceil(s);
     el.style.setProperty('--p', Math.max(0, Math.min(1, s / total)));
     el.classList.toggle('hot', s <= 5 && st.room.status === 'live');
+    if (st.room.status === 'live') {
+      const k = st.lot.id + ':' + (st.lot.high_bid || 0);
+      if (s <= 5.2 && s > 4.8 && A.said[k + 'once'] !== true) { A.said[k + 'once'] = true; say(st.lot.high_bidder ? `${st.lot.high_bid} coins, going once...` : 'No bids yet... going once...'); }
+      if (s <= 2.6 && s > 2.2 && A.said[k + 'twice'] !== true) { A.said[k + 'twice'] = true; say('Going twice...'); }
+      if (s <= 3.2 && s > 0 && Math.abs(s - Math.round(s)) < 0.12 && A.said['t' + k + Math.round(s)] !== true) { A.said['t' + k + Math.round(s)] = true; fx('tick'); }
+    }
     if (s <= 0 && st.room.status === 'live' && !A.busy) { el.querySelector('b').textContent = '…'; poll(); }
   }
 
   function draw(full) {
     const st = A.st, r = st.room, me = st.me;
     const sub = `Code ${r.code} · ${plural(st.teams.length, 'team')}${r.status === 'live' ? ' · LIVE' : r.status === 'paused' ? ' · paused' : r.status === 'done' ? ' · finished' : ' · lobby'}`;
-    const actions = `<button class="icon-btn" aria-label="Share invite" onclick="Auction.invite()">${I.share}</button><button class="icon-btn" aria-label="Options" onclick="Auction.menu()">${I.dots}</button>`;
+    const actions = `<button class="icon-btn" aria-label="Auction audio" onclick="Auction.audioSheet()">${A.sfx || A.voice ? '🔊' : '🔇'}</button><button class="icon-btn" aria-label="Share invite" onclick="Auction.invite()">${I.share}</button><button class="icon-btn" aria-label="Options" onclick="Auction.menu()">${I.dots}</button>`;
     let body;
     if (r.status === 'lobby') body = lobbyView(st);
     else if (A.tab === 'results' || r.status === 'done') body = resultsShell(st);
@@ -258,14 +275,14 @@ window.Auction = (() => {
   A.poolRemove = id => run(async () => { await api('auc_pool_remove', { id: A.st.room.id, lot_id: id }); await poll(); draw(true); });
   A.kick = id => confirmSheet('Remove this team?', 'They can join again with the code.', 'Remove', () => run(async () => { await api('auc_kick', { id: A.st.room.id, participant_id: id }); closeSheet(); await poll(); draw(true); }));
   A.leave = () => confirmSheet('Leave this room?', 'You can join again with the code while it is in the lobby.', 'Leave', () => run(async () => { await api('auc_leave', { id: A.st.room.id }); closeSheet(); go('#/apl'); }));
-  A.start = () => run(async () => { A.busy = true; try { const st = await api('auc_start', { id: A.st.room.id }); A.tab = 'live'; apply(st); draw(true); fx('milestone'); } finally { A.busy = false; } });
+  A.start = () => run(async () => { unlockAudio(); A.busy = true; try { const st = await api('auc_start', { id: A.st.room.id }); A.tab = 'live'; apply(st); draw(true); fx('milestone'); } finally { A.busy = false; } });
   A.bid = (lotId, amount) => run(async () => {
-    if (A.busy) return; A.busy = true;
+    if (A.busy) return; unlockAudio(); A.busy = true;
     const btn = document.querySelector('.apl-bidbtn'); if (btn) btn.disabled = true;
     try {
       const r = await api('auc_bid', { id: A.st.room.id, lot_id: lotId, amount });
       if (r.error_code === 'stale') { toast(r.message, true); fx('wrong'); }
-      else { fx('correct'); if (navigator.vibrate) navigator.vibrate(15); }
+      else { if (navigator.vibrate) navigator.vibrate(15); }
       apply(r); draw(false);
     } finally { A.busy = false; }
   });
@@ -295,13 +312,21 @@ window.Auction = (() => {
   };
   A.menu = () => sheet(`<h3>Options</h3><div class="plist">
     <button class="pbtn" onclick="Auction.setAnim(!Auction.anim);closeSheet()">${A.anim ? '🎞️ Turn animations off' : '🎞️ Turn animations on'}</button>
-    <button class="pbtn" onclick="Auction.setSfx(!Auction.sfx);closeSheet()">${A.sfx ? '🔇 Mute auction sounds' : '🔊 Auction sounds on'}</button>
+    <button class="pbtn" onclick="Auction.setSfx(!Auction.sfx);closeSheet()">${A.sfx ? '🔇 Mute gavel & crowd sounds' : '🔊 Gavel & crowd sounds on'}</button>
+    <button class="pbtn" onclick="Auction.setVoice(!Auction.voice);closeSheet()">${A.voice ? '🤐 Mute the auctioneer voice' : '🎙️ Auctioneer voice on'}</button>
+    <button class="pbtn" onclick="closeSheet();Auction.testAudio()">▶️ Test sound & voice</button>
     <button class="pbtn" onclick="closeSheet();Auction.invite()">💬 Share invite</button>
     <button class="pbtn" onclick="closeSheet();go('#/apl/rules')">📜 Auction rules</button>
     ${A.st.room.status === 'done' ? '<button class="pbtn" onclick="closeSheet();Auction.csv()">⬇️ Download results (CSV)</button><button class="pbtn" onclick="closeSheet();window.print()">🖨️ Print summary</button>' : ''}
     <button class="pbtn" onclick="closeSheet();go('#/apl')">🏠 APL home</button></div>`);
   A.setAnim = v => { A.anim = v; setPref('anim', v); document.body.classList.toggle('apl-still', !v); };
-  A.setSfx = v => { A.sfx = v; setPref('sfx', v); };
+  A.setSfx = v => { A.sfx = v; setPref('sfx', v); unlockAudio(); draw(false); };
+  A.setVoice = v => { A.voice = v; setPref('voice', v); unlockAudio(); if (!v && SND()) Sound.stopVoice(); draw(false); };
+  A.testAudio = () => { unlockAudio(); fx('gavel'); setTimeout(() => fx('sold'), 300); say('Testing, testing. Sold to the lucky bidder!', true); if (!SND() || !Sound.hasSpeech) toast('This browser has no text-to-speech voice', true); else toast('Turn up the volume and switch off silent mode'); };
+  A.audioSheet = () => sheet(`<h3>🔊 Auction audio</h3><div class="sub">Gavel, crowd and an auctioneer who calls every bid - "going once, going twice, sold!"</div>
+    <label class="switch" style="margin-bottom:10px"><span><b>Gavel & crowd sounds</b></span><input type="checkbox" ${A.sfx ? 'checked' : ''} onchange="Auction.setSfx(this.checked)"><span class="knob"></span></label>
+    <label class="switch" style="margin-bottom:10px"><span><b>Auctioneer voice</b><div class="small muted">${SND() && Sound.hasSpeech ? 'Reads out the player, every bid and the sale' : 'This browser has no text-to-speech voice'}</div></span><input type="checkbox" ${A.voice ? 'checked' : ''} onchange="Auction.setVoice(this.checked)"><span class="knob"></span></label>
+    <button class="btn block" onclick="Auction.testAudio()">▶️ Test</button><div class="small muted" style="margin-top:10px">On iPhone the ring/silent switch must be off for sound. Audio starts after your first tap on the page.</div>`);
   A.csv = () => run(async () => { const r = await api('auc_csv', { id: A.st.room.id }); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([r.csv], { type: 'text/csv' })); a.download = `apl-auction-${A.st.room.code}.csv`; document.body.appendChild(a); a.click(); a.remove(); });
 
   /* ---------- results ---------- */
