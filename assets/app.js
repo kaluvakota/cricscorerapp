@@ -1288,7 +1288,7 @@ async function viewTeam(id) {
   }).join('');
   mount(topbar(t.short_name, { back: true, actions }) + `<div class="team-hero" style="background:${esc(t.color)};color:${fg}"><span class="badge lg" style="background:${fg === '#ffffff' ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.08)'};color:${fg}">${esc(String(t.short_name).slice(0, 4))}</span>
       <div><h2>${esc(t.name)}</h2><p>${{ ipl: 'IPL franchise', international: 'International team', custom: 'Custom team' }[t.category]} · ${plural(d.players.length, 'player')}</p>
-      ${t.captain ? `<p>Captain: ${esc(t.captain)}</p>` : ''}${t.home_ground ? `<p>🏟️ ${esc(t.home_ground)}</p>` : ''}</div></div>
+      <p>${t.captain ? 'Captain: ' + esc(t.captain) : (t.can_edit ? 'No captain yet' : '')}${t.can_edit ? ` <button class="btn sm light" style="margin-left:6px;padding:4px 10px" onclick="App.captainSheet()">©️ ${t.captain ? 'Change' : 'Pick'} captain</button>` : ''}</p>${t.home_ground ? `<p>🏟️ ${esc(t.home_ground)}</p>` : ''}</div></div>
     <div class="content">
       ${teamAccessCard(t)}
       ${t.can_edit ? `<div class="grid2" style="margin-bottom:6px"><button class="btn" onclick="App.playerForm(null)">${I.plus} Add player</button><button class="btn light" onclick="App.pickPlayers()">📋 Pick from teams</button></div>` : ''}
@@ -1298,6 +1298,15 @@ async function viewTeam(id) {
     </div>`, 'teams');
 }
 App.startWith = () => go('#/match/new');  // team pickers list every team
+/* ---------- Captain: the owner picks any player of the squad ---------- */
+App.captainSheet = () => {
+  const d = S.team, t = d.team;
+  if (!d.players.length) return toast('Add players first', true);
+  sheet(`<h3>©️ Team captain</h3><div class="sub">${esc(t.name)} - tap a player. The captain shows a C on the team page and in the playing XI.</div>
+    <div class="plist">${d.players.map(p => `<button class="pbtn ${t.captain === p.name ? 'on' : ''}" onclick="App.setCaptain(${p.id})"><span class="chk">${t.captain === p.name ? '✓' : ''}</span>${roleIcon(p.role)} ${esc(p.name)}<span class="s">${esc(p.role)}</span></button>`).join('')}</div>
+    ${t.captain ? '<button class="btn light block" onclick="App.setCaptain(null)">Remove captain</button>' : ''}`);
+};
+App.setCaptain = pid => run(async () => { const r = await api('team_captain', { id: S.team.team.id, player_id: pid }); closeSheet(); toast(r.captain ? `${r.captain} is the captain ✓` : 'Captain removed'); render(); });
 
 /* ---------- Who can play with a custom team ---------- */
 function teamAccessCard(t) {
@@ -1386,7 +1395,7 @@ App.copyPlayers = btn => run(async () => {
 const COLORS = ['#0d4a36', '#15803d', '#1d4ed8', '#0ea5e9', '#7c3aed', '#db2777', '#d62839', '#ea580c', '#f2b134', '#475569', '#111827', '#0f766e'];
 async function viewTeamForm(id) {
   let t = { name: '', short_name: '', color: COLORS[Math.floor(Math.random() * COLORS.length)], captain: '', home_ground: '' };
-  if (id) { const d = await api('team_get', { id: +id }); t = d.team; if (!t.can_edit) return go('#/team/' + id); }
+  if (id) { const d = await api('team_get', { id: +id }); t = d.team; S.team = d; if (!t.can_edit) return go('#/team/' + id); }
   mount(topbar(id ? 'Edit Team' : 'Create Team', { back: true }) + `<form class="content" onsubmit="App.saveTeam(event,${id || 0})">
     <div class="card" style="text-align:center"><span id="tprev">${badge(t, 'lg')}</span><div class="small muted" style="margin-top:6px">Your team badge</div></div>
     <div class="card">
@@ -1394,7 +1403,7 @@ async function viewTeamForm(id) {
       <div class="field"><label>Short name (2–4 letters)</label><input class="input" name="short_name" maxlength="4" value="${esc(t.short_name)}" placeholder="e.g. ASK" style="text-transform:uppercase" oninput="App.teamPrev()"></div>
       <div class="field"><label>Team colour</label><div class="swatches">${COLORS.map(c => `<span class="swatch ${c === t.color ? 'on' : ''}" data-c="${c}" style="background:${c}" onclick="App.pickColor('${c}')"></span>`).join('')}
         <input type="color" name="color" value="${esc(t.color)}" style="width:34px;height:34px;border:0;padding:0;background:none" oninput="App.teamPrev()"></div></div>
-      <div class="field"><label>Captain</label><input class="input" name="captain" value="${esc(t.captain || '')}" placeholder="optional"></div>
+      <div class="field"><label>Captain</label>${id && S.team && S.team.team.id === +id && S.team.players.length ? `<select class="input" name="captain"><option value="">- none -</option>${S.team.players.map(p => `<option ${t.captain === p.name ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>` : `<input class="input" name="captain" value="${esc(t.captain || '')}" placeholder="optional - or pick one on the team page">`}</div>
       <div class="field"><label>Home ground</label><input class="input" name="home_ground" value="${esc(t.home_ground || '')}" placeholder="optional"></div>
     </div>
     <button class="btn block">${id ? 'Save team' : 'Create team →'}</button>

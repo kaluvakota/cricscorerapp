@@ -4,6 +4,9 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.19.2 - 4 November 2026
+- Team captain: the team owner (and admin) can pick or change the captain straight from the team page - "Pick captain" / "Change captain" lists the squad; the Edit Team form offers the squad as a drop-down too
+
 ## 1.19.1 - 26 October 2026
 - APL Auction audio: gavel, bid chime, countdown ticks, crowd on a sale, and an auctioneer voice that introduces every player, calls each bid, says "going once… going twice…" and "Sold!" - with its own 🔊 switches on the room page (independent of the scoring sounds) and a Test button
 

@@ -200,6 +200,15 @@ function handle(string $action, array $in, ?array $u) {
         return ['team' => $t, 'players' => $players, 'recent' => $recent];
     }
 
+    case 'team_captain': {                             // team owner (or admin) picks the captain from the squad; empty = no captain
+        $t = row('SELECT * FROM teams WHERE id=?', [int_in($in, 'id')]);
+        if (!can_edit_team($t, $u)) fail('Only the team owner can change the captain', 403);
+        $pid = nint($in['player_id'] ?? null);
+        $name = $pid ? val('SELECT name FROM players WHERE id=? AND team_id=?', [$pid, $t['id']]) : null;
+        if ($pid && !$name) fail('That player is not in this team');
+        q('UPDATE teams SET captain=? WHERE id=?', [$name, $t['id']]);
+        return ['captain' => $name];
+    }
     case 'team_save': {
         $id = int_in($in, 'id');
         $name = str_in($in, 'name', 100);
