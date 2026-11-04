@@ -388,7 +388,8 @@ function handle(string $action, array $in, ?array $u) {
         $date = str_in($in, 'match_date', 20);
         $date = $date ? date('Y-m-d H:i:s', strtotime($date)) : date('Y-m-d H:i:s');
         $visibility = ($in['visibility'] ?? '') === 'private' ? 'private' : 'public';
-        $overs = max(1, min(100, int_in($in, 'overs', 20)));
+        $test = ($in['format'] ?? '') === 'test';
+        $overs = $test ? TEST_OVERS : max(1, min(100, int_in($in, 'overs', 20)));
         q('INSERT INTO matches (owner_id, tournament_id, match_type_id, title, team1_id, team2_id, overs, balls_per_over, players_per_side, max_overs_bowler, last_man_stands, venue, match_date, visibility, powerplay_overs)
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', [
             $u['id'], $tour, nint($in['match_type_id'] ?? null), str_in($in, 'title', 100) ?: null, $t1, $t2,
@@ -396,6 +397,7 @@ function handle(string $action, array $in, ?array $u) {
             max(1, min(15, int_in($in, 'players_per_side', 11))), max(0, min(50, int_in($in, 'max_overs_bowler', 0))),
             !empty($in['last_man_stands']) ? 1 : 0, str_in($in, 'venue', 150) ?: null, $date, $visibility, max(0, min($overs, int_in($in, 'powerplay_overs', 0)))]);
         $mid = lastId();
+        if ($test) q('UPDATE matches SET format=?, days=?, follow_on=?, powerplay_overs=0 WHERE id=?', ['test', max(1, min(7, int_in($in, 'days', 5))), max(0, min(500, int_in($in, 'follow_on', 200))), $mid]);
         $bt = (string)($in['ball_type'] ?? ''); $round = str_in($in, 'round_name', 60);
         $gid = nint($in['ground_id'] ?? null); if ($gid && !val('SELECT 1 FROM grounds WHERE id=?', [$gid])) $gid = null;
         if (in_array($bt, BALL_TYPES, true) || $round || $gid) q('UPDATE matches SET ball_type=?, round_name=?, ground_id=? WHERE id=?', [in_array($bt, BALL_TYPES, true) ? $bt : null, $round ?: null, $gid, $mid]);
@@ -435,7 +437,7 @@ function handle(string $action, array $in, ?array $u) {
     case 'match_bowler': case 'match_swap': case 'match_undo': case 'match_end_innings': case 'match_abandon':
     case 'match_rain': case 'match_rain_end': case 'match_rain_undo': case 'match_dls_level':
     case 'match_penalty': case 'match_penalty_undo': case 'match_powerplay': case 'match_overs': case 'match_batter_change':
-    case 'match_ball_detail': case 'match_ball_edit': case 'match_ball_delete': case 'match_super_over': case 'match_details': case 'match_field': {
+    case 'match_ball_detail': case 'match_ball_edit': case 'match_ball_delete': case 'match_super_over': case 'match_details': case 'match_field': case 'match_draw': {
         db()->beginTransaction();
         $m = load_match(int_in($in, 'id'), true);
         if (!can_score_match($m, $u)) fail('Only the scorer of this match can do that', 403);
@@ -467,6 +469,7 @@ function handle(string $action, array $in, ?array $u) {
             case 'match_ball_edit': match_ball_edit($m, $in); break;
             case 'match_ball_delete': match_ball_edit($m, $in, true); break;
             case 'match_super_over': match_super_over($m); break;
+            case 'match_draw': test_draw($m); match_log($m, 'Match drawn', $u); break;
             case 'match_details': match_details_save($m, $in); break;
             case 'match_field': match_field_set($m, $in); break;
         }

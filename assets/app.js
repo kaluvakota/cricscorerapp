@@ -424,7 +424,7 @@ function matchCard(m) {
     : m.status === 'abandoned' ? '<span class="pill">No result</span>' : '<span class="pill done">Result</span>';
   const row = (t, sc) => `<div class="tm ${t && m.winner_team_id === t.id ? 'win' : ''}">${badge(t, 'sm')}<span class="n">${esc(t?.name)}</span><span class="sc">${esc(sc || '')}</span></div>`;
   const foot = m.result_text ? `<div class="foot">${esc(m.result_text)}</div>`
-    : `<div class="foot m">${esc(fmtDate(m.match_date))}${m.venue ? ' · ' + esc(m.venue) : ''} · ${m.overs} ov</div>`;
+    : `<div class="foot m">${esc(fmtDate(m.match_date))}${m.venue ? ' · ' + esc(m.venue) : ''} · ${m.format === 'test' ? plural(m.days, 'day') + ' Test' : m.overs + ' ov'}</div>`;
   const by = m.owner && S.user && m.owner.id !== S.user.id ? ` · by ${esc(m.owner.name)}` : '';
   const lock = m.visibility === 'private' ? '<span class="pill lock" title="Private match">🔒 Private</span>' : '';
   return `<div class="mcard ${m.status}" onclick="go('#/match/${m.id}')"><div class="top"><span class="ellipsis">${esc(m.title || 'Match')}${by}</span><span class="row" style="gap:5px;flex:none">${lock}${st}</span></div>${row(m.team1, m.score1)}${row(m.team2, m.score2)}${foot}</div>`;
@@ -522,6 +522,15 @@ async function viewMatchNew(tid) {
       <div class="field" style="margin-bottom:4px"><label>Team B</label><select class="input" name="team2_id" onchange="App.vsPreview()" required>${teamOptions(tm.teams, null, S.nm.only)}</select></div>
       ${tour ? '' : `<div class="small muted" style="margin-top:6px">Want your own team? <a class="link" href="#/team/new">Create a team</a></div>`}
       ${tm.teams.some(x => x.can_use === false) ? `<div class="small muted" style="margin-top:6px">🔒 Locked teams belong to other players. Open the team and tap <b>Ask to use this team</b> - you can pick it once the owner says yes. <a class="link" href="#/teams?c=custom">See teams</a></div>` : ''}</div>
+    <div class="section"><h2>Format</h2></div>
+    <input type="hidden" name="format" value="limited">
+    <div class="toss-pick vis-pick" style="margin-bottom:4px">
+      <button type="button" class="on" data-f="limited" onclick="App.pickFormat(this)"><span style="font-size:26px">⚡</span>Limited overs<small>T20, ODI, your own</small></button>
+      <button type="button" data-f="test" onclick="App.pickFormat(this)"><span style="font-size:26px">🏛️</span>Test match<small>2 innings each, follow-on, declarations</small></button></div>
+    <div id="testopts" class="card" style="display:none;margin-top:10px"><div class="grid2"><div class="field"><label>Days</label><input class="input" type="number" name="days" min="1" max="7" value="5"></div>
+      <div class="field"><label>Follow-on lead</label><input class="input" type="number" name="follow_on" min="0" max="500" value="200"></div></div>
+      <div class="small muted">No over limit. Unlimited overs per bowler. Declare an innings from the match menu; end a drawn match from there too.</div></div>
+    <div id="limopts">
     <div class="section"><h2>Match type</h2></div>
     <div class="chips" id="typechips">${ty.types.map(x => `<button type="button" class="chip ${x.id === t.id ? 'on' : ''}" data-id="${x.id}" onclick="App.pickType(${x.id})">${esc(x.name)} <small>${x.overs}ov</small></button>`).join('')}</div>
     <div class="card" style="margin-top:10px">
@@ -530,7 +539,7 @@ async function viewMatchNew(tid) {
       <div class="field"><label>Max ov/bowler</label><input class="input" type="number" name="max_overs_bowler" min="0" max="50" value="${t.max_overs_bowler}"></div></div>
       <input type="hidden" name="balls_per_over" value="${t.balls_per_over}"><input type="hidden" name="match_type_id" value="${t.id}">
       <label class="switch"><span><b>Last man stands</b><div class="small muted">Last batter can bat alone</div></span><input type="checkbox" name="last_man_stands" ${t.last_man_stands ? 'checked' : ''}><span class="knob"></span></label>
-      <div class="small muted" style="margin-top:8px">Max overs per bowler: 0 = no limit.</div></div>
+      <div class="small muted" style="margin-top:8px">Max overs per bowler: 0 = no limit.</div></div></div>
     <div class="section"><h2>Who can see this match?</h2></div>
     <input type="hidden" name="visibility" value="public">
     <div class="toss-pick vis-pick" style="margin-bottom:4px">
@@ -551,6 +560,12 @@ App.pickType = id => {
   f.overs.value = t.overs; f.players_per_side.value = t.players_per_side; f.max_overs_bowler.value = t.max_overs_bowler;
   f.balls_per_over.value = t.balls_per_over; f.match_type_id.value = t.id; f.last_man_stands.checked = !!t.last_man_stands;
   document.querySelectorAll('#typechips .chip').forEach(c => c.classList.toggle('on', +c.dataset.id === id));
+};
+App.pickFormat = b => {
+  const f = b.dataset.f, form = $('form.content'); form.format.value = f;
+  b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  $('#testopts').style.display = f === 'test' ? '' : 'none'; $('#limopts').style.display = f === 'test' ? 'none' : '';
+  const g = $('#testopts'); g.querySelectorAll('input').forEach(i => i.disabled = f !== 'test');
 };
 App.vsPreview = () => {
   const f = $('form.content'); const find = id => S.nm.teams.find(t => t.id === +id);
@@ -641,12 +656,13 @@ function preBoard(st) {
   const m = st.match;
   const side = t => `<div class="side">${badge(t, 'lg')}<span>${esc(t.name)}</span></div>`;
   return `<div class="board"><div class="vs">${side(st.team1)}<div class="v" style="color:var(--lime)">VS</div>${side(st.team2)}</div>
-    <div class="other" style="text-align:center">${m.overs} overs · ${m.players_per_side} a side${m.last_man_stands ? ' · Last man stands' : ''}${m.max_overs_bowler ? ` · ${m.max_overs_bowler} ov/bowler` : ''}</div>
+    <div class="other" style="text-align:center">${m.format === 'test' ? `🏛️ Test match · ${plural(m.days, 'day')}` : m.overs + ' overs'} · ${m.players_per_side} a side${m.last_man_stands ? ' · Last man stands' : ''}${m.max_overs_bowler ? ` · ${m.max_overs_bowler} ov/bowler` : ''}</div>
     <div class="other" style="text-align:center">${esc(fmtDate(m.match_date))}${m.venue ? ' · ' + esc(m.venue) : ''}</div></div>`;
 }
 
 function scoreBoard(st, inn) {
   const m = st.match, bt = teamById(inn.batting_team_id);
+  if (m.format === 'test') return testBoard(st, inn);
   const first = st.innings.length === 2 ? st.innings[0] : null;
   let meta = `<span><i>CRR</i> ${Number(inn.crr).toFixed(2)}</span>`;
   if (inn.target) meta += `<span><i>Target</i> ${inn.target}${inn.dls ? ' <b class="dls-tag">DLS</b>' : ''}</span>` + (inn.status === 'live' ? `<span><i>RRR</i> ${Number(inn.rrr).toFixed(2)}</span>` : '');
@@ -662,6 +678,26 @@ function scoreBoard(st, inn) {
     <div class="score"><b>${inn.runs}/${inn.wickets}</b><span>(${inn.overs}/${inn.max_overs} ov)</span></div>
     <div class="meta">${meta}</div>${need}
     ${first ? `<div class="other">${esc(teamById(first.batting_team_id).name)}: ${first.runs}/${first.wickets} (${first.overs} ov)</div>` : `<div class="other">${esc(toss)}</div>`}</div>`;
+}
+
+function testBoard(st, inn) {
+  const m = st.match, bt = teamById(inn.batting_team_id), ot = teamById(inn.bowling_team_id);
+  const tot = m.totals || {}; const mine = tot[inn.batting_team_id] || 0, theirs = tot[inn.bowling_team_id] || 0;
+  const ord = n => n === 1 ? '1st' : '2nd';
+  let meta = `<span><i>RR</i> ${Number(inn.crr).toFixed(2)}</span>`;
+  if (inn.target && inn.status === 'live') meta += `<span><i>Target</i> ${inn.target}</span>`;
+  if (inn.extras) meta += `<span><i>Extras</i> ${inn.extras}</span>`;
+  let need = '';
+  if (m.result_text) need = `<div class="need">🏆 ${esc(m.result_text)}</div>`;
+  else if (inn.target && inn.status === 'live') need = `<div class="need">${esc(bt.name)} need ${plural(inn.need, 'run')} to win</div>`;
+  else if (inn.status === 'live' && st.innings.length > 1) need = `<div class="need">${esc(bt.name)} ${mine >= theirs ? 'lead by' : 'trail by'} ${plural(Math.abs(mine - theirs), 'run')}${inn.follow_on ? ' · following on' : ''}</div>`;
+  else if (inn.status === 'completed' && !m.result_text) need = `<div class="need">Innings break${inn.declared ? ' · declared' : ''}</div>`;
+  const others = st.innings.filter(i => i.id !== inn.id).map(i => `<div class="other">${esc(teamById(i.batting_team_id).name)} ${i.team_inns === 1 ? '1st' : '2nd'} inns: ${i.runs}/${i.wickets}${i.declared ? 'd' : ''} (${i.overs} ov)</div>`).join('');
+  const toss = m.toss_winner_id ? `${teamById(m.toss_winner_id).name} won the toss & chose to ${m.toss_decision}` : '';
+  return `<div class="board"><div class="bt">${badge(bt, 'sm')}<span class="grow ellipsis">${esc(bt.name)}</span><span class="pill">${ord(inn.team_inns || 1)} innings${inn.declared ? ' · dec' : ''}</span></div>
+    <div class="score"><b>${inn.runs}/${inn.wickets}${inn.declared ? '<small style="font-size:.45em">d</small>' : ''}</b><span>(${inn.overs} ov)</span></div>
+    <div class="meta">${meta}</div>${need}
+    ${others || `<div class="other">${esc(toss)}</div>`}</div>`;
 }
 
 function thisOverBalls(st, inn) {
@@ -687,12 +723,13 @@ function creasePanel(st, inn) {
       ${inn.bowler_id ? `<tr class="bowl"><td>${esc(bw ? bw.name : pname(inn.bowler_id))}</td><td>${bw ? bw.o : '0.0'}</td><td>${bw ? bw.m : 0}</td><td>${bw ? bw.r : 0}</td><td><b>${bw ? bw.w : 0}</b></td><td>${bw ? bw.econ : '0.00'}</td></tr>` : '<tr class="bowl"><td colspan="6" class="muted">New over - choose the bowler</td></tr>'}
     </table>
     <div class="over-strip"><span class="lbl">Over ${cur + 1}</span>${lastBallBadge(st, inn)}${balls.length ? balls.map(b => ballChip(b.label)).join('') : '<span class="muted small">No balls yet</span>'}</div>
-    <div class="partner"><span>Partnership: <b>${p.runs}</b> (${p.balls})</span><span>${inn.status === 'live' ? `${inn.max_overs * st.match.balls_per_over - inn.legal_balls} balls left` : 'Innings over'}</span></div></div>`;
+    <div class="partner"><span>Partnership: <b>${p.runs}</b> (${p.balls})</span><span>${inn.status === 'live' ? (st.match.format === 'test' ? `${inn.overs} overs bowled` : `${inn.max_overs * st.match.balls_per_over - inn.legal_balls} balls left`) : 'Innings over'}</span></div></div>`;
 }
 
 function lastBallBadge(st, inn) {
   const bpo = st.match.balls_per_over, total = inn.max_overs * bpo;
   if (inn.status !== 'live' || !inn.bowler_id || inn.legal_balls % bpo !== bpo - 1) return '';
+  if (st.match.format === 'test') return `<span class="pill live" style="flex:none;margin-right:4px">Last ball</span>`;
   return `<span class="pill live" style="flex:none;margin-right:4px">${inn.legal_balls === total - 1 ? 'Last ball of innings' : 'Last ball'}</span>`;
 }
 function scorePad() {
@@ -1061,7 +1098,10 @@ App.setVis = v => run(async () => {
   closeSheet(); drawMatch(false);
   toast(v === 'private' ? '🔒 Match is now private - only you can see it' : '🌍 Match is now public');
 });
-App.endInnings = () => confirmSheet('End innings?', 'Use this for rain, bad light or a declaration. The innings will close at the current score.', 'End innings', () => scoreAction('match_end_innings'));
+App.endInnings = () => S.m.match.format === 'test'
+  ? confirmSheet('Declare the innings?', `${teamById(curInn().batting_team_id).name} declare at ${curInn().runs}/${curInn().wickets}. The other side bats next.`, 'Declare', () => scoreAction('match_end_innings'))
+  : confirmSheet('End innings?', 'Use this for rain, bad light or a declaration. The innings will close at the current score.', 'End innings', () => scoreAction('match_end_innings'));
+App.drawMatch = () => confirmSheet('End as a draw?', 'Time is up - the match is drawn. Both innings close at the current scores. You can undo this from the menu.', 'Match drawn', () => scoreAction('match_draw'));
 App.abandon = () => confirmSheet('Abandon match?', 'The match will be recorded as "No result".', 'Abandon', () => scoreAction('match_abandon'));
 App.deleteMatch = () => confirmSheet('Delete this match?', 'All scores for this match will be removed. This cannot be undone.', 'Delete', () => run(async () => { await api('match_delete', { id: S.m.match.id }); closeSheet(); S.m = null; toast('Match deleted'); go('#/matches'); }));
 App.shareMatch = async () => {
@@ -1165,18 +1205,30 @@ function openersSetup() {
   const st = S.m, nx = st.next, op = S.op || (S.op = {});
   if (op.no !== nx.no) { S.op = { no: nx.no }; }
   const o = S.op;
-  const bat = st.xi[nx.batting_team_id], bowl = st.xi[nx.bowling_team_id];
-  const bt = teamById(nx.batting_team_id), bwt = teamById(nx.bowling_team_id);
+  if (nx.swapped) { const t = nx.batting_team_id; nx.batting_team_id = nx.bowling_team_id; nx.bowling_team_id = t; nx.swapped = false; }
   const chips = (list, key, other) => list.map(p => `<button class="chip ${o[key] === p.id ? 'on' : ''}" ${other && o[other] === p.id ? 'disabled' : ''} onclick="S.op['${key}']=${p.id};drawMatch(false)">${roleIcon(p.role)} ${esc(p.name)}</button>`).join('');
-  const single = st.match.last_man_stands && bat.length === 1;
   let brk = '';
-  if (nx.no === 2) {
+  if (st.match.format === 'test' && nx.no > 1) {
+    const tot = st.match.totals || {}; const a = tot[nx.batting_team_id] || 0, b = tot[nx.bowling_team_id] || 0;
+    const last = st.innings[st.innings.length - 1];
+    const btn = teamById(nx.batting_team_id);
+    let line = nx.no === 4 ? `${esc(btn.name)} need ${nx.target} to win` : nx.no === 2 ? `${esc(btn.name)} trail by ${plural(b - a, 'run')}` : (nx.lead >= 0 ? `${esc(teamById(nx.batting_team_id).name)} lead by ${plural(nx.lead, 'run')}` : `${esc(teamById(nx.bowling_team_id).name)} lead by ${plural(-nx.lead, 'run')}`);
+    if (nx.no === 3 && o.fo) line = `${esc(teamById(nx.follow_on_team).name)} follow on, trailing by ${plural(nx.lead, 'run')}`;
+    brk = `<div class="card" style="text-align:center"><div style="font-size:34px">☕</div><b class="big-num">Innings break</b>
+      <div class="muted">${esc(teamById(last.batting_team_id).name)} ${last.declared ? 'declared at' : 'made'} ${last.runs}/${last.wickets} in ${last.overs} overs</div>
+      <div style="margin-top:6px;font-weight:800;color:var(--green)">${line}</div>
+      ${nx.no === 3 && nx.can_follow_on ? `<label class="switch" style="margin-top:10px"><span><b>Enforce the follow-on</b><div class="small muted">${esc(teamById(nx.follow_on_team).name)} bat again (lead ≥ ${st.match.follow_on})</div></span><input type="checkbox" ${o.fo ? 'checked' : ''} onchange="S.op.fo=this.checked;S.op.s=S.op.ns=S.op.b=null;drawMatch(false)"><span class="knob"></span></label>` : ''}</div>`;
+    if (nx.no === 3 && o.fo) { const t = nx.batting_team_id; nx.batting_team_id = nx.bowling_team_id; nx.bowling_team_id = t; nx.swapped = true; }
+  } else if (nx.no === 2) {
     const i1 = st.innings[0];
     brk = `<div class="card" style="text-align:center"><div style="font-size:34px">☕</div><b class="big-num">Innings break</b>
       <div class="muted">${esc(teamById(i1.batting_team_id).name)} scored ${i1.runs}/${i1.wickets} in ${i1.overs} overs</div>
       <div style="margin-top:6px;font-weight:800;color:var(--green)">${esc(bt.name)} need ${nx.target} runs from ${nx.overs * st.match.balls_per_over} balls${nx.dls ? ` <span class="dls-tag">DLS</span>` : ''}</div>
       ${nx.dls ? `<div class="small muted" style="margin-top:4px">Target revised by the DLS method (${nx.overs} overs)</div>` : ''}</div>`;
   }
+  const bat = st.xi[nx.batting_team_id], bowl = st.xi[nx.bowling_team_id];
+  const bt = teamById(nx.batting_team_id), bwt = teamById(nx.bowling_team_id);
+  const single = st.match.last_man_stands && bat.length === 1;
   return `<div class="content">${brk}<div class="card">
     <div class="row" style="margin-bottom:10px">${badge(bt, 'sm')}<b class="grow">${esc(bt.name)} - opening batters</b></div>
     <div class="field"><label>Striker (faces the first ball)</label><div class="chips wrap">${chips(bat, 's', 'ns')}</div></div>
@@ -1185,13 +1237,13 @@ function openersSetup() {
     <div class="row" style="margin:10px 0">${badge(bwt, 'sm')}<b class="grow">${esc(bwt.name)} - opening bowler</b></div>
     <div class="chips wrap" style="margin-bottom:14px">${chips(bowl, 'b')}</div>
     <button class="btn block" onclick="App.startInnings(this)">Play ball! 🏏</button>
-    ${nx.no === 2 ? '<button class="btn light block" style="margin-top:8px" onclick="App.undo()">↶ Undo last ball of 1st innings</button>' : '<button class="btn light block" style="margin-top:8px" onclick="App.undoToss()">← Redo the toss</button>'}
+    ${nx.no >= 2 ? '<button class="btn light block" style="margin-top:8px" onclick="App.undo()">↶ Undo last ball of previous innings</button>' : '<button class="btn light block" style="margin-top:8px" onclick="App.undoToss()">← Redo the toss</button>'}
   </div></div>`;
 }
 App.startInnings = btn => {
   const o = S.op, st = S.m, single = st.match.last_man_stands && st.xi[st.next.batting_team_id].length === 1;
   if (!o.s || (!single && !o.ns) || !o.b) return toast('Pick both batters and the bowler', true);
-  run(() => scoreAction('match_start_innings', { striker_id: o.s, non_striker_id: single ? null : o.ns, bowler_id: o.b }), btn);
+  run(() => scoreAction('match_start_innings', { striker_id: o.s, non_striker_id: single ? null : o.ns, bowler_id: o.b, follow_on: o.fo ? 1 : 0 }), btn);
 };
 App.undoToss = () => { S.m.needs = 'toss'; S.toss = {}; drawMatch(false); };
 

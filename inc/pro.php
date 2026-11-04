@@ -15,22 +15,27 @@ function schema_v116(): void {
     if (!val("SHOW COLUMNS FROM balls WHERE Field='wicket_type' AND Type LIKE '%30%'")) db()->exec("ALTER TABLE balls MODIFY COLUMN wicket_type VARCHAR(30) NULL");
     if (!val("SHOW COLUMNS FROM balls LIKE 'fielded_id'")) db()->exec("ALTER TABLE balls ADD COLUMN fielded_id INT NULL AFTER field_runs");
     if (!val("SHOW COLUMNS FROM innings LIKE 'field_json'")) db()->exec("ALTER TABLE innings ADD COLUMN field_json TEXT NULL AFTER bowler_id");
+    if (val("SHOW TABLES LIKE 'penalties'") && !val("SHOW COLUMNS FROM penalties LIKE 'innings_id'")) db()->exec("ALTER TABLE penalties ADD COLUMN innings_id INT NULL AFTER team_id");
+    if (!val("SHOW COLUMNS FROM innings LIKE 'is_super'")) { db()->exec("ALTER TABLE innings ADD COLUMN is_super TINYINT(1) NOT NULL DEFAULT 0 AFTER dls, ADD COLUMN follow_on TINYINT(1) NOT NULL DEFAULT 0 AFTER is_super, ADD COLUMN declared TINYINT(1) NOT NULL DEFAULT 0 AFTER follow_on"); db()->exec("UPDATE innings i JOIN matches m ON m.id=i.match_id SET i.is_super=1 WHERE i.innings_no>=3 AND m.super_over=1"); }
+    if (!val("SHOW COLUMNS FROM matches LIKE 'format'")) db()->exec("ALTER TABLE matches ADD COLUMN format VARCHAR(10) NOT NULL DEFAULT 'limited' AFTER overs, ADD COLUMN days TINYINT NOT NULL DEFAULT 0 AFTER format, ADD COLUMN follow_on INT NOT NULL DEFAULT 200 AFTER days");
     if (!val("SHOW COLUMNS FROM matches LIKE 'powerplay_overs'")) {
         db()->exec("ALTER TABLE matches ADD COLUMN powerplay_overs TINYINT NOT NULL DEFAULT 0 AFTER max_overs_bowler, ADD COLUMN super_over TINYINT(1) NOT NULL DEFAULT 0 AFTER powerplay_overs,
                     ADD COLUMN best_bat_id INT NULL AFTER player_of_match_id, ADD COLUMN best_bowl_id INT NULL AFTER best_bat_id,
                     ADD COLUMN officials TEXT NULL AFTER best_bowl_id, ADD COLUMN stream_url VARCHAR(255) NULL AFTER officials");
     }
     if (!val("SHOW TABLES LIKE 'penalties'")) {
-        db()->exec("CREATE TABLE IF NOT EXISTS penalties (id INT AUTO_INCREMENT PRIMARY KEY, match_id INT NOT NULL, team_id INT NOT NULL, runs INT NOT NULL, reason VARCHAR(80) NULL,
+        db()->exec("CREATE TABLE IF NOT EXISTS penalties (id INT AUTO_INCREMENT PRIMARY KEY, match_id INT NOT NULL, team_id INT NOT NULL, innings_id INT NULL, runs INT NOT NULL, reason VARCHAR(80) NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX (match_id), FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     }
 }
 
 /** Penalty / bonus runs that count for the side batting in this innings (super overs get none) */
 function penalty_runs_for_innings(int $innId): int {
-    $inn = row('SELECT match_id, batting_team_id, innings_no FROM innings WHERE id=?', [$innId]);
-    if (!$inn || (int)$inn['innings_no'] > 2) return 0;
-    return (int)val('SELECT COALESCE(SUM(runs),0) FROM penalties WHERE match_id=? AND team_id=?', [$inn['match_id'], $inn['batting_team_id']]);
+    $inn = row('SELECT id, match_id, batting_team_id, innings_no, is_super FROM innings WHERE id=?', [$innId]);
+    if (!$inn || !empty($inn['is_super'])) return 0;
+    $first = (int)val('SELECT MIN(id) FROM innings WHERE match_id=? AND batting_team_id=? AND is_super=0', [$inn['match_id'], $inn['batting_team_id']]);
+    // a penalty is tied to the innings it was given in; older rows (no innings) count in the side's first innings
+    return (int)val('SELECT COALESCE(SUM(runs),0) FROM penalties WHERE match_id=? AND team_id=? AND (innings_id=? OR (innings_id IS NULL AND ?=?))', [$inn['match_id'], $inn['batting_team_id'], $innId, $first, $innId]);
 }
 
 /** Optional per-ball details sent with a ball (or when tagging a ball later) */
@@ -92,7 +97,7 @@ function partnership_row(array $players, array $partBat, int $runs, int $balls, 
 /** Best batter (most runs, fewer balls) and best bowler (most wickets, fewer runs) of a match - super overs excluded */
 function best_performers(int $matchId): array {
     $bat = []; $bowl = [];
-    foreach (rows('SELECT b.* FROM balls b JOIN innings i ON i.id=b.innings_id WHERE i.match_id=? AND i.innings_no<=2', [$matchId]) as $b) {
+    foreach (rows('SELECT b.* FROM balls b JOIN innings i ON i.id=b.innings_id WHERE i.match_id=? AND i.is_super=0', [$matchId]) as $b) {
         if (!in_array($b['wicket_type'], NON_DELIVERY, true)) {
             $p = (int)$b['batsman_id'];
             $bat[$p] = ['r' => ($bat[$p]['r'] ?? 0) + (int)$b['runs_bat'], 'b' => ($bat[$p]['b'] ?? 0) + ($b['extra_type'] === 'wd' ? 0 : 1)];
@@ -116,8 +121,9 @@ function match_penalty(array $m, array $in): void {
     if (!in_array($team, [(int)$m['team1_id'], (int)$m['team2_id']], true)) fail('Pick the side that gets the runs');
     $runs = (int)($in['runs'] ?? 5);
     if ($runs < 1 || $runs > 50) fail('Penalty runs must be between 1 and 50');
-    if (latest_innings((int)$m['id']) && (int)latest_innings((int)$m['id'])['innings_no'] >= 3) fail('No penalty runs in a super over');
-    q('INSERT INTO penalties (match_id, team_id, runs, reason) VALUES (?,?,?,?)', [$m['id'], $team, $runs, mb_substr(trim((string)($in['reason'] ?? '')), 0, 80) ?: null]);
+    if (latest_innings((int)$m['id']) && !empty(latest_innings((int)$m['id'])['is_super'])) fail('No penalty runs in a super over');
+    $innId = nint(val('SELECT MAX(id) FROM innings WHERE match_id=? AND batting_team_id=? AND is_super=0', [$m['id'], $team]));   // the side's latest innings (NULL = not batted yet: counts in its first)
+    q('INSERT INTO penalties (match_id, team_id, runs, reason, innings_id) VALUES (?,?,?,?,?)', [$m['id'], $team, $runs, mb_substr(trim((string)($in['reason'] ?? '')), 0, 80) ?: null, $innId]);
     penalty_recalc($m);
 }
 function match_penalty_undo(array $m, array $in): void {
@@ -127,8 +133,8 @@ function match_penalty_undo(array $m, array $in): void {
     penalty_recalc($m);
 }
 function penalty_recalc(array $m): void {
-    foreach (rows('SELECT * FROM innings WHERE match_id=? AND innings_no<=2 ORDER BY innings_no', [$m['id']]) as $inn) recompute_innings((int)$inn['id']);
-    dls_update_target($m);
+    foreach (rows('SELECT * FROM innings WHERE match_id=? AND is_super=0 ORDER BY innings_no', [$m['id']]) as $inn) recompute_innings((int)$inn['id']);
+    if (!is_test($m)) dls_update_target($m);
     $i2 = row('SELECT * FROM innings WHERE match_id=? AND innings_no=2', [$m['id']]);
     if ($i2 && $i2['status'] === 'live' && innings_end_reason($m, $i2)) complete_innings($m, $i2);
     elseif ($m['status'] === 'completed') finish_match((int)$m['id']);
@@ -294,7 +300,7 @@ function match_details_save(array $m, array $in): void {
 function player_insights(int $pid, string $vs, array $vp): array {
     $balls = rows("SELECT b.runs_bat, b.extra_type, b.extra_runs, b.is_legal, b.is_wicket, b.wicket_type, b.dismissed_id, b.batsman_id, b.bowler_id, b.over_no, b.shot_type, b.shot_zone, b.fielder_id, b.drop_id, b.field_id, b.field_runs, i.max_overs, i.innings_no, i.id innings_id
         FROM balls b JOIN innings i ON i.id=b.innings_id JOIN matches m ON m.id=i.match_id
-        WHERE (b.batsman_id=? OR b.bowler_id=? OR b.dismissed_id=? OR b.fielder_id=? OR b.drop_id=? OR b.field_id=?) AND i.innings_no<=2 AND $vs ORDER BY b.innings_id, b.seq", array_merge([$pid, $pid, $pid, $pid, $pid, $pid], $vp));
+        WHERE (b.batsman_id=? OR b.bowler_id=? OR b.dismissed_id=? OR b.fielder_id=? OR b.drop_id=? OR b.field_id=?) AND i.is_super=0 AND $vs ORDER BY b.innings_id, b.seq", array_merge([$pid, $pid, $pid, $pid, $pid, $pid], $vp));
     $phase = ['powerplay' => ['r' => 0, 'b' => 0, 'o' => 0], 'middle' => ['r' => 0, 'b' => 0, 'o' => 0], 'death' => ['r' => 0, 'b' => 0, 'o' => 0]];
     $bowlPhase = ['powerplay' => ['r' => 0, 'b' => 0, 'w' => 0], 'middle' => ['r' => 0, 'b' => 0, 'w' => 0], 'death' => ['r' => 0, 'b' => 0, 'w' => 0]];
     $outs = []; $wkTypes = []; $shots = []; $zones = []; $runTypes = ['dot' => 0, '1' => 0, '2' => 0, '3' => 0, '4' => 0, '6' => 0];

@@ -4,6 +4,16 @@ The admin portal (More → Admin portal → Updates) reads this file from GitHub
 before installing. Add a `## <version> - <date>` section with `-` bullet points for every release,
 and bump `APP_VERSION` in `inc/version.php`.
 
+## 1.20.0 - 4 November 2026
+- Test matches: a new *Format* picker on the New Match form (Limited overs / Test match) with days and follow-on lead; no over limit and no bowler limit
+- Two innings a side: declare from the match menu ("Declare this innings"), follow-on switch on the innings-break screen when the lead is big enough, 4th-innings target worked out automatically, team-innings chips (CSK 1st / DC 1st / CSK 2nd) on the scorecard and "120/4 & 88/2" on match cards
+- Results: "won by an innings and N runs", "won by N wickets/runs", tied, or "End match as a draw" from the menu when time is up (undo re-opens it); draws count like ties in points tables
+- The scoreboard shows the lead/trail, "following on", declared totals (120/4d) and both teams' earlier innings; no DLS, super over or powerplay options on a Test
+- Stats: innings are now flagged `is_super` instead of "innings 3+ = super over", so 3rd/4th Test innings count in careers, MVP, leaderboards and match notes; penalty runs are tied to the innings they were given in
+- Faster: no DLS table is computed for Test matches
+- Score overlay hides the over limit on a Test
+- Schema: `matches.format/days/follow_on`, `innings.is_super/follow_on/declared`, `penalties.innings_id` (auto-upgraded)
+
 ## 1.19.2 - 4 November 2026
 - Team captain: the team owner (and admin) can pick or change the captain straight from the team page - "Pick captain" / "Change captain" lists the squad; the Edit Team form offers the squad as a drop-down too
 

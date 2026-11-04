@@ -8,7 +8,11 @@ Made for Aarush & Aayush.
 - **Teams** - 10 IPL franchises and 12 international teams pre-loaded with full squads (504 players),
   plus your own custom teams. "Pick from teams" copies stars like Kohli or Bumrah into your own team.
 - **Match types** - T20, ODI, T10, Box Cricket, Gully Cricket, Backyard (Kids), Custom - or create your own
-  (overs, balls per over, players per side, bowler overs limit, last-man-stands).
+  (overs, balls per over, players per side, bowler overs limit, last-man-stands). **Test matches** too: pick the
+  *Test match* format for two innings a side with no over limit - declare from the match menu, enforce the follow-on
+  when the lead is big enough (your own lead, 200 by default), the 4th-innings target is worked out for you, results
+  read "won by an innings and 40 runs" / "won by 3 wickets", and time running out ends it as a draw (1 point each in a
+  tournament table). Scorecards show "CSK 1st / DC 1st / CSK 2nd" and the match list shows "120/4 & 88/2".
 - **Live ball-by-ball scoring** - runs, 4s/6s, wides, no-balls, byes, leg-byes, every dismissal (bowled, caught, lbw,
   run out, stumped, hit wicket, obstructing the field, hit the ball twice, retired out, timed out, retired hurt),
   strike rotation, over changes, bowler limits, unlimited undo, **edit or delete any earlier ball** (later balls are

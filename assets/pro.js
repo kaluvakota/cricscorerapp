@@ -246,13 +246,15 @@ App.matchMenu = () => {
   const st = S.m, m = st.match;
   const live = st.innings.length && curInn().status === 'live' && m.status === 'live';
   const inn1 = !st.innings.length || (st.innings.length === 1 && curInn().status === 'live');
+  const test = m.format === 'test';
   sheet(`<h3>Match options</h3><div class="sub">${esc(st.team1.name)} vs ${esc(st.team2.name)}</div><div class="plist">
     ${st.needs === 'completed' && m.status !== 'abandoned' ? '<button class="pbtn" onclick="App.undo()">↶ Undo last ball (re-open match)</button>' : ''}
     ${m.can_super_over && st.can_edit ? '<button class="pbtn" onclick="App.superOver()">🔥 Play a super over</button>' : ''}
-    ${live ? '<button class="pbtn" onclick="App.endInnings()">⏹️ End this innings now</button>' : ''}
-    ${['live', 'scheduled'].includes(m.status) || m.result_method === 'rain' ? '<button class="pbtn" onclick="App.rainSheet()">🌧️ Rain / DLS - reduce overs, revised target</button>' : ''}
-    ${inn1 && m.status !== 'completed' ? `<button class="pbtn" onclick="App.oversSheet()">🔢 Change overs <span class="s">${m.overs} overs now</span></button>` : ''}
-    ${m.status !== 'completed' ? `<button class="pbtn" onclick="App.powerplaySheet()">⚡ Powerplay overs <span class="s">${m.powerplay_overs || 'none'}</span></button>` : ''}
+    ${live ? `<button class="pbtn" onclick="App.endInnings()">${test ? '🏳️ Declare this innings' : '⏹️ End this innings now'}</button>` : ''}
+    ${test && m.status === 'live' ? '<button class="pbtn" onclick="App.drawMatch()">🤝 End match as a draw <span class="s">time is up</span></button>' : ''}
+    ${!test && (['live', 'scheduled'].includes(m.status) || m.result_method === 'rain') ? '<button class="pbtn" onclick="App.rainSheet()">🌧️ Rain / DLS - reduce overs, revised target</button>' : ''}
+    ${!test && inn1 && m.status !== 'completed' ? `<button class="pbtn" onclick="App.oversSheet()">🔢 Change overs <span class="s">${m.overs} overs now</span></button>` : ''}
+    ${!test && m.status !== 'completed' ? `<button class="pbtn" onclick="App.powerplaySheet()">⚡ Powerplay overs <span class="s">${m.powerplay_overs || 'none'}</span></button>` : ''}
     ${m.status !== 'abandoned' ? '<button class="pbtn" onclick="App.penaltySheet()">⚖️ Penalty / bonus runs</button>' : ''}
     ${st.innings.length ? '<button class="pbtn" onclick="S.mTab=\'overs\';closeSheet();drawMatch(false);toast(\'Tap any ball in the Overs tab to edit it\')">✏️ Edit an earlier ball</button>' : ''}
     <button class="pbtn" onclick="App.detailsSheet()">🧑‍⚖️ Officials & live stream</button>
@@ -306,7 +308,7 @@ matchTabs = st => {
   const tabs = [['card', 'Scorecard'], ['overs', 'Overs'], ['comm', 'Ball by ball'], ['analysis', 'Analysis']];
   const n = st.innings.length;
   if (S.cardInn === null || S.cardInn >= n || S.cardInnN !== n) { S.cardInn = n - 1; S.cardInnN = n; }
-  const innName = i => (i.super ? 'SO ' : '') + teamById(i.batting_team_id).short_name;
+  const innName = i => (i.super ? 'SO ' : '') + teamById(i.batting_team_id).short_name + (st.match.format === 'test' ? (i.team_inns === 2 ? ' 2nd' : ' 1st') : '');
   const innSel = n > 1 && S.mTab !== 'analysis' ? `<div class="chips" style="margin-bottom:10px">${st.innings.map((i, k) => `<button class="chip ${k === S.cardInn ? 'on' : ''}" onclick="S.cardInn=${k};drawMatch(false)">${esc(innName(i))} ${i.runs}/${i.wickets}</button>`).join('')}</div>` : '';
   const inn = st.innings[S.cardInn];
   const body = S.mTab === 'overs' ? oversView(st, inn) : S.mTab === 'comm' ? commView(st, inn) : S.mTab === 'analysis' ? analysisView(st) : scorecardView(st, inn);
@@ -479,6 +481,7 @@ const _scoreBoard = scoreBoard;
 scoreBoard = (st, inn) => {
   let h = _scoreBoard(st, inn);
   if (inn.super) h = h.replace(`${inn.no === 1 ? '1st' : '2nd'} innings</span>`, 'Super over</span>');
+  if (st.match.format === 'test') return h;
   if (inn.powerplay && inn.powerplay.live) h = h.replace('<div class="meta">', '<div class="meta"><span class="pp-tag">⚡ Powerplay</span>');
   return h;
 };
@@ -648,7 +651,7 @@ matchTabs = st => {
   const tabs = [['card', 'Scorecard'], ['summary', 'Summary'], ['overs', 'Overs'], ['comm', 'Ball by ball'], ['analysis', 'Analysis'], ['mvp', 'MVP'], ['teams', 'Teams']];
   const n = st.innings.length;
   if (S.cardInn === null || S.cardInn >= n || S.cardInnN !== n) { S.cardInn = n - 1; S.cardInnN = n; }
-  const innName = i => (i.super ? 'SO ' : '') + teamById(i.batting_team_id).short_name;
+  const innName = i => (i.super ? 'SO ' : '') + teamById(i.batting_team_id).short_name + (st.match.format === 'test' ? (i.team_inns === 2 ? ' 2nd' : ' 1st') : '');
   const perInn = ['card', 'overs', 'comm'].includes(S.mTab);
   const innSel = n > 1 && perInn ? `<div class="chips" style="margin-bottom:10px">${st.innings.map((i, k) => `<button class="chip ${k === S.cardInn ? 'on' : ''}" onclick="S.cardInn=${k};drawMatch(false)">${esc(innName(i))} ${i.runs}/${i.wickets}</button>`).join('')}</div>` : '';
   const inn = st.innings[S.cardInn];
